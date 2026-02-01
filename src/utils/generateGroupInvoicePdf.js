@@ -3,9 +3,10 @@ import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
 import britishFlag from '../assets/British.png'
 import germanFlag from '../assets/Germany.png'
+import defaultInvoiceLogo from '../assets/logo.png'
 
 const DEFAULT_SETTINGS = {
-  logo_url: '',
+  logo_url: defaultInvoiceLogo,
   company_name: 'LST Travel Agency',
   contact_person: 'Yodli Hagos Mebratu',
   address: 'Düsseldorfer Straße 14',
@@ -37,10 +38,19 @@ const escapeHtml = (text) => {
   return div.innerHTML
 }
 
-const normalizeSettings = (settings) => ({
-  ...DEFAULT_SETTINGS,
-  ...(settings || {})
-})
+const normalizeSettings = (settings) => {
+  const result = {
+    ...DEFAULT_SETTINGS,
+    ...(settings || {})
+  }
+
+  // Ensure we always have a logo fallback (matches single-passenger invoices)
+  if (!result.logo_url) {
+    result.logo_url = DEFAULT_SETTINGS.logo_url
+  }
+
+  return result
+}
 
 // Extract city and code from airport string
 // Example: "HHN, Hahn Airport, Frankfurt" → { city: "Hahn", code: "HHN" }
