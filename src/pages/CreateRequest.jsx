@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../contexts/StoreContext'
 import AirportAutocomplete from '../components/AirportAutocomplete'
+import CountryAutocomplete from '../components/CountryAutocomplete'
 import * as pdfjsLib from 'pdfjs-dist'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
@@ -3023,12 +3024,11 @@ Return format:
 
                 <div className="form-field">
                   <label htmlFor="nationality">{t.fields.nationality}</label>
-                  <input
+                  <CountryAutocomplete
                     id="nationality"
-                    type="text"
-                    placeholder={t.placeholders.nationality}
                     value={formData.nationality}
-                    onChange={(e) => handleInputChange('nationality', e.target.value)}
+                    placeholder={t.placeholders.nationality}
+                    onChange={(val) => handleInputChange('nationality', val)}
                   />
                 </div>
               </div>

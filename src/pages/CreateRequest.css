@@ -1116,6 +1116,56 @@ html[data-theme="dark"] .main-content {
   opacity: 1 !important; /* Full opacity - NO faded placeholders */
 }
 
+/* Country autocomplete */
+.country-autocomplete {
+  position: relative;
+}
+
+.country-autocomplete-input {
+  width: 100%;
+  max-width: 100%;
+}
+
+.country-autocomplete-list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.country-autocomplete-item {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 0.75rem;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.country-autocomplete-item:hover {
+  background: var(--bg-subtle);
+}
+
+.country-autocomplete-name {
+  font-weight: 500;
+}
+
+.country-autocomplete-code {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
 /* Dark mode - prevent autofill from turning inputs white */
 html.dark .form-field input:-webkit-autofill,
 html[data-theme="dark"] .form-field input:-webkit-autofill,
