@@ -1,0 +1,388 @@
+/* Logo Editor Component Styles */
+.logo-editor {
+  width: 100%;
+}
+
+/* Logo Preview Section */
+.logo-editor-preview {
+  margin-bottom: 2rem;
+}
+
+.logo-image-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Clickable Logo Preview */
+.logo-preview-clickable {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px dashed var(--border-color, rgba(255, 255, 255, 0.1));
+  transition: all 0.3s ease;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.logo-preview-clickable:hover {
+  border-color: var(--primary-color, #3b82f6);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.logo-preview-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 300px;
+  object-fit: contain;
+  background: var(--preview-bg, #f9fafb);
+  padding: 1rem;
+}
+
+.logo-preview-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.logo-preview-clickable:hover .logo-preview-overlay {
+  opacity: 1;
+}
+
+.logo-preview-overlay svg {
+  width: 32px;
+  height: 32px;
+}
+
+.logo-preview-overlay span {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Placeholder */
+.logo-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  border: 2px dashed var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  background: var(--placeholder-bg, rgba(0, 0, 0, 0.1));
+}
+
+.logo-placeholder-clickable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.logo-placeholder-clickable:hover {
+  transform: scale(1.05);
+}
+
+.logo-placeholder-clickable svg {
+  color: var(--text-secondary, #9ca3af);
+  transition: color 0.3s ease;
+}
+
+.logo-placeholder-clickable:hover svg {
+  color: var(--primary-color, #3b82f6);
+}
+
+.logo-placeholder-clickable p {
+  margin: 0;
+  color: var(--text-secondary, #9ca3af);
+  font-size: 1rem;
+}
+
+.logo-placeholder-hint {
+  font-size: 0.85rem;
+  color: var(--primary-color, #3b82f6);
+  font-weight: 500;
+}
+
+/* Editor Canvas Wrapper */
+.logo-editor-canvas-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: var(--editor-bg, rgba(0, 0, 0, 0.2));
+  border-radius: 8px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  overflow: auto;
+  max-height: 500px;
+}
+
+.logo-editor-canvas-wrapper img {
+  max-width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+}
+
+/* Editor Controls */
+.logo-editor-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--controls-bg, rgba(0, 0, 0, 0.1));
+  border-radius: 8px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.logo-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.logo-control-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.logo-control-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--input-bg, #374151);
+  border: 1px solid var(--input-border, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  padding: 0.25rem;
+}
+
+.logo-control-value {
+  flex: 1;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  min-width: 60px;
+}
+
+.logo-control-btn {
+  background: var(--button-bg, #4b5563);
+  border: 1px solid var(--button-border, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+  color: var(--text-primary, #ffffff);
+  font-size: 1.2rem;
+  font-weight: 600;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.logo-control-btn:hover:not(:disabled) {
+  background: var(--primary-color, #3b82f6);
+  border-color: var(--primary-color, #3b82f6);
+  transform: scale(1.1);
+}
+
+.logo-control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.logo-control-btn.active {
+  background: var(--primary-color, #3b82f6);
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.logo-control-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.logo-control-btn-reset {
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--button-bg, #4b5563);
+  border: 1px solid var(--button-border, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  color: var(--text-primary, #ffffff);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logo-control-btn-reset:hover:not(:disabled) {
+  background: var(--button-hover-bg, #6b7280);
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.logo-control-btn-reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Action Buttons */
+.logo-editor-actions,
+.logo-view-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.logo-view-actions {
+  margin-top: 1rem;
+}
+
+/* Instructions */
+.logo-editor-instructions {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--info-bg, rgba(59, 130, 246, 0.1));
+  border: 1px solid var(--info-border, rgba(59, 130, 246, 0.2));
+  border-radius: 8px;
+}
+
+.logo-instructions-text {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: var(--text-primary, #ffffff);
+}
+
+.logo-instructions-text strong {
+  color: var(--primary-color, #3b82f6);
+}
+
+.logo-instructions-list {
+  margin: 0 0 1rem 0;
+  padding-left: 1.5rem;
+  color: var(--text-secondary, #9ca3af);
+  font-size: 0.85rem;
+  line-height: 1.8;
+}
+
+.logo-instructions-list li {
+  margin-bottom: 0.5rem;
+}
+
+.logo-instructions-formats {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-tertiary, #6b7280);
+  font-style: italic;
+}
+
+/* React Crop Styles Override */
+.ReactCrop {
+  max-width: 100%;
+}
+
+.ReactCrop__crop-selection {
+  border: 2px solid var(--primary-color, #3b82f6);
+  box-shadow: 0 0 0 9999em rgba(0, 0, 0, 0.5);
+}
+
+.ReactCrop__drag-handle {
+  background: var(--primary-color, #3b82f6);
+  border: 2px solid white;
+  width: 12px;
+  height: 12px;
+}
+
+.ReactCrop__drag-bar {
+  background: var(--primary-color, #3b82f6);
+  opacity: 0.5;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .logo-editor-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .logo-preview-clickable {
+    max-width: 100%;
+  }
+
+  .logo-editor-canvas-wrapper {
+    max-height: 300px;
+  }
+
+  .logo-editor-canvas-wrapper img {
+    max-height: 250px;
+  }
+
+  .logo-editor-actions,
+  .logo-view-actions {
+    flex-direction: column;
+  }
+
+  .logo-editor-actions .btn,
+  .logo-view-actions .btn {
+    width: 100%;
+  }
+}
+
+/* Dark theme adjustments */
+.dark .logo-editor {
+  --preview-bg: #1f2937;
+  --placeholder-bg: rgba(0, 0, 0, 0.2);
+  --editor-bg: rgba(0, 0, 0, 0.3);
+  --controls-bg: rgba(0, 0, 0, 0.2);
+  --input-bg: #374151;
+  --input-border: rgba(255, 255, 255, 0.1);
+  --button-bg: #4b5563;
+  --button-border: rgba(255, 255, 255, 0.1);
+  --button-hover-bg: #6b7280;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  --primary-color: #3b82f6;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --info-bg: rgba(59, 130, 246, 0.1);
+  --info-border: rgba(59, 130, 246, 0.2);
+}
+
+/* Light theme adjustments */
+.light .logo-editor {
+  --preview-bg: #ffffff;
+  --placeholder-bg: rgba(0, 0, 0, 0.05);
+  --editor-bg: rgba(0, 0, 0, 0.05);
+  --controls-bg: rgba(0, 0, 0, 0.05);
+  --input-bg: #f9fafb;
+  --input-border: rgba(0, 0, 0, 0.1);
+  --button-bg: #f3f4f6;
+  --button-border: rgba(0, 0, 0, 0.1);
+  --button-hover-bg: #e5e7eb;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --primary-color: #2563eb;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --info-bg: rgba(59, 130, 246, 0.05);
+  --info-border: rgba(59, 130, 246, 0.2);
+}

@@ -1,0 +1,139 @@
+.airlines-autocomplete {
+  position: relative;
+  width: 100%;
+  z-index: 1;
+}
+
+/* Ensure the wrapper doesn't clip the dropdown */
+.excel-cell:has(.airlines-autocomplete) {
+  overflow: visible !important;
+  z-index: 1;
+}
+
+.excel-cell-input:has(.airlines-autocomplete) {
+  overflow: visible !important;
+}
+
+.airlines-autocomplete input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background: var(--input-bg, #fff);
+  color: var(--input-color, #000);
+}
+
+.airlines-autocomplete input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Dark theme support */
+[data-theme="dark"] .airlines-autocomplete input {
+  background: var(--input-bg, #2d2d2d);
+  color: var(--input-color, #fff);
+  border-color: #555;
+}
+
+[data-theme="dark"] .airlines-autocomplete input:focus {
+  border-color: #007bff;
+}
+
+.airlines-autocomplete-dropdown {
+  position: fixed;
+  z-index: 1000000;
+  background: var(--dropdown-bg, #fff);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-height: 300px;
+  overflow-y: auto;
+  min-width: 200px;
+}
+
+[data-theme="dark"] .airlines-autocomplete-dropdown {
+  background: var(--dropdown-bg, #2d2d2d);
+  border-color: #555;
+}
+
+.airlines-autocomplete-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.15s;
+}
+
+[data-theme="dark"] .airlines-autocomplete-item {
+  border-bottom-color: #444;
+}
+
+.airlines-autocomplete-item:hover {
+  background-color: var(--dropdown-hover-bg, #f5f5f5);
+}
+
+[data-theme="dark"] .airlines-autocomplete-item:hover {
+  background-color: var(--dropdown-hover-bg, #3d3d3d);
+}
+
+.airlines-autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.airlines-autocomplete-main {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+
+.airlines-autocomplete-code {
+  font-weight: 600;
+  color: #007bff;
+  min-width: 26px;
+  font-size: 0.8rem;
+  margin-right: 2px;
+}
+
+[data-theme="dark"] .airlines-autocomplete-code {
+  color: #4da3ff;
+}
+
+.airlines-autocomplete-name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-color, #000);
+  font-size: 0.85rem;
+}
+
+[data-theme="dark"] .airlines-autocomplete-name {
+  color: var(--text-color, #fff);
+}
+
+.airlines-autocomplete-details {
+  font-size: 0.75rem;
+  color: #666;
+  margin-left: 4px;
+}
+
+[data-theme="dark"] .airlines-autocomplete-details {
+  color: #aaa;
+}
+
+.airlines-autocomplete-custom {
+  font-style: italic;
+  color: #666;
+  border-top: 1px solid #eee;
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+[data-theme="dark"] .airlines-autocomplete-custom {
+  color: #aaa;
+  border-top-color: #444;
+}
+
+.airlines-autocomplete-custom-text {
+  font-size: 0.875rem;
+}

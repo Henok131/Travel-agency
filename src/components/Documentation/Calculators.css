@@ -1,0 +1,687 @@
+/* Calculators.css - Professional Calculator Styling */
+/* Inspired by Stripe, Linear, Notion, and Apple Design Systems */
+
+/* ============================================
+   CSS Variables & Color System
+   ============================================ */
+:root {
+  /* Primary Colors */
+  --calc-primary: #3b82f6;
+  --calc-primary-hover: #2563eb;
+  --calc-primary-light: rgba(59, 130, 246, 0.1);
+  --calc-primary-dark: #1e40af;
+  
+  /* Status Colors */
+  --calc-success: #10b981;
+  --calc-success-light: rgba(16, 185, 129, 0.1);
+  --calc-warning: #f59e0b;
+  --calc-warning-light: rgba(245, 158, 11, 0.1);
+  --calc-error: #ef4444;
+  --calc-error-light: rgba(239, 68, 68, 0.1);
+  --calc-accent: #8b5cf6;
+  --calc-accent-light: rgba(139, 92, 246, 0.1);
+  
+  /* Neutral Colors */
+  --calc-bg-primary: #ffffff;
+  --calc-bg-secondary: #f9fafb;
+  --calc-bg-tertiary: #f3f4f6;
+  --calc-border: rgba(0, 0, 0, 0.1);
+  --calc-border-hover: rgba(0, 0, 0, 0.15);
+  --calc-text-primary: #111827;
+  --calc-text-secondary: #6b7280;
+  --calc-text-tertiary: #9ca3af;
+  
+  /* Glassmorphism */
+  --calc-glass-bg: rgba(255, 255, 255, 0.7);
+  --calc-glass-border: rgba(255, 255, 255, 0.18);
+  --calc-glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  
+  /* Shadows */
+  --calc-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --calc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --calc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --calc-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Spacing */
+  --calc-spacing-xs: 0.25rem;
+  --calc-spacing-sm: 0.5rem;
+  --calc-spacing-md: 1rem;
+  --calc-spacing-lg: 1.5rem;
+  --calc-spacing-xl: 2rem;
+  
+  /* Border Radius */
+  --calc-radius-sm: 0.375rem;
+  --calc-radius-md: 0.5rem;
+  --calc-radius-lg: 0.75rem;
+  --calc-radius-xl: 1rem;
+  --calc-radius-2xl: 1.5rem;
+  
+  /* Transitions */
+  --calc-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --calc-transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --calc-transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark Theme Variables */
+.dark {
+  --calc-bg-primary: #1f2937;
+  --calc-bg-secondary: #111827;
+  --calc-bg-tertiary: #0f172a;
+  --calc-border: rgba(255, 255, 255, 0.1);
+  --calc-border-hover: rgba(255, 255, 255, 0.2);
+  --calc-text-primary: #ffffff;
+  --calc-text-secondary: #9ca3af;
+  --calc-text-tertiary: #6b7280;
+  --calc-glass-bg: rgba(31, 41, 55, 0.7);
+  --calc-glass-border: rgba(255, 255, 255, 0.1);
+  --calc-glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================
+   Base Calculator Container
+   ============================================ */
+.calculator-container {
+  position: relative;
+  width: 100%;
+  margin: var(--calc-spacing-lg) 0;
+}
+
+/* ============================================
+   Glassmorphism Card
+   ============================================ */
+.calculator-card {
+  background: var(--calc-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--calc-glass-border);
+  border-radius: var(--calc-radius-xl);
+  padding: var(--calc-spacing-xl);
+  box-shadow: var(--calc-glass-shadow);
+  transition: all var(--calc-transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.calculator-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--calc-primary), var(--calc-accent));
+  opacity: 0;
+  transition: opacity var(--calc-transition-base);
+}
+
+.calculator-card:hover::before {
+  opacity: 1;
+}
+
+.calculator-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--calc-shadow-xl);
+  border-color: var(--calc-primary);
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.calculator-card {
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================
+   Calculator Header
+   ============================================ */
+.calculator-header {
+  margin-bottom: var(--calc-spacing-xl);
+}
+
+.calculator-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--calc-text-primary);
+  margin: 0 0 var(--calc-spacing-sm) 0;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--calc-text-primary), var(--calc-text-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.calculator-description {
+  font-size: 0.9375rem;
+  color: var(--calc-text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ============================================
+   Neumorphism Inputs
+   ============================================ */
+.calculator-input-group {
+  margin-bottom: var(--calc-spacing-lg);
+}
+
+.calculator-input-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--calc-text-primary);
+  margin-bottom: var(--calc-spacing-sm);
+  letter-spacing: 0.01em;
+}
+
+.calculator-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Neumorphism Input Style */
+.calculator-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  padding-right: 3rem;
+  background: var(--calc-bg-secondary);
+  border: 1px solid var(--calc-border);
+  border-radius: var(--calc-radius-lg);
+  color: var(--calc-text-primary);
+  font-size: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'SF Mono', monospace;
+  transition: all var(--calc-transition-base);
+  box-shadow: 
+    inset 2px 2px 5px rgba(0, 0, 0, 0.05),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.5);
+}
+
+.dark .calculator-input {
+  box-shadow: 
+    inset 2px 2px 5px rgba(0, 0, 0, 0.3),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.05);
+}
+
+.calculator-input:focus {
+  outline: none;
+  border-color: var(--calc-primary);
+  box-shadow: 
+    0 0 0 3px var(--calc-primary-light),
+    inset 2px 2px 5px rgba(0, 0, 0, 0.05),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.5);
+  transform: scale(1.01);
+}
+
+.calculator-input::placeholder {
+  color: var(--calc-text-tertiary);
+  opacity: 0.6;
+}
+
+.calculator-input-unit {
+  position: absolute;
+  right: 1rem;
+  font-size: 0.875rem;
+  color: var(--calc-text-secondary);
+  font-weight: 500;
+  pointer-events: none;
+}
+
+/* ============================================
+   Result Display with Number Counting Animation
+   ============================================ */
+.calculator-result-section {
+  margin: var(--calc-spacing-xl) 0;
+  padding: var(--calc-spacing-lg);
+  background: linear-gradient(135deg, var(--calc-primary-light), var(--calc-accent-light));
+  border-radius: var(--calc-radius-lg);
+  border: 1px solid var(--calc-border);
+  position: relative;
+  overflow: hidden;
+}
+
+.calculator-result-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.result-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--calc-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--calc-spacing-sm);
+}
+
+.live-result {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--calc-text-primary);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'SF Mono', monospace;
+  letter-spacing: -0.02em;
+  position: relative;
+}
+
+/* Number counting animation */
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.live-result {
+  animation: countUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Pulse effect for live updates */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.live-result.updating {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* ============================================
+   Buttons with Micro-interactions
+   ============================================ */
+.calculator-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--calc-spacing-sm);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border-radius: var(--calc-radius-lg);
+  border: none;
+  cursor: pointer;
+  transition: all var(--calc-transition-base);
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+  letter-spacing: 0.01em;
+}
+
+.calculator-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.calculator-btn:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+.calculator-btn-primary {
+  background: linear-gradient(135deg, var(--calc-primary), var(--calc-primary-hover));
+  color: white;
+  box-shadow: var(--calc-shadow-md);
+}
+
+.calculator-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--calc-shadow-lg);
+}
+
+.calculator-btn-primary:active {
+  transform: translateY(0);
+}
+
+.calculator-btn-secondary {
+  background: var(--calc-bg-secondary);
+  color: var(--calc-text-primary);
+  border: 1px solid var(--calc-border);
+}
+
+.calculator-btn-secondary:hover {
+  background: var(--calc-bg-tertiary);
+  border-color: var(--calc-border-hover);
+  transform: translateY(-1px);
+}
+
+.calculator-btn-outline {
+  background: transparent;
+  color: var(--calc-primary);
+  border: 2px solid var(--calc-primary);
+}
+
+.calculator-btn-outline:hover {
+  background: var(--calc-primary-light);
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   Status Colors
+   ============================================ */
+.calculator-status-success {
+  color: var(--calc-success);
+  background: var(--calc-success-light);
+  padding: var(--calc-spacing-sm) var(--calc-spacing-md);
+  border-radius: var(--calc-radius-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.calculator-status-warning {
+  color: var(--calc-warning);
+  background: var(--calc-warning-light);
+  padding: var(--calc-spacing-sm) var(--calc-spacing-md);
+  border-radius: var(--calc-radius-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.calculator-status-error {
+  color: var(--calc-error);
+  background: var(--calc-error-light);
+  padding: var(--calc-spacing-sm) var(--calc-spacing-md);
+  border-radius: var(--calc-radius-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* ============================================
+   Gradient Accents
+   ============================================ */
+.calculator-gradient-primary {
+  background: linear-gradient(135deg, var(--calc-primary), var(--calc-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.calculator-gradient-success {
+  background: linear-gradient(135deg, var(--calc-success), #059669);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.calculator-gradient-accent {
+  background: linear-gradient(135deg, var(--calc-accent), var(--calc-primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================
+   Loading States
+   ============================================ */
+.calculator-loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--calc-border);
+  border-top-color: var(--calc-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================
+   Tooltips
+   ============================================ */
+.calculator-tooltip {
+  position: absolute;
+  background: var(--calc-bg-primary);
+  color: var(--calc-text-primary);
+  padding: var(--calc-spacing-sm) var(--calc-spacing-md);
+  border-radius: var(--calc-radius-md);
+  font-size: 0.875rem;
+  box-shadow: var(--calc-shadow-lg);
+  border: 1px solid var(--calc-border);
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all var(--calc-transition-base);
+}
+
+.calculator-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================
+   Responsive Grid Layout
+   ============================================ */
+.calculators-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: var(--calc-spacing-xl);
+  margin: var(--calc-spacing-xl) 0;
+}
+
+@media (max-width: 1024px) {
+  .calculators-grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--calc-spacing-lg);
+  }
+}
+
+@media (max-width: 768px) {
+  .calculators-grid {
+    grid-template-columns: 1fr;
+    gap: var(--calc-spacing-md);
+  }
+  
+  .calculator-card {
+    padding: var(--calc-spacing-lg);
+  }
+  
+  .calculator-title {
+    font-size: 1.25rem;
+  }
+  
+  .live-result {
+    font-size: 1.5rem;
+  }
+}
+
+/* ============================================
+   Smooth Scroll Behavior
+   ============================================ */
+.calculator-container {
+  scroll-behavior: smooth;
+}
+
+/* ============================================
+   Focus Visible States (Accessibility)
+   ============================================ */
+.calculator-input:focus-visible,
+.calculator-btn:focus-visible {
+  outline: 2px solid var(--calc-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   Print Styles
+   ============================================ */
+@media print {
+  .calculator-card {
+    background: white;
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+  }
+  
+  .calculator-btn {
+    display: none;
+  }
+  
+  .calculator-card::before {
+    display: none;
+  }
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+.calculator-text-center {
+  text-align: center;
+}
+
+.calculator-text-right {
+  text-align: right;
+}
+
+.calculator-mt-sm {
+  margin-top: var(--calc-spacing-sm);
+}
+
+.calculator-mt-md {
+  margin-top: var(--calc-spacing-md);
+}
+
+.calculator-mt-lg {
+  margin-top: var(--calc-spacing-lg);
+}
+
+.calculator-mb-sm {
+  margin-bottom: var(--calc-spacing-sm);
+}
+
+.calculator-mb-md {
+  margin-bottom: var(--calc-spacing-md);
+}
+
+.calculator-mb-lg {
+  margin-bottom: var(--calc-spacing-lg);
+}
+
+.calculator-hidden {
+  display: none;
+}
+
+.calculator-visible {
+  display: block;
+}
+
+/* ============================================
+   Animation Utilities
+   ============================================ */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.calculator-animate-slide-up {
+  animation: slideInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.calculator-animate-slide-down {
+  animation: slideInDown 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.calculator-animate-scale {
+  animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================
+   Selection Styles
+   ============================================ */
+.calculator-card ::selection {
+  background: var(--calc-primary-light);
+  color: var(--calc-text-primary);
+}
+
+/* ============================================
+   High Contrast Mode Support
+   ============================================ */
+@media (prefers-contrast: high) {
+  .calculator-card {
+    border-width: 2px;
+  }
+  
+  .calculator-input {
+    border-width: 2px;
+  }
+}
+
+/* ============================================
+   Reduced Motion Support
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

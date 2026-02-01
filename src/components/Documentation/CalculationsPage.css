@@ -1,0 +1,81 @@
+/* Calculations Page Component Styles */
+.calculations-page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.calculations-page-header {
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.calculations-page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary, #ffffff);
+  margin: 0 0 1rem 0;
+}
+
+.calculations-page-description {
+  font-size: 1.1rem;
+  color: var(--text-secondary, #9ca3af);
+  margin: 0;
+  line-height: 1.6;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Section Titles */
+.calculations-section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  margin: 2rem 0 0.5rem 0;
+}
+
+.calculations-section-description {
+  font-size: 1rem;
+  color: var(--text-secondary, #9ca3af);
+  margin: 0 0 1.5rem 0;
+  line-height: 1.6;
+}
+
+/* Complete Calculator Section */
+.calculations-complete-calculator {
+  margin-bottom: 3rem;
+}
+
+/* Formulas Section */
+.calculations-formulas {
+  margin-top: 2rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .calculations-page {
+    padding: 1rem;
+  }
+
+  .calculations-page-title {
+    font-size: 1.5rem;
+  }
+
+  .calculations-section-title {
+    font-size: 1.25rem;
+  }
+}
+
+/* Dark theme adjustments */
+.dark .calculations-page {
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+}
+
+/* Light theme adjustments */
+.light .calculations-page {
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+}

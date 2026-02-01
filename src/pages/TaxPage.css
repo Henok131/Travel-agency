@@ -1,0 +1,717 @@
+/* Tax Page Styles */
+.tax-page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.tax-header {
+  margin-bottom: 2rem;
+}
+
+.tax-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: hsl(0, 0%, 98%);
+  margin: 0;
+}
+
+/* Settings Section */
+.tax-settings {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-end;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: hsl(222, 22%, 11%);
+  border-radius: 0.75rem;
+  border: 1px solid hsl(222, 15%, 25%);
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.setting-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(210, 20%, 70%);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.setting-select {
+  padding: 0.75rem 1rem;
+  background: hsl(222, 15%, 18%);
+  border: 1px solid hsl(222, 15%, 25%);
+  border-radius: 0.5rem;
+  color: hsl(0, 0%, 98%);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.setting-select:hover {
+  border-color: hsl(200, 80%, 55%);
+}
+
+.setting-select:focus {
+  outline: none;
+  border-color: hsl(200, 80%, 55%);
+  box-shadow: 0 0 0 3px hsla(200, 80%, 55%, 0.1);
+}
+
+/* VAT Summary Section */
+.vat-summary-section {
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: hsl(222, 22%, 11%);
+  border-radius: 0.75rem;
+  border: 1px solid hsl(222, 15%, 25%);
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: hsl(0, 0%, 98%);
+  margin: 0 0 1.5rem 0;
+}
+
+.deadline-info {
+  padding: 1rem;
+  background: hsl(222, 15%, 18%);
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+  color: hsl(210, 20%, 70%);
+  font-size: 0.875rem;
+}
+
+.deadline-info strong {
+  color: hsl(0, 0%, 98%);
+  margin-right: 0.5rem;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  padding: 1.5rem;
+  background: hsl(222, 15%, 18%);
+  border-radius: 0.75rem;
+  border: 1px solid hsl(222, 15%, 25%);
+}
+
+.summary-card h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: hsl(0, 0%, 98%);
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid hsl(222, 15%, 25%);
+}
+
+.summary-card.output-vat h3 {
+  border-bottom-color: hsl(200, 80%, 55%);
+}
+
+.summary-card.input-vat h3 {
+  border-bottom-color: hsl(38, 75%, 55%);
+}
+
+.summary-card.net-vat h3 {
+  border-bottom-color: hsl(4, 72%, 55%);
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  color: hsl(210, 20%, 70%);
+  font-size: 0.9375rem;
+}
+
+.summary-row.total {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid hsl(222, 15%, 25%);
+  font-weight: 700;
+  color: hsl(0, 0%, 98%);
+}
+
+.summary-row strong {
+  color: hsl(0, 0%, 98%);
+  font-size: 1rem;
+}
+
+.net-vat-amount {
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+/* Export Buttons */
+.export-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid hsl(222, 15%, 25%);
+}
+
+.button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button-primary {
+  background: hsl(200, 80%, 55%);
+  color: hsl(0, 0%, 98%);
+}
+
+.button-primary:hover:not(:disabled) {
+  background: hsl(200, 80%, 50%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px hsla(200, 80%, 55%, 0.3);
+}
+
+.button-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button-secondary {
+  background: hsl(222, 15%, 25%);
+  color: hsl(0, 0%, 98%);
+  border: 1px solid hsl(222, 15%, 30%);
+}
+
+.button-secondary:hover {
+  background: hsl(222, 15%, 30%);
+  border-color: hsl(200, 80%, 55%);
+}
+
+/* Tax Folders */
+.tax-folder {
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: hsl(222, 22%, 11%);
+  border-radius: 0.75rem;
+  border: 1px solid hsl(222, 15%, 25%);
+}
+
+.folder-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: hsl(0, 0%, 98%);
+  margin: 0 0 1rem 0;
+}
+
+.folder-summary {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: hsl(222, 15%, 18%);
+  border-radius: 0.5rem;
+  color: hsl(210, 20%, 70%);
+  font-size: 0.875rem;
+}
+
+.folder-table {
+  overflow-x: auto;
+}
+
+.folder-table table {
+  width: 100%;
+  border-collapse: collapse;
+  color: hsl(0, 0%, 98%);
+}
+
+.folder-table thead {
+  background: hsl(222, 15%, 18%);
+}
+
+.folder-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(210, 20%, 70%);
+  border-bottom: 2px solid hsl(222, 15%, 25%);
+}
+
+.folder-table td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid hsl(222, 15%, 25%);
+  font-size: 0.9375rem;
+}
+
+.folder-table tbody tr:hover {
+  background: hsl(222, 15%, 18%);
+}
+
+.folder-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Editable Input Styles */
+.tax-edit-input {
+  width: 100%;
+  padding: 0.5rem;
+  background: hsl(222, 15%, 18%);
+  border: 2px solid hsl(200, 80%, 55%);
+  border-radius: 0.25rem;
+  color: hsl(0, 0%, 98%);
+  font-size: 0.9375rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.tax-edit-input:focus {
+  border-color: hsl(200, 80%, 65%);
+  box-shadow: 0 0 0 3px hsla(200, 80%, 55%, 0.2);
+}
+
+.folder-table td {
+  position: relative;
+}
+
+.folder-table td span {
+  display: block;
+  padding: 0.5rem 0;
+  min-height: 1.5rem;
+}
+
+.folder-table td span:hover {
+  background: hsl(222, 15%, 18%);
+  border-radius: 0.25rem;
+}
+
+/* Empty State */
+.tax-empty-state {
+  padding: 4rem 2rem;
+  text-align: center;
+  color: hsl(210, 20%, 70%);
+  font-size: 1.125rem;
+}
+
+/* Print Styles */
+@media print {
+  .sidebar,
+  .tax-settings,
+  .export-buttons {
+    display: none;
+  }
+
+  .tax-page {
+    padding: 0;
+  }
+
+  .vat-summary-section,
+  .tax-folder {
+    page-break-inside: avoid;
+    margin-bottom: 2rem;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .tax-page {
+    padding: 1rem;
+  }
+
+  .tax-settings {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .folder-table {
+    font-size: 0.875rem;
+  }
+
+  .folder-table th,
+  .folder-table td {
+    padding: 0.5rem;
+  }
+}
+
+/* Tax Dashboard Section */
+.tax-dashboard-section {
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: hsl(222, 22%, 11%);
+  border-radius: 0.75rem;
+  border: 1px solid hsl(222, 15%, 25%);
+}
+
+.dashboard-header-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.dashboard-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dashboard-filter-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(210, 20%, 70%);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dashboard-filter-select {
+  padding: 0.75rem 1rem;
+  background: hsl(222, 15%, 18%);
+  border: 1px solid hsl(222, 15%, 25%);
+  border-radius: 0.5rem;
+  color: hsl(0, 0%, 98%);
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 180px;
+}
+
+.dashboard-filter-select:hover {
+  border-color: hsl(200, 80%, 55%);
+}
+
+.dashboard-filter-select:focus {
+  outline: none;
+  border-color: hsl(200, 80%, 55%);
+  box-shadow: 0 0 0 3px hsla(200, 80%, 55%, 0.1);
+}
+
+/* KPI Grid */
+.tax-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.tax-kpi-card {
+  padding: 1.25rem;
+  background: hsl(222, 15%, 18%);
+  border-radius: 0.5rem;
+  border: 1px solid hsl(222, 15%, 25%);
+  transition: all 0.2s ease;
+}
+
+.tax-kpi-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: hsl(200, 80%, 55%);
+  transform: translateY(-2px);
+}
+
+.tax-kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.tax-kpi-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: hsl(210, 20%, 70%);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tax-kpi-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: hsl(0, 0%, 98%);
+  margin: 0.25rem 0;
+  line-height: 1.2;
+}
+
+.tax-kpi-detail {
+  font-size: 0.75rem;
+  color: hsl(210, 20%, 70%);
+  margin-top: 0.5rem;
+}
+
+/* Charts Grid */
+.tax-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.tax-chart-card {
+  padding: 1.5rem;
+  background: hsl(222, 15%, 18%);
+  border-radius: 0.75rem;
+  border: 1px solid hsl(222, 15%, 25%);
+  transition: all 0.2s ease;
+}
+
+.tax-chart-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.tax-chart-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: hsl(0, 0%, 98%);
+  margin: 0 0 1rem 0;
+}
+
+.chart-hint {
+  font-size: 0.75rem;
+  color: hsl(210, 20%, 70%);
+  margin-top: 0.5rem;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Loading State */
+.loading-state {
+  padding: 4rem 2rem;
+  text-align: center;
+  color: hsl(210, 20%, 70%);
+  font-size: 1.125rem;
+}
+
+/* Drill-Down Modal */
+.drill-down-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.drill-down-modal {
+  background: hsl(222, 22%, 11%);
+  border-radius: 0.75rem;
+  border: 1px solid hsl(222, 15%, 25%);
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.drill-down-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid hsl(222, 15%, 25%);
+}
+
+.drill-down-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: hsl(0, 0%, 98%);
+  margin: 0;
+}
+
+.drill-down-close {
+  background: none;
+  border: none;
+  color: hsl(210, 20%, 70%);
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.drill-down-close:hover {
+  background: hsl(222, 15%, 18%);
+  color: hsl(0, 0%, 98%);
+}
+
+.drill-down-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.drill-down-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: hsl(0, 0%, 98%);
+}
+
+.drill-down-table thead {
+  background: hsl(222, 15%, 18%);
+}
+
+.drill-down-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(210, 20%, 70%);
+  border-bottom: 2px solid hsl(222, 15%, 25%);
+}
+
+.drill-down-table td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid hsl(222, 15%, 25%);
+  font-size: 0.9375rem;
+}
+
+.drill-down-table tbody tr:hover {
+  background: hsl(222, 15%, 18%);
+}
+
+.drill-down-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.type-badge.income {
+  background: hsla(200, 80%, 55%, 0.2);
+  color: hsl(200, 80%, 55%);
+}
+
+.type-badge.expense {
+  background: hsla(152, 60%, 45%, 0.2);
+  color: hsl(152, 60%, 45%);
+}
+
+.drill-down-footer {
+  padding: 1.5rem;
+  border-top: 1px solid hsl(222, 15%, 25%);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Predictions Section */
+.tax-predictions-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: hsl(222, 22%, 11%);
+  border-radius: 0.75rem;
+  border: 1px solid hsl(200, 80%, 55%);
+  border-width: 2px;
+}
+
+.tax-section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: hsl(0, 0%, 98%);
+  margin: 0 0 0.5rem 0;
+}
+
+.tax-predictions-hint {
+  font-size: 0.875rem;
+  color: hsl(210, 20%, 70%);
+  margin: 0 0 1.5rem 0;
+  font-style: italic;
+}
+
+.tax-prediction-card {
+  border-color: hsl(200, 80%, 55%);
+  border-width: 2px;
+  background: linear-gradient(135deg, hsl(222, 15%, 18%) 0%, hsl(222, 22%, 11%) 100%);
+}
+
+.tax-prediction-card:hover {
+  border-color: hsl(200, 80%, 65%);
+  box-shadow: 0 4px 16px hsla(200, 80%, 55%, 0.2);
+}
+
+.tax-prediction-breakdown {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid hsl(222, 15%, 25%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tax-prediction-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: hsl(210, 20%, 70%);
+}
+
+.tax-prediction-item span:last-child {
+  font-weight: 600;
+  color: hsl(0, 0%, 98%);
+}
+
+/* Responsive Dashboard */
+@media (max-width: 768px) {
+  .tax-charts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .tax-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .drill-down-modal {
+    max-width: 100%;
+    margin: 1rem;
+  }
+  
+  .tax-predictions-section {
+    padding: 1rem;
+  }
+}

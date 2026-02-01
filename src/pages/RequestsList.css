@@ -1,0 +1,1415 @@
+/* Excel-like Table Styles - Sharp borders, grid lines, no rounded corners */
+
+.requests-list-page {
+  padding: 0;
+  max-width: 100%;
+  overflow: auto;
+}
+
+/* Page Header */
+.requests-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.requests-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+/* Query Bar - Inside Table, First Row */
+.query-bar-row {
+  background: var(--bg-secondary);
+}
+
+.query-bar-cell {
+  padding: 0.5rem 1rem !important;
+  border: 1px solid #000 !important;
+}
+
+.query-bar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.query-bar-left {
+  flex: 0 0 auto;
+  max-width: 400px;
+  min-width: 300px;
+}
+
+.query-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.query-search-input {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.query-search-input:focus {
+  border-color: #0078d4;
+  box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+  background: var(--bg-primary);
+}
+
+.query-search-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.query-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  margin-right: 0.25rem;
+}
+
+.query-time-select {
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 12px;
+  min-width: 120px;
+}
+
+html.dark .query-time-select,
+html[data-theme="dark"] .query-time-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ccc' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+}
+
+.query-time-select:focus {
+  border-color: #0078d4;
+  box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+  outline: none;
+}
+
+.query-time-select:hover {
+  border-color: var(--border-focus);
+}
+
+
+/* Column Headers Row - Inside tbody, below group header */
+.excel-column-headers-row {
+  background: #d3d3d3;
+}
+
+html.dark .excel-column-headers-row,
+html[data-theme="dark"] .excel-column-headers-row {
+  background: #4a5568;
+}
+
+.excel-column-headers-row th {
+  font-weight: 600;
+  background: #d3d3d3;
+  color: #000;
+  border: 1px solid #000;
+  padding: 8px 10px;
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+html.dark .excel-column-headers-row th,
+html[data-theme="dark"] .excel-column-headers-row th {
+  background: #4a5568;
+  color: #fff;
+}
+
+/* Group Header Row */
+.excel-group-header {
+  background: var(--bg-secondary);
+}
+
+.excel-group-header td {
+  padding: 0.75rem 1.25rem !important;
+  font-weight: 600;
+  border: 1px solid #000 !important;
+  font-size: 0.9375rem;
+}
+
+.excel-group-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.excel-group-label {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.excel-table-container {
+  background: var(--bg-primary);
+  border-radius: 0;
+  border: 1px solid #000;
+  overflow: auto;
+  box-shadow: none;
+}
+
+/* Excel-like table - Sharp grid lines */
+.excel-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+  font-size: 0.875rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  background: var(--bg-primary);
+}
+
+/* All cells have borders on all sides - EXACT same height for Requests and Main Table */
+.excel-table th,
+.excel-table td {
+  border: 1px solid #000;
+  padding: 3px 10px;
+  text-align: left;
+  vertical-align: middle;
+  position: relative;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  white-space: nowrap;
+  height: 24px !important;
+  line-height: 18px !important;
+  overflow: hidden;
+  /* Excel-like: flexible widths - can be resized */
+  box-sizing: border-box;
+  min-width: 30px;
+  transition: background-color 0.15s ease;
+}
+
+/* Multiline cells - allow height to grow */
+.excel-table td:has(.excel-cell-multiline) {
+  height: auto !important;
+  min-height: 24px;
+  white-space: normal !important;
+  vertical-align: top;
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+}
+
+/* Allow airlines autocomplete dropdown to overflow table cell */
+.excel-table td:has(.airlines-autocomplete) {
+  overflow: visible !important;
+  position: relative;
+  z-index: 1;
+}
+
+.excel-table tbody tr:has(td:has(.airlines-autocomplete)) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Table rows with multiline cells should expand */
+.excel-table tr:has(td:has(.excel-cell-multiline)) {
+  height: auto;
+}
+
+/* Header row - darker background */
+.excel-table thead {
+  background: #d3d3d3;
+}
+
+html.dark .excel-table thead,
+html[data-theme="dark"] .excel-table thead {
+  background: #4a5568;
+}
+
+.excel-table th {
+  font-weight: 600;
+  background: #d3d3d3;
+  color: #000;
+  border: 1px solid #000;
+}
+
+html.dark .excel-table th,
+html[data-theme="dark"] .excel-table th {
+  background: #4a5568;
+  color: #fff;
+}
+
+/* Excel header cell - with resize handle */
+.excel-header-cell {
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Make sure the header cell doesn't block resize handle */
+.excel-header-cell:hover .excel-resize-handle {
+  z-index: 1003;
+}
+
+.excel-header-label {
+  display: block;
+  width: 100%;
+  padding-left: 4px;
+  padding-right: 10px;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  text-align: left;
+  /* Prevent label from overlapping resize handle */
+  margin-right: 0;
+  pointer-events: none;
+}
+
+/* Excel resize handle - visible and easy to grab */
+.excel-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 1002;
+  background: transparent;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  pointer-events: auto;
+  /* Extend hit area - handle extends 5px to the right of the border */
+  margin-right: -5px;
+  padding-right: 5px;
+  transition: background-color 0.15s ease;
+}
+
+/* Make resize handle more visible on hover */
+.excel-header-cell:hover .excel-resize-handle {
+  background: rgba(0, 120, 212, 0.15);
+}
+
+/* Show resize cursor when hovering over header cell edge */
+.excel-header-cell {
+  position: relative;
+}
+
+.excel-header-cell:hover {
+  cursor: default;
+}
+
+/* Excel-like: Show a vertical line on hover */
+.excel-resize-handle:hover::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #0078d4;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow: 0 0 4px rgba(0, 120, 212, 0.5);
+}
+
+/* Always show a subtle indicator that column is resizable */
+.excel-resize-handle::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(0, 120, 212, 0.4);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.excel-resize-handle:hover::after {
+  opacity: 1;
+  background: rgba(0, 120, 212, 0.6);
+}
+
+html.dark .excel-resize-handle:hover::before,
+html[data-theme="dark"] .excel-resize-handle:hover::before {
+  background: #0078d4;
+}
+
+/* Show resize indicator on hover - Excel-like */
+.excel-resize-handle:hover {
+  background-color: #0078d4; /* Excel blue */
+  cursor: col-resize !important;
+}
+
+html.dark .excel-resize-handle:hover,
+html[data-theme="dark"] .excel-resize-handle:hover {
+  background-color: #0078d4; /* Excel blue - same in dark mode */
+}
+
+.excel-resize-handle:active {
+  background: rgba(66, 133, 244, 0.4) !important;
+  cursor: col-resize !important;
+}
+
+html.dark .excel-resize-handle:active,
+html[data-theme="dark"] .excel-resize-handle:active {
+  background: rgba(100, 150, 255, 0.4) !important;
+}
+
+/* When actively resizing */
+.excel-header-cell:has(.excel-resize-handle:active) {
+  user-select: none;
+}
+
+/* Table body rows - uniform height (EXACT same for both Requests and Main Table) */
+.excel-table tbody tr {
+  height: 24px !important;
+  min-height: 24px;
+  max-height: 24px;
+  transition: background-color 0.15s ease;
+}
+
+/* Subtle row hover for better UX */
+.excel-table tbody tr:hover {
+  background-color: rgba(0, 120, 212, 0.03);
+}
+
+html.dark .excel-table tbody tr:hover,
+html[data-theme="dark"] .excel-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Allow rows/cells with multiline content (e.g. Notice) to expand like Excel */
+.excel-table tbody tr:has(td:has(.excel-cell-multiline)) {
+  height: auto !important;
+  min-height: 24px;
+  max-height: none !important;
+}
+
+/* Only multiline cells should expand - other cells in same row keep normal height */
+.excel-table tbody tr:has(td:has(.excel-cell-multiline)) td:has(.excel-cell-multiline) {
+  height: auto !important;
+  vertical-align: top !important;
+}
+
+/* Regular cells in rows with multiline cells should align to top but keep their height */
+.excel-table tbody tr:has(td:has(.excel-cell-multiline)) td:not(:has(.excel-cell-multiline)) {
+  vertical-align: top !important;
+  height: 24px !important;
+}
+
+/* Ensure excel-cell divs inside td match the cell height exactly - SAME for both tables */
+.excel-table tbody tr td .excel-cell {
+  height: auto !important;
+  min-height: 24px !important;
+  line-height: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Multiline cells should not use flex with center alignment - they need to wrap naturally */
+.excel-table tbody tr td .excel-cell-multiline {
+  display: block !important;
+  align-items: flex-start !important;
+}
+
+/* Empty States */
+.requests-empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  padding: 3rem;
+  text-align: center;
+}
+
+.empty-state-content {
+  max-width: 400px;
+}
+
+.empty-state-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem 0;
+}
+
+.empty-state-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.requests-loading {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.requests-error {
+  padding: 1rem;
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 6px;
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin: 1rem 0;
+}
+
+html.dark .requests-error,
+html[data-theme="dark"] .requests-error {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+/* Excel cell - clickable and editable */
+.excel-cell {
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  cursor: default;
+  user-select: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
+  line-height: 20px;
+  transition: background-color 0.15s ease;
+}
+
+/* Editable cells should show pointer cursor and subtle hover */
+.excel-cell-editable {
+  cursor: pointer;
+}
+
+.excel-cell-editable:hover {
+  background-color: rgba(0, 120, 212, 0.05);
+}
+
+html.dark .excel-cell-editable:hover,
+html[data-theme="dark"] .excel-cell-editable:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Multiline cell variant (used for long text fields like Notice in Main Table) */
+.excel-cell-multiline {
+  width: 100%;
+  white-space: pre-wrap !important;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  align-items: flex-start;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  height: auto !important;
+  min-height: 24px;
+  line-height: 1.5;
+  overflow: hidden;
+  display: block !important;
+}
+
+/* Ensure table cells with multiline content can expand and show newlines */
+.excel-table td:has(.excel-cell-multiline) {
+  white-space: normal !important;
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+  height: auto !important;
+}
+
+/* Textarea used for multiline editing (e.g., Notice column) */
+.excel-cell-textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
+  padding: 3px 10px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+  outline: none;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease;
+}
+
+.excel-cell-textarea:focus {
+  background: #fffacd;
+  outline: none;
+}
+
+html.dark .excel-cell-textarea:focus,
+html[data-theme="dark"] .excel-cell-textarea:focus {
+  background: #2d3748;
+}
+
+/* Excel cell input - for editing */
+.excel-table td:has(.excel-cell-input:not(.status-dropdown)) {
+  padding: 0;
+  border: 2px solid #0066cc !important;
+  outline: none;
+  box-shadow: inset 0 0 0 1px #0066cc;
+  background-color: inherit !important;
+}
+
+/* Cells without inputs should have normal border */
+.excel-table td:not(:has(.excel-cell-input)) {
+  border: 1px solid #000;
+  background-color: inherit !important;
+}
+
+/* Excel-like: Selected cell indicator (when not editing) */
+.excel-cell-selected {
+  border: 2px solid #0066cc !important;
+  box-shadow: inset 0 0 0 1px #0066cc;
+}
+
+.excel-cell-input {
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
+  padding: 3px 10px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease;
+}
+
+html.dark .excel-cell-input,
+html[data-theme="dark"] .excel-cell-input {
+  background: #2d3748;
+  color: #fff;
+}
+
+.excel-cell-input:focus {
+  background: #fffacd;
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgba(0, 120, 212, 0.3);
+}
+
+html.dark .excel-cell-input:focus,
+html[data-theme="dark"] .excel-cell-input:focus {
+  background: #2d3748;
+  box-shadow: inset 0 0 0 1px rgba(100, 150, 255, 0.3);
+}
+
+/* Select dropdown in cell */
+.excel-cell-input[type="select"],
+.excel-cell-input select {
+  cursor: pointer;
+}
+
+/* Status dropdown - always show arrow and color coding */
+.status-dropdown {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 12px !important;
+  padding-right: 24px !important;
+  cursor: pointer;
+  border: 1px solid #000 !important;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  /* Default background - will be overridden by status classes */
+  background-color: #fffacd;
+}
+
+html.dark .status-dropdown,
+html[data-theme="dark"] .status-dropdown {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 12px !important;
+  /* Default will be overridden by status classes */
+  background-color: #2d3748;
+}
+
+/* For cancelled status, use white arrow */
+.status-dropdown.status-cancelled {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 12px !important;
+}
+
+/* Status dropdown colors - Yellow for Pending */
+.status-dropdown.status-pending {
+  background-color: #ffd700 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 12px !important;
+  color: #000 !important;
+  border-color: #d4af37 !important;
+}
+
+html.dark .status-dropdown.status-pending,
+html[data-theme="dark"] .status-dropdown.status-pending {
+  background-color: #ffd700 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 12px !important;
+  color: #000 !important;
+  border-color: #d4af37 !important;
+}
+
+/* Status dropdown colors - Green for Confirmed */
+.status-dropdown.status-confirmed {
+  background-color: #90ee90 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 12px !important;
+  color: #000 !important;
+  border-color: #6bc46b !important;
+}
+
+html.dark .status-dropdown.status-confirmed,
+html[data-theme="dark"] .status-dropdown.status-confirmed {
+  background-color: #90ee90 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 12px !important;
+  color: #000 !important;
+  border-color: #6bc46b !important;
+}
+
+/* Status dropdown colors - Red for Cancelled */
+.status-dropdown.status-cancelled {
+  background-color: #ff6b6b !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 12px !important;
+  color: #fff !important;
+  border-color: #e55555 !important;
+}
+
+html.dark .status-dropdown.status-cancelled,
+html[data-theme="dark"] .status-dropdown.status-cancelled {
+  background-color: #ff6b6b !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 12px !important;
+  color: #fff !important;
+  border-color: #e55555 !important;
+}
+
+/* Status dropdown colors - Gray for Draft */
+.status-dropdown.status-draft {
+  background-color: #dfe6ef !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 12px !important;
+  color: #000 !important;
+  border-color: #c3cedd !important;
+}
+
+html.dark .status-dropdown.status-draft,
+html[data-theme="dark"] .status-dropdown.status-draft {
+  background-color: #dfe6ef !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 12px !important;
+  color: #000 !important;
+  border-color: #c3cedd !important;
+}
+
+/* Ensure status dropdowns don't get blue highlight and maintain colors */
+.excel-table td:has(.status-dropdown) {
+  border: 1px solid #000 !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+}
+
+/* Completely hide native browser dropdown arrow */
+.status-dropdown::-ms-expand {
+  display: none !important;
+}
+
+.status-dropdown::-webkit-appearance {
+  -webkit-appearance: none !important;
+}
+
+.status-dropdown option {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.excel-table td:has(.status-dropdown):focus-within {
+  border: 1px solid #000 !important;
+  background-color: transparent !important;
+}
+
+.status-dropdown:focus {
+  outline: none;
+  border: 1px solid #000 !important;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Remove blue border from status column cells */
+.excel-table td:has(.status-dropdown) {
+  box-shadow: none !important;
+}
+
+/* Ensure status colors are always visible and not overridden */
+.status-dropdown-display {
+  width: 100%;
+  height: 100%;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: 600;
+  color: #000 !important;
+}
+
+.status-dropdown-display.status-pending {
+  background-color: #ffd700 !important;
+}
+
+.status-dropdown-display.status-confirmed {
+  background-color: #90ee90 !important;
+}
+
+.status-dropdown-display.status-cancelled {
+  background-color: #ff6b6b !important;
+  color: #fff !important;
+}
+
+/* Round corners removed - Excel-like sharp edges */
+.excel-cell,
+.excel-cell-input {
+  border-radius: 0;
+}
+
+/* Ensure dropdowns (autocomplete) render above table cells */
+.excel-cell {
+  overflow: visible !important;
+  position: relative;
+  z-index: 1;
+}
+
+
+/* Travel Details Expandable Cell (new layout) */
+.travel-details-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 4px 0;
+  position: relative;
+  width: 100%;
+  height: auto;
+}
+
+.travel-details-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.travel-details-row label {
+  min-width: 100px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding-top: 0.375rem;
+  flex-shrink: 0;
+}
+
+.travel-details-input {
+  flex: 1;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.travel-details-input:focus {
+  border-color: #0078d4;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.1);
+}
+
+.travel-details-textarea {
+  flex: 1;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  outline: none;
+  transition: all 0.2s ease;
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+
+.travel-details-textarea:focus {
+  border-color: #0078d4;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.1);
+}
+
+html.dark .travel-details-expanded,
+html[data-theme="dark"] .travel-details-expanded {
+  background: #2d3748;
+  border-color: #4a5568;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .travel-details-input,
+html[data-theme="dark"] .travel-details-input,
+html.dark .travel-details-textarea,
+html[data-theme="dark"] .travel-details-textarea {
+  background: #1a202c;
+  border-color: #4a5568;
+  color: #fff;
+}
+
+html.dark .travel-details-input:focus,
+html[data-theme="dark"] .travel-details-input:focus,
+html.dark .travel-details-textarea:focus,
+html[data-theme="dark"] .travel-details-textarea:focus {
+  border-color: #0078d4;
+  background: #2d3748;
+}
+
+/* Status badge - minimal styling for Excel look */
+.status-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-paid {
+  background-color: hsl(152, 60%, 45%);
+  color: hsl(0, 0%, 98%);
+}
+
+.status-partial {
+  background-color: hsl(38, 75%, 55%);
+  color: hsl(0, 0%, 98%);
+}
+
+.status-unpaid {
+  background-color: hsl(4, 72%, 55%);
+  color: hsl(0, 0%, 98%);
+}
+
+.status-confirmed {
+  background-color: hsl(152, 60%, 45%);
+  color: hsl(0, 0%, 98%);
+}
+
+.status-pending {
+  background-color: hsl(38, 75%, 55%);
+  color: hsl(0, 0%, 98%);
+}
+
+.status-cancelled {
+  background-color: hsl(4, 72%, 55%);
+  color: hsl(0, 0%, 98%);
+}
+
+.status-draft {
+  background-color: hsl(210, 20%, 50%);
+  color: hsl(0, 0%, 98%);
+}
+
+/* Invoice button */
+.invoice-btn {
+  background-color: hsl(200, 80%, 55%);
+  color: hsl(0, 0%, 98%);
+  border: none;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.invoice-btn:hover {
+  background-color: hsl(200, 80%, 45%);
+}
+
+.invoice-btn:active {
+  background-color: hsl(200, 80%, 35%);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.pagination-info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.pagination-button {
+  padding: 0.625rem 1.25rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: #0078d4;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pagination-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-page-info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  padding: 0 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .requests-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .requests-actions {
+    width: 100%;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .pagination-controls {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .pagination-buttons {
+    justify-content: center;
+  }
+}
+
+/* ============================================================================
+   TOTAL AMOUNT DUE - CRITICAL COLUMN STYLING
+   ============================================================================
+   This column must have blue background to highlight its importance.
+   Placed at the end of file to ensure highest priority.
+   ============================================================================ */
+
+/* Maximum specificity - override ALL rules including .excel-table td background */
+/* Use both class and data attribute selectors for maximum compatibility */
+.excel-table tbody tr td.td-total-amount-due,
+.excel-table tbody tr td[data-is-total-amount-due="true"],
+.excel-table tbody tr td[data-field="total_amount_due"],
+.excel-table .excel-cell.td-total-amount-due,
+.excel-table .excel-cell[data-field="total_amount_due"] {
+  background-color: #2563eb !important; /* vibrant blue to differentiate */
+  background: #2563eb !important;
+  background-image: none !important;
+  padding: 0 !important;
+  box-shadow: inset 0 0 0 1px #1d4ed8; /* subtle border to pop */
+}
+
+.excel-table tbody tr td.td-total-amount-due .excel-cell,
+.excel-table tbody tr td.td-total-amount-due .excel-cell-readonly,
+.excel-table tbody tr td.td-total-amount-due .excel-cell-total-amount-due,
+.excel-table tbody tr td[data-is-total-amount-due="true"] .excel-cell,
+.excel-table tbody tr td[data-is-total-amount-due="true"] .excel-cell-readonly,
+.excel-table tbody tr td[data-is-total-amount-due="true"] .excel-cell-total-amount-due,
+.excel-table tbody tr td[data-field="total_amount_due"] .excel-cell,
+.excel-table tbody tr td[data-field="total_amount_due"] .excel-cell-readonly,
+.excel-table tbody tr td[data-field="total_amount_due"] .excel-cell-total-amount-due,
+.excel-table .excel-cell.td-total-amount-due,
+.excel-table .excel-cell-readonly.td-total-amount-due,
+.excel-table .excel-cell-total-amount-due,
+.excel-table .excel-cell[data-field="total_amount_due"],
+.excel-table .excel-cell-readonly[data-field="total_amount_due"],
+.excel-table .excel-cell-total-amount-due[data-field="total_amount_due"] {
+  background-color: #2563eb !important;
+  background: #2563eb !important;
+  background-image: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 24px !important;
+  padding: 3px 10px !important;
+  margin: 0 !important;
+  box-shadow: inset 0 0 0 1px #1d4ed8;
+}
+
+.excel-table tbody tr td.td-total-amount-due .excel-cell-total-amount-due,
+.excel-table tbody tr td[data-is-total-amount-due="true"] .excel-cell-total-amount-due,
+.excel-table .excel-cell-total-amount-due,
+.excel-table .excel-cell-total-amount-due[data-field="total_amount_due"] {
+  color: #fff !important;
+  font-weight: bold !important;
+  cursor: default !important;
+}
+
+/* ============================================================================
+   INVOICE BUTTON STYLING
+   ============================================================================ */
+
+.invoice-button {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.invoice-button:hover {
+  background-color: #1976D2;
+}
+
+.invoice-button:active {
+  background-color: #0D47A1;
+}
+
+/* ============================================================================
+   INVOICE ROW BUTTON STYLING
+   ============================================================================ */
+
+.excel-cell-invoice {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  height: 100% !important;
+  min-height: 24px !important;
+}
+
+.invoice-row-button {
+  background: #2563eb;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  color: #fff;
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.invoice-row-button:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.invoice-row-button:active:not(:disabled) {
+  background-color: #1e3a8a;
+  transform: scale(0.98);
+}
+
+.invoice-row-button:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Print Invoice Button Styling */
+.print-invoice-button {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: none;
+  cursor: pointer;
+  padding: 0.35rem 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 5px;
+  transition: all 0.2s ease;
+  color: #fff;
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.print-invoice-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.print-invoice-button:active:not(:disabled) {
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.print-invoice-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+}
+
+.print-invoice-button svg {
+  flex-shrink: 0;
+  stroke-width: 2.5;
+}
+
+.print-invoice-button span {
+  white-space: nowrap;
+}
+
+/* Payment Balance Colors */
+.payment-balance-positive {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.payment-balance-negative {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.payment-balance-warning {
+  color: #d97706;
+  font-weight: 700;
+}
+
+/* ============================================================================
+   DELETE ROW BUTTON STYLING
+   ============================================================================ */
+
+.excel-cell-delete {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  height: 100% !important;
+  min-height: 24px !important;
+}
+
+.delete-row-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  color: var(--text-secondary);
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
+}
+
+.delete-row-button:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.delete-row-button:active {
+  background-color: rgba(239, 68, 68, 0.2);
+  transform: scale(0.95);
+}
+
+.delete-row-button svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  flex-shrink: 0;
+}
+
+/* InvoicesList page - ensure all text is white */
+.data-table {
+  color: hsl(0, 0%, 98%) !important;
+}
+
+.data-table td {
+  color: hsl(0, 0%, 98%) !important;
+}
+
+.data-table th {
+  color: hsl(0, 0%, 98%) !important;
+}
+
+.content-header h1 {
+  color: hsl(0, 0%, 98%) !important;
+}
+
+.loading-state,
+.error-state,
+.empty-state {
+  color: hsl(0, 0%, 98%) !important;
+}
+
+.loading-state p,
+.error-state p,
+.empty-state p {
+  color: hsl(0, 0%, 98%) !important;
+}
+
+.pagination-info {
+  color: hsl(0, 0%, 98%) !important;
+}
+
+.pagination-btn {
+  color: hsl(0, 0%, 98%) !important;
+}
+
+.pagination-btn:disabled {
+  color: hsl(0, 0%, 60%) !important;
+}
+
+.search-input {
+  color: hsl(0, 0%, 98%) !important;
+}
+
+.refresh-btn {
+  color: hsl(0, 0%, 98%) !important;
+  background-color: hsl(222, 15%, 25%);
+  border: 1px solid hsl(222, 15%, 35%);
+}
+
+.refresh-btn:hover {
+  background-color: hsl(222, 15%, 35%);
+}
+
+/* Invoice Summary Cards */
+.invoice-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  background: hsl(222, 22%, 11%);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  border: 1px solid hsl(222, 15%, 25%);
+  transition: all 0.2s ease;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: hsl(222, 15%, 35%);
+  transform: translateY(-2px);
+}
+
+/* Button Styles - Ensure text is centered */
+.button,
+a.button {
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button-primary,
+a.button-primary {
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+

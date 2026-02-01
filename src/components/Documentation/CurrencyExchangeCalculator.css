@@ -1,0 +1,372 @@
+/* Currency Exchange Calculator Component Styles */
+.currency-exchange-calculator {
+  background: var(--card-bg, #1f2937);
+  border-radius: 12px;
+  padding: 2rem;
+  margin: 1.5rem 0;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.currency-exchange-calculator:hover {
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Header */
+.currency-calculator-header {
+  margin-bottom: 1.5rem;
+}
+
+.currency-calculator-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  margin: 0 0 0.5rem 0;
+}
+
+.currency-calculator-description {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #9ca3af);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Exchange Rate Display */
+.exchange-rate-display {
+  background: var(--rate-bg, rgba(59, 130, 246, 0.1));
+  border: 1px solid var(--rate-border, rgba(59, 130, 246, 0.2));
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.exchange-rate-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.exchange-rate-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-color, #3b82f6);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  margin-bottom: 0.25rem;
+}
+
+.exchange-rate-updated {
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #6b7280);
+}
+
+/* Loading State */
+.currency-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  color: var(--text-secondary, #9ca3af);
+  font-size: 0.9rem;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-top-color: var(--primary-color, #3b82f6);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error State */
+.currency-error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  color: #ef4444;
+  font-size: 0.9rem;
+}
+
+.currency-error svg {
+  flex-shrink: 0;
+}
+
+.currency-error span {
+  flex: 1;
+}
+
+.btn-retry {
+  padding: 0.375rem 0.75rem;
+  background: #ef4444;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-retry:hover {
+  background: #dc2626;
+}
+
+/* Input Section */
+.currency-inputs {
+  display: grid;
+  grid-template-columns: 2fr 2fr auto 2fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: end;
+}
+
+.currency-amount-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.currency-select-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.currency-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary, #ffffff);
+}
+
+.currency-amount-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--input-bg, #374151);
+  border: 1px solid var(--input-border, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  color: var(--text-primary, #ffffff);
+  font-size: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  transition: all 0.2s ease;
+}
+
+.currency-amount-input:focus {
+  outline: none;
+  border-color: var(--primary-color, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.currency-amount-input::placeholder {
+  color: var(--text-tertiary, #6b7280);
+}
+
+.currency-select-wrapper {
+  position: relative;
+}
+
+.currency-select {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  background: var(--input-bg, #374151);
+  border: 1px solid var(--input-border, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  color: var(--text-primary, #ffffff);
+  font-size: 0.9rem;
+  cursor: pointer;
+  appearance: none;
+  transition: all 0.2s ease;
+}
+
+.currency-select:focus {
+  outline: none;
+  border-color: var(--primary-color, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.currency-select-icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--text-secondary, #9ca3af);
+}
+
+/* Swap Button */
+.currency-swap-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 1.75rem;
+}
+
+.currency-swap-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--button-bg, #374151);
+  border: 1px solid var(--button-border, rgba(255, 255, 255, 0.1));
+  border-radius: 50%;
+  color: var(--text-primary, #ffffff);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.currency-swap-btn:hover {
+  background: var(--button-hover-bg, #4b5563);
+  border-color: var(--primary-color, #3b82f6);
+  transform: rotate(180deg);
+}
+
+.currency-swap-btn svg {
+  flex-shrink: 0;
+}
+
+/* Result Display */
+.currency-result {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(147, 51, 234, 0.15) 100%);
+  border: 1px solid var(--result-border, rgba(59, 130, 246, 0.3));
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.currency-result-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary, #9ca3af);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.currency-result-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-color, #3b82f6);
+  margin-bottom: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.currency-result-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-copy-currency {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--primary-color, #3b82f6);
+  border: 1px solid var(--primary-color, #3b82f6);
+  border-radius: 6px;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-copy-currency:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.btn-copy-currency:active {
+  transform: translateY(0);
+}
+
+.btn-copy-currency svg {
+  flex-shrink: 0;
+}
+
+/* Empty State */
+.currency-empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary, #9ca3af);
+  font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .currency-exchange-calculator {
+    padding: 1.5rem;
+  }
+
+  .currency-inputs {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .currency-swap-container {
+    padding-bottom: 0;
+  }
+
+  .currency-swap-btn {
+    transform: rotate(90deg);
+  }
+
+  .currency-swap-btn:hover {
+    transform: rotate(270deg);
+  }
+
+  .currency-result-value {
+    font-size: 1.5rem;
+  }
+}
+
+/* Dark theme adjustments */
+.dark .currency-exchange-calculator {
+  --card-bg: #1f2937;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  --rate-bg: rgba(59, 130, 246, 0.1);
+  --rate-border: rgba(59, 130, 246, 0.2);
+  --input-bg: #374151;
+  --input-border: rgba(255, 255, 255, 0.1);
+  --primary-color: #3b82f6;
+  --result-border: rgba(59, 130, 246, 0.3);
+  --button-bg: #374151;
+  --button-border: rgba(255, 255, 255, 0.1);
+  --button-hover-bg: #4b5563;
+}
+
+/* Light theme adjustments */
+.light .currency-exchange-calculator {
+  --card-bg: #ffffff;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --rate-bg: rgba(59, 130, 246, 0.05);
+  --rate-border: rgba(59, 130, 246, 0.2);
+  --input-bg: #f9fafb;
+  --input-border: rgba(0, 0, 0, 0.1);
+  --primary-color: #2563eb;
+  --result-border: rgba(59, 130, 246, 0.3);
+  --button-bg: #f3f4f6;
+  --button-border: rgba(0, 0, 0, 0.1);
+  --button-hover-bg: #e5e7eb;
+}

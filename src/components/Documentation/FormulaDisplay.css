@@ -1,0 +1,321 @@
+/* Formula Display Component Styles */
+.formula-display {
+  position: relative;
+  margin: 1.5rem 0;
+}
+
+/* Formula Container */
+.formula-container {
+  position: relative;
+  background: var(--formula-bg, rgba(59, 130, 246, 0.1));
+  border: 1px solid var(--formula-border, rgba(59, 130, 246, 0.2));
+  border-radius: 8px;
+  padding: 1.5rem;
+  overflow-x: auto;
+  transition: all 0.3s ease;
+}
+
+.formula-container:hover {
+  border-color: var(--formula-border-hover, rgba(59, 130, 246, 0.4));
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* Math Wrapper */
+.formula-math-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  position: relative;
+}
+
+.formula-display.block .formula-math-wrapper {
+  justify-content: center;
+}
+
+.formula-display.inline .formula-math-wrapper {
+  justify-content: flex-start;
+  min-height: auto;
+}
+
+/* KaTeX Styling */
+.formula-math-wrapper .katex {
+  font-size: 1.3rem;
+  color: var(--formula-text, #ffffff);
+}
+
+.formula-display.inline .formula-math-wrapper .katex {
+  font-size: 1.1rem;
+}
+
+.formula-math-wrapper .katex-display {
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.formula-math-wrapper .katex .mord {
+  color: var(--formula-text, #ffffff);
+}
+
+.formula-math-wrapper .katex .mrel {
+  color: var(--formula-operator, #60a5fa);
+}
+
+.formula-math-wrapper .katex .mbin {
+  color: var(--formula-operator, #60a5fa);
+}
+
+.formula-math-wrapper .katex .mop {
+  color: var(--formula-function, #34d399);
+}
+
+/* Copy Button */
+.formula-copy-btn {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--button-bg, rgba(59, 130, 246, 0.2));
+  border: 1px solid var(--button-border, rgba(59, 130, 246, 0.3));
+  border-radius: 6px;
+  color: var(--text-primary, #ffffff);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.formula-copy-btn:hover {
+  background: var(--button-hover-bg, rgba(59, 130, 246, 0.3));
+  border-color: var(--primary-color, #3b82f6);
+  transform: translateY(-1px);
+}
+
+.formula-copy-btn:active {
+  transform: translateY(0);
+}
+
+.formula-copy-btn svg {
+  flex-shrink: 0;
+}
+
+.formula-copy-text {
+  white-space: nowrap;
+}
+
+/* Variables Section */
+.formula-variables {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.formula-variables-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary, #9ca3af);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-variables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formula-variable-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  cursor: help;
+}
+
+.formula-variable-item:hover {
+  background: var(--variable-hover-bg, rgba(59, 130, 246, 0.1));
+}
+
+.formula-variable-name {
+  background: var(--code-bg, rgba(59, 130, 246, 0.15));
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--primary-color, #3b82f6);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.formula-variable-separator {
+  color: var(--text-tertiary, #6b7280);
+  flex-shrink: 0;
+}
+
+.formula-variable-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #9ca3af);
+  line-height: 1.5;
+}
+
+/* Tooltip */
+.formula-tooltip {
+  position: fixed;
+  background: var(--tooltip-bg, #1f2937);
+  border: 1px solid var(--tooltip-border, rgba(255, 255, 255, 0.2));
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  max-width: 300px;
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.formula-tooltip-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  margin-bottom: 0.25rem;
+}
+
+.formula-tooltip-content {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #9ca3af);
+  line-height: 1.4;
+}
+
+/* LaTeX Source Code */
+.formula-latex-source {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  overflow: hidden;
+}
+
+.formula-latex-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary, #9ca3af);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Notation Info */
+.formula-notation-info {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #6b7280);
+}
+
+.formula-notation-label {
+  font-weight: 500;
+}
+
+.formula-notation-value {
+  text-transform: capitalize;
+  color: var(--primary-color, #3b82f6);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .formula-container {
+    padding: 1rem;
+  }
+
+  .formula-math-wrapper .katex {
+    font-size: 1rem;
+  }
+
+  .formula-display.inline .formula-math-wrapper .katex {
+    font-size: 0.95rem;
+  }
+
+  .formula-copy-btn {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin-top: 0.75rem;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .formula-variable-item {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .formula-variable-separator {
+    display: none;
+  }
+}
+
+/* Dark theme adjustments */
+.dark .formula-display {
+  --formula-bg: rgba(59, 130, 246, 0.1);
+  --formula-border: rgba(59, 130, 246, 0.2);
+  --formula-border-hover: rgba(59, 130, 246, 0.4);
+  --formula-text: #ffffff;
+  --formula-operator: #60a5fa;
+  --formula-function: #34d399;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  --primary-color: #3b82f6;
+  --button-bg: rgba(59, 130, 246, 0.2);
+  --button-border: rgba(59, 130, 246, 0.3);
+  --button-hover-bg: rgba(59, 130, 246, 0.3);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --variable-hover-bg: rgba(59, 130, 246, 0.1);
+  --code-bg: rgba(59, 130, 246, 0.15);
+  --tooltip-bg: #1f2937;
+  --tooltip-border: rgba(255, 255, 255, 0.2);
+}
+
+/* Light theme adjustments */
+.light .formula-display {
+  --formula-bg: rgba(59, 130, 246, 0.05);
+  --formula-border: rgba(59, 130, 246, 0.2);
+  --formula-border-hover: rgba(59, 130, 246, 0.3);
+  --formula-text: #111827;
+  --formula-operator: #2563eb;
+  --formula-function: #059669;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --primary-color: #2563eb;
+  --button-bg: rgba(59, 130, 246, 0.1);
+  --button-border: rgba(59, 130, 246, 0.2);
+  --button-hover-bg: rgba(59, 130, 246, 0.15);
+  --border-color: rgba(0, 0, 0, 0.1);
+  --variable-hover-bg: rgba(59, 130, 246, 0.05);
+  --code-bg: rgba(59, 130, 246, 0.1);
+  --tooltip-bg: #ffffff;
+  --tooltip-border: rgba(0, 0, 0, 0.2);
+}
+
+/* Print styles */
+@media print {
+  .formula-copy-btn {
+    display: none;
+  }
+
+  .formula-tooltip {
+    display: none;
+  }
+}

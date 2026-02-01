@@ -1,0 +1,301 @@
+/* Formula Section Component Styles */
+.formula-section {
+  background: var(--card-bg, #1f2937);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.formula-section:hover {
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Header */
+.formula-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.formula-section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  margin: 0;
+}
+
+.formula-expand-btn {
+  background: transparent;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  padding: 0.5rem;
+  color: var(--text-secondary, #9ca3af);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.formula-expand-btn:hover {
+  background: var(--button-hover-bg, rgba(255, 255, 255, 0.05));
+  border-color: var(--primary-color, #3b82f6);
+  color: var(--text-primary, #ffffff);
+}
+
+.formula-expand-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.formula-expand-btn.expanded svg {
+  transform: rotate(180deg);
+}
+
+/* KaTeX Formula Display - Center */
+.formula-katex-display {
+  background: var(--formula-bg, rgba(59, 130, 246, 0.1));
+  border: 1px solid var(--formula-border, rgba(59, 130, 246, 0.2));
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.formula-katex-display .katex {
+  font-size: 1.3rem;
+  color: var(--formula-text-color, #ffffff);
+}
+
+.formula-katex-display .katex-display {
+  margin: 0;
+}
+
+/* KaTeX formula text color - Dark mode */
+.dark .formula-katex-display .katex,
+.dark .formula-katex-display .katex * {
+  color: #ffffff !important;
+}
+
+.dark .formula-katex-display .katex .mord {
+  color: #ffffff !important;
+}
+
+.dark .formula-katex-display .katex .mrel,
+.dark .formula-katex-display .katex .mbin,
+.dark .formula-katex-display .katex .mop {
+  color: #ffffff !important;
+}
+
+/* KaTeX formula text color - Light mode */
+.light .formula-katex-display .katex,
+.light .formula-katex-display .katex * {
+  color: #111827 !important;
+}
+
+.light .formula-katex-display .katex .mord {
+  color: #111827 !important;
+}
+
+.light .formula-katex-display .katex .mrel,
+.light .formula-katex-display .katex .mbin,
+.light .formula-katex-display .katex .mop {
+  color: #111827 !important;
+}
+
+/* Content Grid */
+.formula-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 1rem;
+}
+
+/* Description Column (Left) */
+.formula-description-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.formula-description {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.formula-subtitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  margin: 0 0 0.5rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.formula-description-content {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #9ca3af);
+  line-height: 1.6;
+}
+
+.formula-components {
+  margin-top: 0.5rem;
+}
+
+.formula-components-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formula-components-list li {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #9ca3af);
+  line-height: 1.5;
+}
+
+.formula-component-code {
+  background: var(--code-bg, rgba(59, 130, 246, 0.15));
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--primary-color, #3b82f6);
+  font-weight: 600;
+}
+
+.formula-component-desc {
+  margin-left: 0.5rem;
+}
+
+.formula-example {
+  margin-top: 0.5rem;
+}
+
+.formula-example-content {
+  background: var(--example-bg, rgba(0, 0, 0, 0.2));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  padding: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-primary, #ffffff);
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* Calculator Column (Right) */
+.formula-calculator-column {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Detailed Explanation (Collapsible) */
+.formula-detailed-explanation {
+  overflow: hidden;
+  margin-top: 1rem;
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  padding-top: 1rem;
+}
+
+.formula-detailed-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.formula-detailed-section {
+  padding: 1rem;
+  background: var(--detailed-bg, rgba(0, 0, 0, 0.2));
+  border-radius: 6px;
+}
+
+.formula-detailed-section h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  margin: 0 0 0.75rem 0;
+}
+
+.formula-detailed-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formula-detailed-section li {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.formula-detailed-section p {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #9ca3af);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .formula-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .formula-calculator-column {
+    order: -1; /* Show calculator first on mobile */
+  }
+}
+
+@media (max-width: 768px) {
+  .formula-section {
+    padding: 1.5rem;
+  }
+
+  .formula-section-title {
+    font-size: 1.25rem;
+  }
+
+  .formula-katex-display .katex {
+    font-size: 1rem;
+  }
+}
+
+/* Dark theme adjustments */
+.dark .formula-section {
+  --card-bg: #1f2937;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --formula-bg: rgba(59, 130, 246, 0.1);
+  --formula-border: rgba(59, 130, 246, 0.2);
+  --primary-color: #3b82f6;
+  --button-hover-bg: rgba(255, 255, 255, 0.05);
+  --code-bg: rgba(59, 130, 246, 0.15);
+  --example-bg: rgba(0, 0, 0, 0.2);
+  --detailed-bg: rgba(0, 0, 0, 0.2);
+}
+
+/* Light theme adjustments */
+.light .formula-section {
+  --card-bg: #ffffff;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --formula-bg: rgba(59, 130, 246, 0.05);
+  --formula-border: rgba(59, 130, 246, 0.2);
+  --primary-color: #2563eb;
+  --button-hover-bg: rgba(0, 0, 0, 0.05);
+  --code-bg: rgba(59, 130, 246, 0.1);
+  --example-bg: rgba(0, 0, 0, 0.05);
+  --detailed-bg: rgba(0, 0, 0, 0.05);
+}

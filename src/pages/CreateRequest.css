@@ -1,0 +1,1998 @@
+/* ============================================================================
+   THEME SYSTEM - CSS Variables for Light and Dark Mode
+   Professional, consistent color system that works in both themes
+   ============================================================================ */
+
+/* ============================================================================
+   THEME SYSTEM - STRICT TEXT COLOR RULES
+   Dark mode: ALL text = white/near-white (NO gray-on-dark)
+   Light mode: ALL text = black/near-black (NO gray-on-white)
+   Single source of truth - zero partial styling
+   ============================================================================ */
+
+:root {
+  /* Light Mode (default) - STRICT BLACK TEXT RULE */
+  --text-primary: #000000; /* Pure black - NO gray text on white */
+  --text-secondary: #000000; /* Pure black for ALL text */
+  --text-muted: #000000; /* Pure black - NO muted gray text */
+  --text-placeholder: #666666; /* Dark gray placeholder - READABLE on white */
+  --text-disabled: #333333; /* Dark gray for disabled - still READABLE */
+  --bg-primary: #ffffff; /* Pure white background */
+  --bg-surface: #f5f5f5; /* Light gray surface */
+  --bg-secondary: #f9fafb; /* Lighter gray for secondary surfaces */
+  --bg-input: #ffffff; /* White input background */
+  --border-color: #e5e7eb; /* Subtle dark border */
+  --border-focus: #3b82f6; /* Blue focus border */
+  --border-error: #ef4444; /* Red error border */
+  --text-error: #dc2626; /* Red error text */
+  --shadow: rgba(0, 0, 0, 0.1); /* Shadow color */
+}
+
+/* Dark Mode - STRICT WHITE TEXT RULE */
+html.dark,
+html[data-theme="dark"] {
+  --text-primary: #ffffff; /* Pure white - NO gray text on dark */
+  --text-secondary: #ffffff; /* Pure white for ALL text */
+  --text-muted: #ffffff; /* Pure white - NO muted gray text */
+  --text-placeholder: #cccccc; /* Light gray placeholder - READABLE on dark */
+  --text-disabled: #e0e0e0; /* Light gray for disabled - still READABLE */
+  --bg-primary: #111827; /* Dark background */
+  --bg-surface: #1f2937; /* Darker gray surface */
+  --bg-secondary: #374151; /* Secondary dark surface */
+  --bg-input: #1f2937; /* Dark input background */
+  --border-color: #4b5563; /* Subtle light border */
+  --border-focus: #3b82f6; /* Blue focus border */
+  --border-error: #ef4444; /* Red error border */
+  --text-error: #f87171; /* Lighter red error text */
+  --shadow: rgba(0, 0, 0, 0.3); /* Darker shadow */
+}
+
+/* Light Mode (explicit) - STRICT BLACK TEXT RULE */
+html.light,
+html[data-theme="light"] {
+  --text-primary: #000000;
+  --text-secondary: #000000;
+  --text-muted: #000000;
+  --text-placeholder: #666666;
+  --text-disabled: #333333;
+  --bg-primary: #ffffff;
+  --bg-surface: #f5f5f5;
+  --bg-secondary: #f9fafb;
+  --bg-input: #ffffff;
+  --border-color: #e5e7eb;
+  --border-focus: #3b82f6;
+  --border-error: #ef4444;
+  --text-error: #dc2626;
+  --shadow: rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================================
+   PAGE LAYOUT - Sidebar + Main Content
+   Foundation sidebar (fixed left) + Main content area (scrollable)
+   ============================================================================ */
+
+.page-layout {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  background: var(--bg-surface);
+  /* Sidebar is fixed, main content flows naturally */
+}
+
+/* Dark mode page layout background */
+html.dark .page-layout,
+html[data-theme="dark"] .page-layout {
+  background: #1f2937 !important;
+}
+
+/* ============================================================================
+   SIDEBAR - Fixed left navigation
+   Dark background, stable foundation for navigation
+   ============================================================================ */
+
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 240px;
+  height: 100vh;
+  background: #1f2937;
+  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  border-right: 1px solid #374151;
+  /* Sidebar does NOT scroll - content may overflow internally */
+  overflow: hidden;
+}
+
+/* Sidebar scrollbar styling */
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Brand Section */
+.sidebar-brand {
+  padding: 1.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid #374151;
+}
+
+.sidebar-logo {
+  width: 32px;
+  height: 32px;
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.sidebar-brand-text {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* Language Switcher */
+.sidebar-language {
+  padding: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid #374151;
+}
+
+.lang-button {
+  flex: 1;
+  padding: 0.5rem;
+  background: transparent;
+  border: 1px solid #4b5563;
+  border-radius: 4px;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lang-button:hover {
+  background: #374151;
+  color: #e5e7eb;
+}
+
+.lang-button.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+/* Theme Toggle */
+.sidebar-theme {
+  padding: 1rem;
+  border-bottom: 1px solid #374151;
+}
+
+.theme-button {
+  width: 100%;
+  padding: 0.625rem;
+  background: transparent;
+  border: 1px solid #4b5563;
+  border-radius: 4px;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.theme-button:hover {
+  background: #374151;
+  color: #e5e7eb;
+}
+
+.theme-button.active {
+  background: #374151;
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.theme-button svg {
+  flex-shrink: 0;
+}
+
+/* Navigation Items */
+.sidebar-nav {
+  flex: 1;
+  padding: 0.5rem 0;
+  overflow-y: auto; /* Allow scrolling if nav items overflow */
+  overflow-x: hidden;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+  min-height: 38px;
+}
+
+.nav-item:hover {
+  background: #374151;
+  color: #ffffff;
+}
+
+.nav-item.active {
+  background: #374151;
+  color: #3b82f6;
+  border-left-color: #3b82f6;
+}
+
+.nav-item svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.nav-item img {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.nav-item span {
+  flex: 1;
+}
+
+/* Footer Section */
+.sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid #374151;
+  margin-top: auto;
+}
+
+.sidebar-footer-text {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* ============================================================================
+   MAIN CONTENT AREA - Adjusts for sidebar width
+   Contains passport preview + form
+   ============================================================================ */
+
+.main-content {
+  margin-left: 240px; /* Match sidebar width */
+  flex: 1;
+  min-height: 100vh;
+  width: auto;
+  max-width: 100%;
+  padding: 0 0 0 0.2rem;
+  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-x: auto; /* Allow horizontal scroll for wide tables */
+  /* Natural browser scrolling - wheel, trackpad, touch */
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg-surface, #f5f5f5);
+}
+
+/* Dark mode main content background */
+html.dark .main-content,
+html[data-theme="dark"] .main-content {
+  background: #1f2937 !important;
+}
+
+
+
+
+
+/* ============================================================================
+   CREATE REQUEST PAGE - Top-Down Layout
+   Desktop: Passport (TOP) + Form (BOTTOM) vertically stacked
+   Optimized for fast back-office data entry
+   
+   Passport acts as reference area (compact, fixed height)
+   Form acts as action area (dense, scrollable)
+   ============================================================================ */
+
+.create-request-page {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0 1rem 0 1rem; /* Zero top padding - passport starts immediately at top */
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  max-width: 1400px;
+  margin: 0 auto;
+  /* Content flows naturally - no height constraints */
+  min-height: fit-content;
+  gap: 0; /* Remove any default flex gap - ensures tight spacing */
+}
+
+/* ============================================================================
+   SECTION 1: PASSPORT PREVIEW (TOP)
+   Edge-to-edge, maximum document visibility
+   ============================================================================ */
+
+.passport-preview-section {
+  width: 100%;
+  margin-top: 0; /* Zero top margin - starts immediately */
+  margin-bottom: 0; /* Zero margin - passport directly connects to form */
+  padding-top: 0; /* Zero top padding */
+  padding-bottom: 0; /* Zero bottom padding */
+  flex-shrink: 0; /* Keep passport visible, don't shrink */
+}
+
+.passport-preview-container {
+  width: 100%;
+  background: #374151;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 450px;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  /* Prevent page zoom gestures on the container */
+  touch-action: pan-x pan-y;
+}
+
+/* ============================================================================
+   PASSPORT TOOLBAR - Minimal viewer controls
+   Read-only viewing tools: zoom, rotate (NO editing/annotation tools)
+   ============================================================================ */
+
+.passport-toolbar {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  z-index: 30; /* Above document, below remove button */
+  background: transparent; /* Transparent - no dark bar blocking preview */
+  backdrop-filter: none; /* Remove blur effect */
+  border-radius: 0; /* No border radius */
+  padding: 0.5rem;
+  box-shadow: none; /* No shadow */
+  border: none; /* No border */
+  gap: 0.5rem;
+  pointer-events: auto; /* Ensure toolbar buttons are clickable */
+}
+
+.toolbar-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.6); /* Semi-transparent dark background for visibility over images */
+  backdrop-filter: blur(6px); /* Blur for button readability */
+  border: 1px solid rgba(255, 255, 255, 0.25); /* Subtle border */
+  border-radius: 4px;
+  color: #ffffff !important; /* White text/icons for visibility over images */
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.75); /* More opaque on hover */
+  border-color: rgba(255, 255, 255, 0.4); /* Brighter border on hover */
+  color: #ffffff !important; /* Maintain white color */
+}
+
+.toolbar-button:active:not(:disabled) {
+  background: rgba(0, 0, 0, 0.8); /* More opaque on active */
+  transform: scale(0.95);
+  color: #ffffff !important; /* Maintain white color */
+}
+
+.toolbar-button:disabled {
+  color: var(--text-disabled) !important; /* Disabled - still readable */
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.toolbar-button svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  stroke: currentColor; /* Ensure SVG uses button color */
+  fill: none; /* Ensure no fill interferes */
+  stroke-width: 2.5; /* Slightly thicker stroke for better visibility */
+}
+
+.toolbar-zoom-display {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #ffffff; /* White text for visibility over image */
+  min-width: 36px;
+  text-align: center;
+  padding: 0.25rem 0.5rem;
+  background: rgba(0, 0, 0, 0.6); /* Semi-transparent dark background for visibility */
+  backdrop-filter: blur(6px); /* Blur for readability */
+  border: 1px solid rgba(255, 255, 255, 0.25); /* Subtle border */
+  border-radius: 4px;
+}
+
+.toolbar-separator {
+  display: none; /* Hide separator - no longer needed with transparent toolbar */
+}
+
+/* Preview Viewer - Container for PDF/Image */
+/* Supports native zoom gestures: trackpad pinch, Ctrl+wheel, touch pinch */
+/* Fills container edge-to-edge - toolbar overlays at top */
+/* Zero padding - document touches container edges for maximum visibility */
+.passport-preview-viewer {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  overflow: auto;
+  background: #374151;
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+  /* Use block layout with text-align for horizontal centering */
+  /* This allows proper scrollable area calculation */
+  display: block;
+  text-align: center;
+  /* Prevent browser page zoom - allow only container zoom */
+  /* Allow panning but native listeners will prevent zoom gestures */
+  touch-action: pan-x pan-y;
+}
+
+/* Pseudo-element for vertical centering when content is smaller than container */
+.passport-preview-viewer::before {
+  content: '';
+  display: inline-block;
+  height: 100%;
+  vertical-align: middle;
+}
+
+/* Image Zoom Container - Wrapper for rotation only */
+.image-zoom-container {
+  display: inline-block;
+  vertical-align: middle;
+  /* Ensure container contributes to scrollable area calculation */
+  position: relative;
+}
+
+/* Image Preview with layout-based zoom support */
+/* Uses actual width/height for zoom - enables native browser scrolling */
+.passport-preview-image {
+  display: block;
+  /* Prevent image drag selection */
+  user-select: none;
+  -webkit-user-drag: none;
+  /* Width and height are set inline based on zoom level */
+}
+
+/* Empty State - Before upload */
+.passport-preview-empty {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #374151;
+}
+
+.empty-state-content {
+  text-align: center;
+  color: var(--text-primary); /* Strict rule - white/black only */
+}
+
+.upload-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 0.75rem;
+  color: var(--text-primary); /* Strict rule - white/black only */
+}
+
+.empty-state-text {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text-primary); /* Strict rule - white/black only */
+}
+
+.upload-buttons-group {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.upload-button {
+  padding: 0.625rem 1.25rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.upload-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.upload-button.ocr-button {
+  background: hsl(152, 60%, 45%);
+}
+
+.upload-button.ocr-button:hover:not(:disabled) {
+  background: hsl(152, 60%, 40%);
+  box-shadow: 0 4px 12px hsla(152, 60%, 45%, 0.3);
+}
+
+.upload-button.retry-button {
+  background: hsl(38, 75%, 55%);
+}
+
+.upload-button.retry-button:hover:not(:disabled) {
+  background: hsl(38, 75%, 50%);
+  box-shadow: 0 4px 12px hsla(38, 75%, 55%, 0.3);
+}
+
+/* Paste Waiting Mode - Visual distinction when waiting for Ctrl+V */
+.passport-preview-empty.paste-waiting-mode {
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  border: 2px dashed #60a5fa;
+  animation: pasteWaitingPulse 2s ease-in-out infinite;
+}
+
+@keyframes pasteWaitingPulse {
+  0%, 100% {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.4);
+  }
+  50% {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 8px rgba(96, 165, 250, 0);
+  }
+}
+
+.paste-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1rem;
+  color: #ffffff;
+  animation: pasteIconBounce 1.5s ease-in-out infinite;
+}
+
+@keyframes pasteIconBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.paste-waiting-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.paste-waiting-text {
+  font-size: 1.125rem;
+  margin-bottom: 0.5rem;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.paste-waiting-subtext {
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+  color: #bfdbfe;
+  font-style: italic;
+  animation: fadeInOut 2s ease-in-out infinite;
+}
+
+@keyframes fadeInOut {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.paste-waiting-mode .empty-state-content {
+  color: #ffffff;
+}
+
+.paste-waiting-mode .upload-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.paste-waiting-mode .upload-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.toolbar-button.extract-button {
+  background: hsl(152, 60%, 45%);
+  color: white;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  margin-left: 0.5rem;
+}
+
+.toolbar-button.extract-button:hover:not(:disabled) {
+  background: hsl(152, 60%, 40%);
+}
+
+.toolbar-button.extract-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.toolbar-button.retry-button {
+  background: hsl(38, 75%, 55%);
+  color: white;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  margin-left: 0.5rem;
+}
+
+.toolbar-button.retry-button:hover:not(:disabled) {
+  background: hsl(38, 75%, 50%);
+}
+
+.toolbar-button.extract-button {
+  background: hsl(152, 60%, 45%);
+  color: white;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+}
+
+.toolbar-button.extract-button:hover:not(:disabled) {
+  background: hsl(152, 60%, 40%);
+}
+
+.toolbar-button.extract-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Remove Button - Floating overlay (bottom-right corner) */
+/* File name is intentionally NOT displayed - focus on document only */
+/* Extract button - Lower left corner */
+.extract-button-overlay {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: hsl(152, 60%, 45%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40; /* Above toolbar and document */
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.extract-button-overlay:hover:not(:disabled) {
+  background: hsl(152, 60%, 40%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px hsla(152, 60%, 45%, 0.4);
+}
+
+.extract-button-overlay:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Retry button - Next to Extract button */
+.retry-button-overlay {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 6rem; /* Position next to Extract button */
+  padding: 0.5rem 1rem;
+  background: hsl(38, 75%, 55%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40; /* Above toolbar and document */
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.retry-button-overlay:hover:not(:disabled) {
+  background: hsl(38, 75%, 50%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px hsla(38, 75%, 55%, 0.4);
+}
+
+.retry-button-overlay:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.remove-file-button-overlay {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.75rem;
+  width: 32px;
+  height: 32px;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 40; /* Above toolbar and document */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+}
+
+.remove-file-button-overlay:hover {
+  background: rgba(220, 38, 38, 0.95);
+  transform: scale(1.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.remove-file-button-overlay:active {
+  transform: scale(0.95);
+}
+
+.remove-file-button-overlay svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ============================================================================
+   OCR OPTIONS MODAL - Small popup for choosing upload method
+   ============================================================================ */
+
+.ocr-options-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.ocr-options-modal {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0;
+  min-width: 320px;
+  max-width: 400px;
+  box-shadow: 0 10px 40px var(--shadow);
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.ocr-options-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ocr-options-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ocr-options-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.ocr-options-close:hover {
+  background-color: var(--bg-secondary);
+}
+
+.ocr-options-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ocr-options-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+}
+
+.ocr-option-button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-align: left;
+  width: 100%;
+}
+
+.ocr-option-button:hover {
+  background: var(--bg-surface);
+  border-color: var(--border-focus);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+.ocr-option-button:active {
+  transform: translateY(0);
+}
+
+.ocr-option-button svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--text-primary);
+}
+
+.ocr-option-button span {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+/* ============================================================================
+   SECTION 2: FORM CARD (BOTTOM)
+   Ultra-compact, dense form optimized for fast data entry
+   Scrollable - passport stays visible above
+   ============================================================================ */
+
+.form-section {
+  width: 100%;
+  flex: 1;
+  margin-top: 0; /* Zero margin - passport flows directly into form */
+}
+
+.form-card {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 0 0 8px 8px; /* Rounded bottom only - top connects to passport */
+  box-shadow: 0 1px 3px 0 var(--shadow), 0 1px 2px 0 var(--shadow);
+  padding: 0.25rem 1rem 1rem 1rem; /* Minimal top padding (4px) - passport and form visually connected */
+  border: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-color); /* Shared border edge with passport */
+  margin-top: 0; /* Zero margin - connects directly to passport */
+  /* Visual continuity - passport and form feel like one surface */
+  /* Top-level header removed - section headers provide sufficient hierarchy */
+}
+
+/* Form scrollable area */
+.request-form {
+  width: 100%;
+  /* Smooth scrolling */
+  scroll-behavior: smooth;
+  /* Ensure first section starts immediately with no extra top spacing */
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.form-title {
+  font-size: 1.25rem; /* Compact header */
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem; /* Tight spacing */
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Form Sections - Ultra-compact spacing */
+/* Maximum density for CRM/airline back-office data entry */
+.form-section-group {
+  margin-bottom: 0.125rem; /* Minimal (2px) - maximum density */
+  margin-top: 0; /* No extra space above sections */
+  padding-bottom: 0.125rem; /* Minimal (2px) - ultra-compact spacing */
+  border-bottom: 1px solid var(--border-color); /* Thin divider */
+}
+
+/* First section starts immediately - no extra top spacing */
+.form-section-group:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  /* First section header sits immediately after minimal form card padding */
+}
+
+.form-section-group:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.form-section-title {
+  font-size: 0.875rem; /* Small section headers */
+  font-weight: 600;
+  color: var(--text-primary); /* Primary text color for headers */
+  margin-bottom: 0.125rem; /* Minimal (2px) - headers sit immediately above fields */
+  margin-top: 0; /* No extra space above headers */
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Add spacing between section title and first field row */
+.form-section-title + .form-grid {
+  margin-top: 0.5rem; /* Comfortable gap between title and fields */
+}
+
+/* Form Grid - Responsive: 3 columns desktop, 2 tablet, 1 mobile */
+/* Maximum density for CRM/airline back-office data entry */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  row-gap: 0.125rem; /* Reduced (2px) - tighter vertical spacing for maximum density */
+  column-gap: 1.5rem; /* Horizontal gap (24px) between fields in the same row - unchanged */
+}
+
+@media (max-width: 1024px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile - Hide sidebar, full width content */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .create-request-page {
+    padding: 0 0.75rem 0 0.75rem; /* Zero top padding - passport starts immediately, keep horizontal for readability */
+  }
+  
+  .form-card {
+    padding: 0.25rem 0.875rem 0.875rem 0.875rem; /* Minimal top padding (4px) - consistent with desktop */
+  }
+  
+  .passport-preview-container {
+    height: 400px; /* Slightly smaller on mobile but still generous */
+  }
+}
+
+/* Form Fields - Ultra-compact and dense */
+/* Maximum vertical density for back-office data entry */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0; /* No margin between fields - row-gap handles spacing */
+}
+
+.form-field label {
+  font-size: 0.75rem; /* Small labels */
+  font-weight: 500;
+  color: var(--text-primary); /* Primary text color for labels */
+  margin-bottom: 0.0625rem; /* Reduced (1px) - labels tightly attached to inputs */
+  line-height: 1.2;
+}
+
+.required {
+  color: var(--text-error);
+}
+
+.form-field input,
+.form-field select {
+  padding: 0.5rem 0.625rem; /* Compact padding */
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.875rem; /* Readable but compact */
+  color: var(--text-primary); /* Primary text color for input values */
+  background: var(--bg-input); /* Input background */
+  transition: border-color 0.15s, box-shadow 0.15s;
+  height: 36px; /* Compact height 36-40px range */
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* Disabled inputs - still readable per strict rule */
+.form-field input:disabled,
+.form-field select:disabled {
+  color: var(--text-disabled) !important; /* Disabled text - still readable */
+  background: var(--bg-secondary);
+  cursor: not-allowed;
+  opacity: 0.8; /* Slightly reduced but still readable */
+}
+
+.form-field input::placeholder,
+.form-field select::placeholder {
+  color: var(--text-placeholder) !important; /* Readable placeholder - strict rule */
+  font-size: 0.875rem;
+  opacity: 1 !important; /* Full opacity - NO faded placeholders */
+}
+
+/* Dark mode - prevent autofill from turning inputs white */
+html.dark .form-field input:-webkit-autofill,
+html[data-theme="dark"] .form-field input:-webkit-autofill,
+html.dark .form-field input:-webkit-autofill:hover,
+html[data-theme="dark"] .form-field input:-webkit-autofill:hover,
+html.dark .form-field input:-webkit-autofill:focus,
+html[data-theme="dark"] .form-field input:-webkit-autofill:focus,
+html.dark .form-field input:-webkit-autofill:active,
+html[data-theme="dark"] .form-field input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #1f2937 inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background-color: #1f2937 !important;
+  background: #1f2937 !important;
+  color: #ffffff !important;
+  border-color: var(--border-color) !important;
+  transition: background-color 5000s ease-in-out 0s, color 5000s ease-in-out 0s;
+}
+
+html.dark .form-field input:-webkit-autofill::first-line,
+html[data-theme="dark"] .form-field input:-webkit-autofill::first-line {
+  color: #ffffff !important;
+}
+
+/* Checkbox Group (Request Types) */
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem; /* Tight spacing */
+  margin-top: 0.75rem; /* Add spacing above checkboxes */
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem; /* Compact */
+  color: var(--text-primary); /* Primary text color - strict black/white rule */
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 1.125rem;
+  height: 1.125rem;
+  cursor: pointer;
+  accent-color: #3b82f6;
+  flex-shrink: 0;
+}
+
+/* Action Buttons */
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem; /* Tight spacing */
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.button {
+  padding: 0.5rem 1.25rem; /* Compact buttons */
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+  height: 36px; /* Match input height */
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button-cancel {
+  background: var(--bg-secondary);
+  color: var(--text-primary) !important; /* Strict rule - white/black only */
+}
+
+.button-cancel:hover {
+  background: var(--border-color);
+  color: var(--text-primary) !important; /* Maintain readability */
+}
+
+.button-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.button-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Submit Message (Success/Error) */
+.submit-message {
+  padding: 0.625rem;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.submit-success {
+  background: #d1fae5;
+  color: #065f46; /* Dark green text on light green background - high contrast */
+  border: 1px solid #6ee7b7;
+}
+
+.submit-error {
+  background: #fee2e2;
+  color: #991b1b; /* Dark red text on light red background - high contrast */
+  border: 1px solid #fca5a5;
+}
+
+/* Success/Error messages in dark mode - ensure text remains readable */
+html.dark .submit-success,
+html[data-theme="dark"] .submit-success {
+  background: #064e3b; /* Darker green background */
+  color: #d1fae5 !important; /* Light green text - readable on dark */
+  border: 1px solid #10b981;
+}
+
+html.dark .submit-error,
+html[data-theme="dark"] .submit-error {
+  background: #7f1d1d; /* Darker red background */
+  color: #fecaca !important; /* Light red text - readable on dark */
+  border: 1px solid #f87171;
+}
+
+/* ============================================================================
+   GERMAN DATE PICKER STYLING (flatpickr)
+   Enterprise-grade German SaaS look & feel
+   ============================================================================ */
+
+/* Date input field styling */
+.german-date-input {
+  width: 100%;
+}
+
+/* Date input with error state - show red border when error exists */
+.form-field .german-date-input:has(+ .date-error-message),
+.form-field:has(.date-error-message) .german-date-input {
+  border-color: var(--border-error);
+}
+
+.form-field:has(.date-error-message) .german-date-input:focus {
+  border-color: var(--border-error);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Date input error message styling */
+.date-error-message {
+  color: var(--text-error);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  display: block;
+  line-height: 1.4;
+}
+
+/* ============================================================================
+   FLATPICKR CALENDAR - Real-world SaaS styling
+   ============================================================================ */
+
+/* Calendar container */
+.flatpickr-calendar {
+  font-family: inherit;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px var(--shadow);
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  z-index: 9999;
+  overflow: visible !important; /* Allow dropdown options to overflow calendar container */
+  min-width: 300px;
+}
+
+/* Force calendar to open below input (prevent arrowTop positioning) */
+.flatpickr-calendar.arrowTop {
+  transform: translateY(0) !important;
+  margin-top: 0 !important;
+}
+
+.flatpickr-calendar.arrowBottom {
+  margin-top: 4px;
+}
+
+.flatpickr-days,
+.dayContainer {
+  width: 100% !important;
+  min-width: 300px !important;
+  max-width: 340px !important;
+}
+
+.flatpickr-months {
+  background: var(--bg-primary);
+  border-radius: 8px 8px 0 0;
+  padding: 0.75rem;
+  overflow: visible !important; /* Allow dropdown options to appear below */
+  position: relative;
+  z-index: 1;
+}
+
+.flatpickr-current-month {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Month dropdown fixes */
+.flatpickr-monthDropdown-months,
+select.flatpickr-monthDropdown-months {
+  min-width: 110px !important;
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  padding: 0.25rem 1.5rem 0.25rem 0.5rem !important;
+  border-radius: 6px !important;
+  height: 34px !important;
+}
+
+/* HIDE Flatpickr's native year selectors - we use custom dropdown instead */
+.flatpickr-monthDropdown-years,
+select.flatpickr-monthDropdown-years,
+input.flatpickr-monthDropdown-years,
+.flatpickr-current-month .numInputWrapper input[type="number"].cur-year,
+.flatpickr-current-month input.cur-year,
+.flatpickr-current-month .numInputWrapper:has(input[type="number"].cur-year) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+  pointer-events: none !important;
+}
+
+/* Show ONLY our custom year dropdown - FORCE VISIBILITY */
+.flatpickr-yearDropdown-custom,
+select.flatpickr-yearDropdown-custom {
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-width: 80px !important;
+  width: auto !important;
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px !important;
+  height: 34px !important;
+  padding: 0.25rem 1.5rem 0.25rem 0.5rem !important;
+  font-size: 0.9375rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  margin-left: 0.5rem !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 9999 !important;
+  vertical-align: middle !important;
+  line-height: 34px !important;
+}
+
+/* Ensure parent doesn't hide it */
+.flatpickr-current-month .flatpickr-yearDropdown-custom,
+.flatpickr-current-month select.flatpickr-yearDropdown-custom {
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.flatpickr-monthDropdown-months:focus,
+.flatpickr-current-month .numInputWrapper input:focus,
+.flatpickr-yearDropdown-custom:focus {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+/* Dark theme calendar overrides */
+html.dark .flatpickr-calendar,
+html[data-theme="dark"] .flatpickr-calendar {
+  background: #111827;
+  color: #e5e7eb;
+  border: 1px solid #374151;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+html.dark .flatpickr-months,
+html[data-theme="dark"] .flatpickr-months {
+  background: transparent;
+  border-bottom: 1px solid #374151;
+}
+
+html.dark .flatpickr-current-month,
+html[data-theme="dark"] .flatpickr-current-month {
+  color: #e5e7eb;
+}
+
+html.dark .flatpickr-day,
+html[data-theme="dark"] .flatpickr-day {
+  color: #e5e7eb;
+  border-radius: 8px;
+}
+
+html.dark .flatpickr-day:hover,
+html[data-theme="dark"] .flatpickr-day:hover {
+  background: #1f2937;
+}
+
+html.dark .flatpickr-day.today,
+html[data-theme="dark"] .flatpickr-day.today {
+  border-color: #3b82f6;
+  color: #e5e7eb;
+}
+
+html.dark .flatpickr-day.today:hover,
+html[data-theme="dark"] .flatpickr-day.today:hover {
+  background: #1f2937;
+}
+
+html.dark .flatpickr-day.selected,
+html[data-theme="dark"] .flatpickr-day.selected {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+html.dark .flatpickr-day.selected:hover,
+html[data-theme="dark"] .flatpickr-day.selected:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+html.dark .flatpickr-prev-month,
+html.dark .flatpickr-next-month,
+html[data-theme="dark"] .flatpickr-prev-month,
+html[data-theme="dark"] .flatpickr-next-month {
+  fill: #9ca3af;
+}
+
+html.dark .flatpickr-prev-month:hover,
+html.dark .flatpickr-next-month:hover,
+html[data-theme="dark"] .flatpickr-prev-month:hover,
+html[data-theme="dark"] .flatpickr-next-month:hover {
+  fill: #e5e7eb;
+}
+
+html.dark .flatpickr-monthDropdown-months,
+html[data-theme="dark"] .flatpickr-monthDropdown-months {
+  background: #1f2937;
+  color: #e5e7eb;
+  border: 1px solid #374151;
+}
+
+html.dark .flatpickr-yearDropdown-custom,
+html[data-theme="dark"] .flatpickr-yearDropdown-custom {
+  background: #1f2937;
+  color: #e5e7eb;
+  border: 1px solid #374151;
+}
+
+/* Month dropdown - with SVG triangle arrow (▼) */
+.flatpickr-monthDropdown-months,
+select.flatpickr-monthDropdown-months {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  border: 1px solid transparent !important;
+  border-radius: 4px;
+  padding-right: 1.75rem !important;
+  padding-left: 0.5rem !important;
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.25rem !important;
+  font-size: 0.9375rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  cursor: pointer !important;
+  outline: none !important;
+  transition: background-color 0.15s;
+  margin-right: 0.5rem;
+  background-color: transparent !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23000000' d='M6 8L0 0h12z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.5rem center !important;
+  background-size: 0.75rem 0.5rem !important;
+  position: relative;
+  z-index: 10; /* Ensure dropdown options appear above other elements */
+}
+
+/* Custom year dropdown - matches month dropdown styling */
+.flatpickr-yearDropdown-custom {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  border: 1px solid transparent !important;
+  border-radius: 4px;
+  padding-right: 1.75rem !important;
+  padding-left: 0.5rem !important;
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.25rem !important;
+  font-size: 0.9375rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  cursor: pointer !important;
+  outline: none !important;
+  transition: background-color 0.15s;
+  margin-left: 0.5rem;
+  background-color: transparent !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23000000' d='M6 8L0 0h12z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.5rem center !important;
+  background-size: 0.75rem 0.5rem !important;
+  position: relative;
+  z-index: 10; /* Ensure dropdown options appear above other elements */
+}
+
+.flatpickr-yearDropdown-custom:hover,
+.flatpickr-yearDropdown-custom:focus {
+  background-color: var(--bg-secondary) !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23000000' d='M6 8L0 0h12z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.5rem center !important;
+  background-size: 0.75rem 0.5rem !important;
+}
+
+.flatpickr-yearDropdown-custom:focus {
+  border-color: var(--border-focus) !important;
+}
+
+.flatpickr-yearDropdown-custom option {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+.flatpickr-monthDropdown-months:hover,
+.flatpickr-monthDropdown-months:focus,
+select.flatpickr-monthDropdown-months:hover,
+select.flatpickr-monthDropdown-months:focus {
+  background-color: var(--bg-secondary) !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23000000' d='M6 8L0 0h12z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.5rem center !important;
+  background-size: 0.75rem 0.5rem !important;
+}
+
+.flatpickr-monthDropdown-months:focus,
+select.flatpickr-monthDropdown-months:focus {
+  border-color: var(--border-focus) !important;
+}
+
+.flatpickr-monthDropdown-months option {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Year dropdown - with SVG triangle arrow (▼) - exactly like month */
+.flatpickr-monthDropdown-years,
+select.flatpickr-monthDropdown-years,
+.flatpickr-current-month select.flatpickr-monthDropdown-years,
+input.flatpickr-monthDropdown-years,
+.flatpickr-current-month input.flatpickr-monthDropdown-years {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  border: 1px solid transparent !important;
+  border-radius: 4px;
+  padding-right: 1.75rem !important;
+  padding-left: 0.5rem !important;
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.25rem !important;
+  font-size: 0.9375rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  cursor: pointer !important;
+  outline: none !important;
+  transition: background-color 0.15s;
+  margin-left: 0.5rem;
+  background-color: transparent !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23000000' d='M6 8L0 0h12z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.5rem center !important;
+  background-size: 0.75rem 0.5rem !important;
+}
+
+/* Hide native number input spinners - we use custom arrow instead */
+input.flatpickr-monthDropdown-years::-webkit-inner-spin-button,
+input.flatpickr-monthDropdown-years::-webkit-outer-spin-button,
+.flatpickr-current-month input.flatpickr-monthDropdown-years::-webkit-inner-spin-button,
+.flatpickr-current-month input.flatpickr-monthDropdown-years::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input[type="number"].flatpickr-monthDropdown-years,
+.flatpickr-current-month input[type="number"].flatpickr-monthDropdown-years {
+  -moz-appearance: textfield !important;
+}
+
+.flatpickr-monthDropdown-years:hover,
+.flatpickr-monthDropdown-years:focus,
+select.flatpickr-monthDropdown-years:hover,
+select.flatpickr-monthDropdown-years:focus,
+input.flatpickr-monthDropdown-years:hover,
+input.flatpickr-monthDropdown-years:focus,
+.flatpickr-current-month select.flatpickr-monthDropdown-years:hover,
+.flatpickr-current-month select.flatpickr-monthDropdown-years:focus,
+.flatpickr-current-month input.flatpickr-monthDropdown-years:hover,
+.flatpickr-current-month input.flatpickr-monthDropdown-years:focus {
+  background-color: var(--bg-secondary) !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23000000' d='M6 8L0 0h12z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.5rem center !important;
+  background-size: 0.75rem 0.5rem !important;
+}
+
+.flatpickr-monthDropdown-years:focus,
+select.flatpickr-monthDropdown-years:focus {
+  border-color: var(--border-focus) !important;
+}
+
+.flatpickr-monthDropdown-years option,
+select.flatpickr-monthDropdown-years option {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dark mode - white arrows */
+html.dark .flatpickr-monthDropdown-months,
+html[data-theme="dark"] .flatpickr-monthDropdown-months,
+html.dark .flatpickr-monthDropdown-months:hover,
+html[data-theme="dark"] .flatpickr-monthDropdown-months:hover,
+html.dark .flatpickr-monthDropdown-months:focus,
+html[data-theme="dark"] .flatpickr-monthDropdown-months:focus,
+html.dark select.flatpickr-monthDropdown-months,
+html[data-theme="dark"] select.flatpickr-monthDropdown-months,
+html.dark select.flatpickr-monthDropdown-months:hover,
+html[data-theme="dark"] select.flatpickr-monthDropdown-months:hover,
+html.dark select.flatpickr-monthDropdown-months:focus,
+html[data-theme="dark"] select.flatpickr-monthDropdown-months:focus {
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23ffffff' d='M6 8L0 0h12z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.5rem center !important;
+  background-size: 0.75rem 0.5rem !important;
+}
+
+/* Dark mode - white arrows for custom year dropdown */
+html.dark .flatpickr-yearDropdown-custom,
+html[data-theme="dark"] .flatpickr-yearDropdown-custom,
+html.dark .flatpickr-yearDropdown-custom:hover,
+html[data-theme="dark"] .flatpickr-yearDropdown-custom:hover,
+html.dark .flatpickr-yearDropdown-custom:focus,
+html[data-theme="dark"] .flatpickr-yearDropdown-custom:focus {
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23ffffff' d='M6 8L0 0h12z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.5rem center !important;
+  background-size: 0.75rem 0.5rem !important;
+}
+
+/* Dark mode - white arrows for year dropdown - MUST override base styles */
+html.dark .flatpickr-monthDropdown-years,
+html[data-theme="dark"] .flatpickr-monthDropdown-years,
+html.dark .flatpickr-monthDropdown-years:hover,
+html[data-theme="dark"] .flatpickr-monthDropdown-years:hover,
+html.dark .flatpickr-monthDropdown-years:focus,
+html[data-theme="dark"] .flatpickr-monthDropdown-years:focus,
+html.dark select.flatpickr-monthDropdown-years,
+html[data-theme="dark"] select.flatpickr-monthDropdown-years,
+html.dark select.flatpickr-monthDropdown-years:hover,
+html[data-theme="dark"] select.flatpickr-monthDropdown-years:hover,
+html.dark select.flatpickr-monthDropdown-years:focus,
+html[data-theme="dark"] select.flatpickr-monthDropdown-years:focus,
+html.dark input.flatpickr-monthDropdown-years,
+html[data-theme="dark"] input.flatpickr-monthDropdown-years,
+html.dark input.flatpickr-monthDropdown-years:hover,
+html[data-theme="dark"] input.flatpickr-monthDropdown-years:hover,
+html.dark input.flatpickr-monthDropdown-years:focus,
+html[data-theme="dark"] input.flatpickr-monthDropdown-years:focus,
+html.dark .flatpickr-current-month select.flatpickr-monthDropdown-years,
+html[data-theme="dark"] .flatpickr-current-month select.flatpickr-monthDropdown-years,
+html.dark .flatpickr-current-month select.flatpickr-monthDropdown-years:hover,
+html[data-theme="dark"] .flatpickr-current-month select.flatpickr-monthDropdown-years:hover,
+html.dark .flatpickr-current-month select.flatpickr-monthDropdown-years:focus,
+html[data-theme="dark"] .flatpickr-current-month select.flatpickr-monthDropdown-years:focus,
+html.dark .flatpickr-current-month input.flatpickr-monthDropdown-years,
+html[data-theme="dark"] .flatpickr-current-month input.flatpickr-monthDropdown-years,
+html.dark .flatpickr-current-month input.flatpickr-monthDropdown-years:hover,
+html[data-theme="dark"] .flatpickr-current-month input.flatpickr-monthDropdown-years:hover,
+html.dark .flatpickr-current-month input.flatpickr-monthDropdown-years:focus,
+html[data-theme="dark"] .flatpickr-current-month input.flatpickr-monthDropdown-years:focus {
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23ffffff' d='M6 8L0 0h12z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.5rem center !important;
+  background-size: 0.75rem 0.5rem !important;
+}
+
+/* Additional rule to ensure year input arrow is white - targets number input directly */
+html.dark .flatpickr-current-month .numInputWrapper input,
+html[data-theme="dark"] .flatpickr-current-month .numInputWrapper input,
+html.dark .flatpickr-current-month input[type="number"],
+html[data-theme="dark"] .flatpickr-current-month input[type="number"] {
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23ffffff' d='M6 8L0 0h12z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.5rem center !important;
+  background-size: 0.75rem 0.5rem !important;
+}
+
+/* Calendar navigation arrows */
+.flatpickr-prev-month,
+.flatpickr-next-month {
+  color: var(--text-primary) !important;
+  fill: var(--text-primary) !important;
+}
+
+.flatpickr-prev-month:hover,
+.flatpickr-next-month:hover {
+  color: var(--text-primary) !important;
+  fill: var(--text-primary) !important;
+  opacity: 0.8;
+}
+
+/* Weekday headers */
+.flatpickr-weekdays {
+  background: var(--bg-secondary);
+  padding: 0.5rem 0;
+}
+
+.flatpickr-weekday {
+  color: var(--text-primary) !important;
+  font-weight: 500;
+  font-size: 0.8125rem;
+}
+
+/* Calendar days */
+.flatpickr-day {
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: var(--text-primary) !important;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+  background: transparent;
+}
+
+.flatpickr-day:hover {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-focus);
+  color: var(--text-primary) !important;
+}
+
+.flatpickr-day.today {
+  border-color: #3b82f6;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-primary) !important;
+}
+
+.flatpickr-day.today:hover {
+  background: var(--bg-secondary) !important;
+  border-color: #3b82f6;
+  color: var(--text-primary) !important;
+}
+
+.flatpickr-day.selected {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: white !important;
+  font-weight: 600;
+}
+
+.flatpickr-day.selected:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: white !important;
+}
+
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+  color: var(--text-disabled);
+  opacity: 0.7;
+}
+
+.flatpickr-day.flatpickr-disabled:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* ============================================================================
+   STRICT THEME OVERRIDES - Force all text to respect theme
+   No partial styling, no hardcoded colors
+   ============================================================================ */
+
+/* Select dropdown options - ensure readable in both themes */
+.form-field select option {
+  background: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Ensure selected dropdown values are readable */
+.form-field select {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-input) !important;
+}
+
+.form-field select:focus {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-input) !important;
+}
+
+/* Override any potential inline styles or third-party library defaults */
+input[type="text"],
+input[type="date"],
+input[type="email"],
+input[type="number"],
+select,
+textarea {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-input) !important;
+}
+
+input[type="text"]::placeholder,
+input[type="date"]::placeholder,
+input[type="email"]::placeholder,
+input[type="number"]::placeholder,
+textarea::placeholder {
+  color: var(--text-placeholder) !important;
+  opacity: 1 !important;
+}
+
+/* Ensure button text is always readable */
+.button,
+button {
+  color: inherit;
+}
+
+.button-cancel,
+.button-primary {
+  color: var(--text-primary) !important;
+}
+
+/* Toast/Alert messages - ensure readable */
+.submit-message {
+  color: inherit;
+}
+
+.submit-success {
+  color: var(--text-primary) !important;
+}
+
+.submit-error {
+  color: var(--text-primary) !important;
+}
+
+/* ============================================================================
+   AIRPORT AUTOCOMPLETE STYLING
+   ============================================================================ */
+
+/* Import airport autocomplete styles - handled by AirportAutocomplete.css */
+/* Additional overrides if needed can go here */
+
+/* ============================================================================
+   MODE SELECTION MODAL
+   ============================================================================ */
+
+.mode-selection-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.mode-selection-modal {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+}
+
+.mode-selection-modal h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mode-selection-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-direction: column;
+}
+
+.mode-button {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.mode-button:hover {
+  border-color: var(--border-focus);
+  background: var(--bg-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+.mode-button svg {
+  flex-shrink: 0;
+  stroke: currentColor;
+}
+
+.mode-button span {
+  flex: 1;
+}
+
+.mode-button.mode-single:hover {
+  border-color: #3b82f6;
+}
+
+.mode-button.mode-family:hover {
+  border-color: #10b981;
+}
+
+.mode-button.mode-cancel {
+  border-color: var(--border-color);
+  background: transparent;
+}
+
+.mode-button.mode-cancel:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* ============================================================================
+   FAMILY MEMBERS DISPLAY
+   ============================================================================ */
+
+.family-members-display {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--bg-subtle);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.family-members-display h4 {
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.button-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: var(--bg-surface);
+  border-color: var(--border-focus);
+}
