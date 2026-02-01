@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { STATUS, STATUS_LABELS, STATUS_ORDER, STATUS_TRANSITIONS, getStatusLabel, isValidTransition } from '../constants/statuses'
 import { saveToRecyclingBin, getItemDisplayName } from '../lib/recyclingBin'
 import generateBankTransferInvoicePdf from '../utils/generateBankTransferInvoicePdf'
+import generateGroupInvoicePdf from '../utils/generateGroupInvoicePdf'
 import AirlinesAutocomplete from '../components/AirlinesAutocomplete'
 import { loadAirlines, formatAirlineCompact } from '../lib/airlines'
 import AirportAutocomplete from '../components/AirportAutocomplete'
@@ -229,6 +230,7 @@ function RequestsList() {
   
   const [theme, setTheme] = useState('dark')
   const [requests, setRequests] = useState([])
+  const [selectedIds, setSelectedIds] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   
@@ -260,6 +262,7 @@ function RequestsList() {
   
   // Column resizing state
   const [columnWidths, setColumnWidths] = useState({
+    select: 48,
     row_number: 60,
     booking_ref: 130,
     booking_status: 130,
@@ -672,6 +675,75 @@ function RequestsList() {
     } catch (err) {
       console.error('Error generating invoice:', err)
       alert('Failed to generate invoice: ' + (err.message || 'Unknown error'))
+    }
+  }
+
+  const handleToggleRowSelect = (rowId) => {
+    setSelectedIds((prev) =>
+      prev.includes(rowId) ? prev.filter((id) => id !== rowId) : [...prev, rowId]
+    )
+  }
+
+  const handleSelectAllVisible = (ids, checked) => {
+    if (!ids || ids.length === 0) return
+    setSelectedIds((prev) => {
+      if (checked) {
+        const merged = new Set([...prev, ...ids])
+        return Array.from(merged)
+      }
+      return prev.filter((id) => !ids.includes(id))
+    })
+  }
+
+  const handleGenerateGroupInvoice = async (mode = 'preview') => {
+    try {
+      const selectedBookings = requests.filter((r) => selectedIds.includes(r.id))
+      if (selectedBookings.length === 0) {
+        alert('Select at least one passenger to print a group invoice.')
+        return
+      }
+
+      // Fetch invoice settings (best effort)
+      let settingsData = {}
+      try {
+        const { data, error } = await supabase
+          .from('invoice_settings')
+          .select('*')
+          .maybeSingle()
+        if (!error && data) settingsData = data
+      } catch (err) {
+        console.warn('Invoice settings fetch failed:', err.message)
+      }
+
+      // Try to resolve logo URL (best effort)
+      let logoUrl = settingsData.logo_url || null
+      const orgId = selectedBookings[0]?.organization_id || 'default'
+      if (!logoUrl && supabase?.storage) {
+        const formats = ['png', 'jpg', 'jpeg', 'svg']
+        for (const fmt of formats) {
+          try {
+            const { data } = supabase.storage.from('logos').getPublicUrl(`${orgId}/logo.${fmt}`)
+            if (data?.publicUrl) {
+              logoUrl = data.publicUrl
+              break
+            }
+          } catch (_) {
+            // ignore and try next format
+          }
+        }
+      }
+
+      const settings = {
+        ...settingsData,
+        include_qr: settingsData?.include_qr ?? false,
+        logo_url: logoUrl || settingsData.logo_url || ''
+      }
+
+      await generateGroupInvoicePdf(selectedBookings, settings, mode, language, true)
+      setSelectedIds([])
+    } catch (err) {
+      console.error('Error generating group invoice:', err)
+      alert('Failed to generate group invoice: ' + (err.message || 'Unknown error'))
     }
   }
 
@@ -1409,6 +1481,22 @@ function RequestsList() {
 
   // Render cell content
   const renderCell = (request, field, rowIndex = null) => {
+    if (field === 'select') {
+      return (
+        <div className="excel-cell excel-cell-select">
+          <input
+            type="checkbox"
+            checked={selectedIds.includes(request.id)}
+            onChange={(e) => {
+              e.stopPropagation()
+              handleToggleRowSelect(request.id)
+            }}
+            aria-label="Select passenger"
+          />
+        </div>
+      )
+    }
+
     // Invoice button column (direct print)
     if (field === 'invoice_action') {
       return (
@@ -1740,6 +1828,7 @@ function RequestsList() {
 
   // Get column order (matching table structure)
   const columnOrder = [
+    'select',
     'row_number',
     'booking_ref',
     'booking_status',
@@ -1778,6 +1867,7 @@ function RequestsList() {
   // Get column label
   const getColumnLabel = (field) => {
     const labelMap = {
+      select: '',
       row_number: '#',
       booking_ref: t.table.columns.bookingRef,
       booking_status: t.table.columns.bookingStatus,
@@ -1839,6 +1929,12 @@ function RequestsList() {
 
   // Group filtered requests by month
   const groupedRequests = groupByMonth(filteredRequests)
+
+  const visibleRequests = groupedRequests.flatMap(group => group.requests)
+  const visibleIds = visibleRequests.map(r => r.id)
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.includes(id))
+  const someVisibleSelected = visibleIds.some(id => selectedIds.includes(id)) && !allVisibleSelected
+  const selectedCount = selectedIds.length
 
   return (
     <div className="page-layout">
@@ -2028,6 +2124,25 @@ function RequestsList() {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                           />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="button button-primary"
+                              onClick={() => handleGenerateGroupInvoice('preview')}
+                              disabled={selectedCount === 0}
+                            >
+                              Group invoice ({selectedCount})
+                            </button>
+                            {selectedCount > 0 && (
+                              <button
+                                type="button"
+                                className="button button-secondary"
+                                onClick={() => setSelectedIds([])}
+                              >
+                                Clear selection
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="query-bar-right">
                           <label className="query-label">Time:</label>
@@ -2137,13 +2252,31 @@ function RequestsList() {
                           }}
                           className="excel-header-cell"
                         >
-                        <span className="excel-header-label">{getColumnLabel(field)}</span>
-                        <div
-                          className="excel-resize-handle"
-                          onMouseDown={(e) => handleResizeStart(field, e)}
-                          onDoubleClick={(e) => handleResizeDoubleClick(field, e)}
-                          title="Drag to resize, double-click to auto-fit"
-                        />
+                        {field === 'select' ? (
+                          <label className="excel-header-select">
+                            <input
+                              type="checkbox"
+                              checked={allVisibleSelected}
+                              ref={(el) => {
+                                if (el) {
+                                  el.indeterminate = someVisibleSelected
+                                }
+                              }}
+                              onChange={() => handleSelectAllVisible(visibleIds, !allVisibleSelected)}
+                              aria-label="Select all visible passengers"
+                            />
+                          </label>
+                        ) : (
+                          <>
+                            <span className="excel-header-label">{getColumnLabel(field)}</span>
+                            <div
+                              className="excel-resize-handle"
+                              onMouseDown={(e) => handleResizeStart(field, e)}
+                              onDoubleClick={(e) => handleResizeDoubleClick(field, e)}
+                              title="Drag to resize, double-click to auto-fit"
+                            />
+                          </>
+                        )}
                         </th>
                       )
                     })}
