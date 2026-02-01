@@ -348,9 +348,8 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
           <div style="display: inline-block; border: 2px solid #dc2626; padding: 8px 12px; font-size: 16px; font-weight: 500; color: #dc2626; white-space: pre-wrap; word-wrap: break-word; text-align: left; max-width: 60%;">${noticeText}</div>
         </div>`
       : ''
-    const footerLockedHTML = isLastPage
-      ? `
-      <div style="margin-top: ${afterTableMarginTop}; font-size: 14px; line-height: 1.6;">
+    const footerLockedHTML = `
+      <div style="font-size: 14px; line-height: 1.6;">
         <div style="margin-bottom: 6mm;"><strong>${t('platform', language)}</strong> ${t('platformValue', language)}</div>
         
         ${includeParagraph ? `
@@ -388,8 +387,7 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
           </div>
         </div>
       </div>
-      `
-      : ''
+    `
 
     return `
     <div style="
@@ -480,10 +478,10 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
         </tbody>
       </table>
 
-      ${noticeSectionHTML}
       <div style="flex: 1; display: flex; flex-direction: column; margin-top: ${afterTableMarginTop};">
+        ${noticeSectionHTML}
         <div style="flex: 1;"></div>
-        ${footerLockedHTML}
+        ${isLastPage ? footerLockedHTML : ''}
       </div>
     </div>
   `
