@@ -90,6 +90,8 @@ async function loadCountryNames() {
   return countryNamesLoadingPromise
 }
 
+export { loadCountryNames }
+
 /**
  * Load and parse airports.csv from OurAirports
  * Returns array of airport objects with: id, name, city, country, iata, icao, latitude, longitude, type
