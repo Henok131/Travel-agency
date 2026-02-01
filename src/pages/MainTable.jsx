@@ -2084,9 +2084,6 @@ function RequestsList() {
           {/* Page Header */}
           <div className="requests-header">
             <h1 className="requests-title">{t.table.title}</h1>
-            <Link to="/requests/new" className="button button-primary">
-              + {t.table.createNew}
-            </Link>
           </div>
 
           {loading && (
