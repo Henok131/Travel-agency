@@ -678,26 +678,32 @@ function RequestsList() {
     }
   }
 
+  const normalizeId = (id) => (id === undefined || id === null ? '' : String(id))
+
   const handleToggleRowSelect = (rowId) => {
+    const normalized = normalizeId(rowId)
+    if (!normalized) return
     setSelectedIds((prev) =>
-      prev.includes(rowId) ? prev.filter((id) => id !== rowId) : [...prev, rowId]
+      prev.includes(normalized) ? prev.filter((id) => id !== normalized) : [...prev, normalized]
     )
   }
 
   const handleSelectAllVisible = (ids, checked) => {
     if (!ids || ids.length === 0) return
+    const normalizedIds = ids.map(normalizeId).filter(Boolean)
     setSelectedIds((prev) => {
       if (checked) {
-        const merged = new Set([...prev, ...ids])
+        const merged = new Set([...prev, ...normalizedIds])
         return Array.from(merged)
       }
-      return prev.filter((id) => !ids.includes(id))
+      return prev.filter((id) => !normalizedIds.includes(id))
     })
   }
 
   const handleGenerateGroupInvoice = async (mode = 'preview') => {
     try {
-      const selectedBookings = requests.filter((r) => selectedIds.includes(r.id))
+      const selectedSet = new Set(selectedIds.map(normalizeId))
+      const selectedBookings = requests.filter((r) => selectedSet.has(normalizeId(r.id)))
       if (selectedBookings.length === 0) {
         alert('Select at least one passenger to print a group invoice.')
         return
