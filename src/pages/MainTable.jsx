@@ -2130,7 +2130,7 @@ function RequestsList() {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                           />
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px', flexWrap: 'wrap' }}>
+                          <div className="group-invoice-actions">
                             <button
                               type="button"
                               className="button button-primary"
@@ -2210,23 +2210,6 @@ function RequestsList() {
                                 </select>
                               </>
                             )}
-
-                            <div style={{ display: 'flex', gap: '6px', marginLeft: '12px' }}>
-                              <button
-                                type="button"
-                                className={`lang-button ${language === 'de' ? 'active' : ''}`}
-                                onClick={() => setLanguage('de')}
-                              >
-                                DE
-                              </button>
-                              <button
-                                type="button"
-                                className={`lang-button ${language === 'en' ? 'active' : ''}`}
-                                onClick={() => setLanguage('en')}
-                              >
-                                EN
-                              </button>
-                            </div>
                         </div>
                       </div>
                     </td>
