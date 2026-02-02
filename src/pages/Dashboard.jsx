@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { useStore } from '../contexts/StoreContext'
+import { supabase } from '@/lib/supabaseClient'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
@@ -189,7 +189,6 @@ const CHART_COLORS = [
 ]
 
 function Dashboard() {
-  const { store } = useStore()
   const [language, setLanguage] = useState('en')
   const [theme, setTheme] = useState('dark')
   const [loading, setLoading] = useState(true)
@@ -338,9 +337,15 @@ function Dashboard() {
         endDate: endDate?.toISOString() 
       })
 
-      // Get data from mock store
-      let allBookings = store.mainTable.getAll()
-      let allExpenses = store.expenses.getAll()
+      // Get data from Supabase
+      const [{ data: allBookingsData, error: bookingsError }, { data: allExpensesData, error: expensesError }] = await Promise.all([
+        supabase.from('main_table').select('*'),
+        supabase.from('expenses').select('*')
+      ])
+      if (bookingsError) throw bookingsError
+      if (expensesError) throw expensesError
+      let allBookings = allBookingsData || []
+      let allExpenses = allExpensesData || []
       
       // Filter by date range
       if (startDate) {
@@ -512,18 +517,23 @@ function Dashboard() {
     }
 
     try {
-      // Get data from mock store and filter by date range
-      let prevBookings = store.mainTable.getAll().filter(b => {
-        const createdAt = new Date(b.created_at)
-        return createdAt >= prevStartDate && createdAt <= prevEndDate
-      })
-      
-      let prevExpenses = store.expenses.getAll().filter(e => {
-        const expenseDate = new Date(e.expense_date || e.created_at)
-        return expenseDate >= prevStartDate && expenseDate <= prevEndDate
-      })
+      const [bookingsResult, expensesResult] = await Promise.all([
+        supabase
+          .from('main_table')
+          .select('*')
+          .gte('created_at', prevStartDate.toISOString())
+          .lte('created_at', prevEndDate.toISOString()),
+        supabase
+          .from('expenses')
+          .select('*')
+          .gte('expense_date', prevStartDate.toISOString())
+          .lte('expense_date', prevEndDate.toISOString())
+      ])
 
-      prevBookings = prevBookings.map(b => {
+      if (bookingsResult.error) throw bookingsResult.error
+      if (expensesResult.error) throw expensesResult.error
+
+      const prevBookings = (bookingsResult.data || []).map(b => {
         if (!b.total_amount_due) {
           const ticketPrice = parseFloat(b.total_ticket_price) || 0
           const visaFees = parseFloat(b.tot_visa_fees) || 0
@@ -531,6 +541,8 @@ function Dashboard() {
         }
         return b
       })
+
+      const prevExpenses = expensesResult.data || []
 
       processCurrentPeriodData(currentBookings, currentExpenses, {
         bookings: prevBookings,
@@ -848,19 +860,6 @@ function Dashboard() {
       if (loadingTimeout) {
         clearTimeout(loadingTimeout)
       }
-    }
-    // Subscribe to store changes for reactive updates
-    const unsubscribe = store.subscribe(() => {
-      if (isMounted.current) {
-        loadData()
-      }
-    })
-    
-    return () => {
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout)
-      }
-      unsubscribe()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeFilter, selectedYear])

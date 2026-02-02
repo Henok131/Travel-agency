@@ -1,6 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
+import {
+  applyTheme,
+  DEFAULT_LANGUAGE,
+  DEFAULT_THEME,
+  DEFAULT_VAT_FREQUENCY,
+  loadThemeAndLanguage,
+  loadVatFrequency,
+  persistLanguage,
+  persistTheme,
+  persistVatFrequency
+} from '@/lib/preferences'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
@@ -374,15 +385,9 @@ const calculateVAT = (grossAmount, vatRate) => {
 }
 
 function TaxPage() {
-  const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('language') || 'en'
-  })
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('theme') || 'dark'
-  })
-  const [vatFilingFrequency, setVatFilingFrequency] = useState(() => {
-    return localStorage.getItem('vat_filing_frequency') || 'quarterly'
-  })
+  const [language, setLanguage] = useState(DEFAULT_LANGUAGE)
+  const [theme, setTheme] = useState(DEFAULT_THEME)
+  const [vatFilingFrequency, setVatFilingFrequency] = useState(DEFAULT_VAT_FREQUENCY)
   const [selectedPeriod, setSelectedPeriod] = useState(null)
   const [periods, setPeriods] = useState([])
   const [loading, setLoading] = useState(false)
@@ -432,33 +437,73 @@ function TaxPage() {
 
   const t = translations[language]
 
-  // Handle theme change
-  const handleThemeChange = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark'
-    setTheme(newTheme)
+  useEffect(() => {
+    let active = true
+    const hydratePreferences = async () => {
+      try {
+        const [{ language: savedLanguage, theme: savedTheme }, savedVatFrequency] = await Promise.all([
+          loadThemeAndLanguage(),
+          loadVatFrequency()
+        ])
+        if (!active) return
+        setLanguage(savedLanguage)
+        setTheme(savedTheme)
+        setVatFilingFrequency(savedVatFrequency)
+        applyTheme(savedTheme)
+        const hydratedPeriods = generatePeriods(savedVatFrequency)
+        setPeriods(hydratedPeriods)
+        if (hydratedPeriods.length > 0 && !selectedPeriod) {
+          setSelectedPeriod(hydratedPeriods[0].value)
+        }
+      } catch (err) {
+        console.error('Failed to load UI preferences from Supabase', err)
+      }
+    }
+    hydratePreferences()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const updateLanguage = async (nextLanguage) => {
+    setLanguage(nextLanguage)
+    try {
+      await persistLanguage(nextLanguage)
+    } catch (err) {
+      console.error('Failed to persist language to Supabase', err)
+    }
   }
 
-  // Apply theme to HTML element
+  const handleThemeChange = async () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(newTheme)
+    applyTheme(newTheme)
+    try {
+      await persistTheme(newTheme)
+    } catch (err) {
+      console.error('Failed to persist theme to Supabase', err)
+    }
+  }
+
   useEffect(() => {
-    document.documentElement.className = theme
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('theme', theme)
+    applyTheme(theme)
   }, [theme])
 
-  // Language handling
   useEffect(() => {
-    localStorage.setItem('language', language)
-  }, [language])
-
-  // Update periods when filing frequency changes
-  useEffect(() => {
-    localStorage.setItem('vat_filing_frequency', vatFilingFrequency)
+    const syncVatPreference = async () => {
+      try {
+        await persistVatFrequency(vatFilingFrequency)
+      } catch (err) {
+        console.error('Failed to persist VAT filing frequency to Supabase', err)
+      }
+    }
     const newPeriods = generatePeriods(vatFilingFrequency)
     setPeriods(newPeriods)
     if (newPeriods.length > 0 && !selectedPeriod) {
       setSelectedPeriod(newPeriods[0].value)
     }
-  }, [vatFilingFrequency])
+    syncVatPreference()
+  }, [vatFilingFrequency, selectedPeriod])
 
   // Load dashboard data on mount
   useEffect(() => {
@@ -2113,7 +2158,7 @@ function TaxPage() {
             className={`lang-button ${language === 'de' ? 'active' : ''}`} 
             type="button" 
             title="Deutsch"
-            onClick={() => setLanguage('de')}
+            onClick={() => updateLanguage('de')}
           >
             DE
           </button>
@@ -2121,7 +2166,7 @@ function TaxPage() {
             className={`lang-button ${language === 'en' ? 'active' : ''}`} 
             type="button" 
             title="English"
-            onClick={() => setLanguage('en')}
+            onClick={() => updateLanguage('en')}
           >
             EN
           </button>

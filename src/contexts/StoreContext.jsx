@@ -1,6 +1,6 @@
 // Simple store context - no authentication, just data access
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import { mockStore } from '../store/mockStore'
+import React, { createContext, useContext } from 'react'
+import { APP_ID } from '../lib/appConfig'
 
 const StoreContext = createContext()
 
@@ -13,23 +13,13 @@ export const useStore = () => {
 }
 
 export const StoreProvider = ({ children }) => {
-  const [, forceUpdate] = useState(0)
-
-  useEffect(() => {
-    // Subscribe to store changes to trigger re-renders
-    const unsubscribe = mockStore.subscribe(() => {
-      forceUpdate(prev => prev + 1)
-    })
-    return unsubscribe
-  }, [])
-
+  // Mock store removed for single-tenant Supabase-only app
   const value = {
-    store: mockStore,
-    // Legacy compatibility - provide simple auth-like interface
+    store: null,
     isAuthenticated: true,
     isLoading: false,
-    user: { id: 'user-1', email: 'user@local', full_name: 'Local User' },
-    organization: { id: 'org-1', name: 'Local Organization' }
+    user: { id: APP_ID, email: 'single-tenant@app.local', full_name: 'Single Tenant' },
+    organization: null
   }
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

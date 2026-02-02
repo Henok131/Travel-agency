@@ -20,7 +20,7 @@ import {
   Moon,
   Sun
 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../components/Toast'
 import ConfirmModal from '../../components/ConfirmModal'

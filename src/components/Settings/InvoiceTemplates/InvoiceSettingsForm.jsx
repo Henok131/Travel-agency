@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { supabase } from '../../../lib/supabase'
-import { useAuth } from '../../../contexts/AuthContext'
+import { supabase } from '@/lib/supabaseClient'
+import { APP_ID } from '@/lib/appConfig'
 import { useToast } from '../../Toast'
 
 const DEFAULT_SETTINGS = {
@@ -29,26 +29,7 @@ const normalizeSettings = (data = {}) => {
   }, {})
 }
 
-const LOCAL_SETTINGS_KEY = 'invoice_settings_draft'
-
-const loadLocalSettings = () => {
-  try {
-    const raw = localStorage.getItem(LOCAL_SETTINGS_KEY)
-    if (!raw) return null
-    return JSON.parse(raw)
-  } catch (err) {
-    console.warn('Failed to read local invoice settings:', err)
-    return null
-  }
-}
-
-const saveLocalSettings = (settings) => {
-  try {
-    localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(settings))
-  } catch (err) {
-    console.warn('Failed to save local invoice settings:', err)
-  }
-}
+// Removed localStorage - all settings now persist in Supabase invoice_settings table
 
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -59,7 +40,6 @@ const readFileAsDataUrl = (file) =>
   })
 
 export default function InvoiceSettingsForm() {
-  const { user } = useAuth()
   const toast = useToast()
   const fileInputRef = useRef(null)
   const [settingsId, setSettingsId] = useState(null)
@@ -67,31 +47,24 @@ export default function InvoiceSettingsForm() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState('')
-  const isDev = import.meta.env?.DEV
 
+  // Load settings on mount - use fixed APP_ID for single-tenant app
   useEffect(() => {
-    if (!user?.id) {
-      if (isDev) {
-        const localSettings = loadLocalSettings()
-        setFormData(normalizeSettings(localSettings || DEFAULT_SETTINGS))
-      }
-      setLoading(false)
-      return
-    }
     loadSettings()
-  }, [user?.id, isDev])
+  }, [])
 
   const loadSettings = async () => {
     setLoading(true)
     setLoadError('')
     try {
+      // Single-tenant app: use fixed APP_ID instead of user_id
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Timeout loading invoice settings.')), 8000)
       })
       const queryPromise = supabase
         .from('invoice_settings')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', APP_ID)  // Use fixed APP_ID for single-tenant
         .limit(1)
         .maybeSingle()
 
@@ -137,31 +110,12 @@ export default function InvoiceSettingsForm() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    if (!user?.id) {
-      try {
-        setSaving(true)
-        const dataUrl = await readFileAsDataUrl(file)
-        setFormData((prev) => ({
-          ...prev,
-          logo_url: dataUrl
-        }))
-        saveLocalSettings({ ...formData, logo_url: dataUrl })
-        toast.success('Logo uploaded locally. Remember to save changes.')
-      } catch (err) {
-        console.error('Error reading logo file:', err)
-        toast.error('Failed to read logo file.')
-      } finally {
-        setSaving(false)
-        event.target.value = ''
-      }
-      return
-    }
-
     try {
       setSaving(true)
       const extension = file.name.split('.').pop()?.toLowerCase() || 'png'
-      const filePath = `invoice-settings/${user.id}/logo.${extension}`
+      const filePath = `invoice-settings/${APP_ID}/logo.${extension}`  // Use fixed APP_ID for single-tenant
 
+      // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('logos')
         .upload(filePath, file, { upsert: true })
@@ -176,14 +130,48 @@ export default function InvoiceSettingsForm() {
         throw new Error('Failed to get public URL for logo.')
       }
 
+      // Update form data with public URL from Supabase Storage
       setFormData((prev) => ({
         ...prev,
         logo_url: urlData.publicUrl
       }))
-      toast.success('Logo uploaded. Remember to save changes.')
+      
+      // Auto-save logo_url to invoice_settings immediately after upload
+      // This ensures logo_url is persisted even if user doesn't click "Save"
+      try {
+        const updatePayload = { logo_url: urlData.publicUrl }
+        
+        if (settingsId) {
+          // Update existing settings
+          await supabase
+            .from('invoice_settings')
+            .update(updatePayload)
+            .eq('id', settingsId)
+        } else {
+          // Create new settings record with logo_url
+          const { data: newSettings } = await supabase
+            .from('invoice_settings')
+            .insert({
+              user_id: APP_ID,  // Use fixed APP_ID for single-tenant
+              logo_url: urlData.publicUrl,
+              ...DEFAULT_SETTINGS
+            })
+            .select('id')
+            .single()
+          
+          if (newSettings?.id) {
+            setSettingsId(newSettings.id)
+          }
+        }
+      } catch (saveErr) {
+        console.warn('Failed to auto-save logo_url to invoice_settings:', saveErr)
+        // Don't show error - user can still save manually
+      }
+      
+      toast.success('Logo uploaded to Supabase Storage and saved to invoice settings.')
     } catch (err) {
       console.error('Error uploading logo:', err)
-      toast.error('Failed to upload logo.')
+      toast.error('Failed to upload logo: ' + (err.message || 'Unknown error'))
     } finally {
       setSaving(false)
       event.target.value = ''
@@ -192,21 +180,13 @@ export default function InvoiceSettingsForm() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    if (!user?.id) {
-      if (isDev) {
-        saveLocalSettings(formData)
-        toast.success('Invoice settings saved locally (dev mode).')
-        return
-      }
-      toast.error('No user session found.')
-      return
-    }
 
     setSaving(true)
     try {
+      // Single-tenant app: use fixed APP_ID instead of user_id
       const payload = {
-        user_id: user.id,
-        logo_url: formData.logo_url || null,
+        user_id: APP_ID,  // Use fixed APP_ID for single-tenant
+        logo_url: formData.logo_url || null,  // Ensure logo_url is saved from formData
         company_name: formData.company_name,
         contact_person: formData.contact_person,
         address: formData.address,
@@ -240,10 +220,10 @@ export default function InvoiceSettingsForm() {
         setSettingsId(data?.id || null)
       }
 
-      toast.success('Invoice settings saved.')
+      toast.success('Invoice settings saved to database.')
     } catch (err) {
       console.error('Error saving invoice settings:', err)
-      toast.error('Failed to save invoice settings.')
+      toast.error('Failed to save invoice settings: ' + (err.message || 'Unknown error'))
     } finally {
       setSaving(false)
     }
@@ -253,136 +233,6 @@ export default function InvoiceSettingsForm() {
     return (
       <div className="invoice-settings-loading">
         Loading invoice settings...
-      </div>
-    )
-  }
-
-  if (!user?.id) {
-    if (isDev) {
-      return (
-        <div className="settings-card invoice-settings-card">
-          <div className="invoice-settings-header">
-            <div>
-              <h3 className="card-title">Company Settings</h3>
-              <p className="card-description">
-                Dev mode: settings are saved locally until auth is enabled.
-              </p>
-            </div>
-            <button
-              className="btn btn-primary"
-              type="submit"
-              form="invoice-settings-form"
-              disabled={saving}
-            >
-              {saving ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-
-          <form id="invoice-settings-form" className="invoice-settings-form" onSubmit={handleSubmit}>
-            <div className="invoice-settings-section">
-              <h4>Logo</h4>
-              <div className="invoice-settings-logo">
-                <div className="invoice-settings-logo-preview">
-                  {formData.logo_url ? (
-                    <img src={formData.logo_url} alt="Invoice logo" />
-                  ) : (
-                    <div className="invoice-settings-logo-placeholder">No logo uploaded</div>
-                  )}
-                </div>
-                <div className="invoice-settings-logo-actions">
-                  <button
-                    className="btn btn-secondary"
-                    type="button"
-                    onClick={handleLogoClick}
-                    disabled={saving}
-                  >
-                    Upload Logo
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/svg+xml"
-                    onChange={handleLogoUpload}
-                    className="invoice-settings-file-input"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="invoice-settings-section">
-              <h4>Header Contact</h4>
-              <div className="invoice-settings-grid">
-                <label>
-                  Company Name
-                  <input value={formData.company_name} onChange={handleChange('company_name')} />
-                </label>
-                <label>
-                  Contact Person
-                  <input value={formData.contact_person} onChange={handleChange('contact_person')} />
-                </label>
-                <label>
-                  Address
-                  <input value={formData.address} onChange={handleChange('address')} />
-                </label>
-                <label>
-                  Postal
-                  <input value={formData.postal} onChange={handleChange('postal')} />
-                </label>
-                <label>
-                  Email
-                  <input value={formData.email} onChange={handleChange('email')} />
-                </label>
-                <label>
-                  Phone
-                  <input value={formData.phone} onChange={handleChange('phone')} />
-                </label>
-                <label>
-                  Mobile
-                  <input value={formData.mobile} onChange={handleChange('mobile')} />
-                </label>
-              </div>
-            </div>
-
-            <div className="invoice-settings-section">
-              <h4>Footer Bank</h4>
-              <div className="invoice-settings-grid">
-                <label>
-                  Tax ID
-                  <input value={formData.tax_id} onChange={handleChange('tax_id')} />
-                </label>
-                <label>
-                  Website
-                  <input value={formData.website} onChange={handleChange('website')} />
-                </label>
-                <label>
-                  Bank Name
-                  <input value={formData.bank_name} onChange={handleChange('bank_name')} />
-                </label>
-                <label>
-                  IBAN
-                  <input value={formData.iban} onChange={handleChange('iban')} />
-                </label>
-                <label>
-                  BIC
-                  <input value={formData.bic} onChange={handleChange('bic')} />
-                </label>
-                <label>
-                  Include QR Code
-                  <input
-                    type="checkbox"
-                    checked={Boolean(formData.include_qr)}
-                    onChange={handleToggle('include_qr')}
-                  />
-                </label>
-              </div>
-            </div>
-          </form>
-        </div>
-      )
-    }
-    return (
-      <div className="invoice-settings-loading">
-        Sign in to manage invoice settings.
       </div>
     )
   }

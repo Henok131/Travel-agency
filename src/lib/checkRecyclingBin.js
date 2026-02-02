@@ -1,5 +1,5 @@
 // Debug helper to check if deleted_items table exists
-import { supabase } from './supabase'
+import { supabase } from '@/lib/supabaseClient'
 
 export async function checkRecyclingBinTable() {
   try {

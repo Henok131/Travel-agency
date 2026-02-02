@@ -44,8 +44,12 @@ const normalizeSettings = (settings) => {
     ...(settings || {})
   }
 
-  // Ensure we always have a logo fallback (matches single-passenger invoices)
-  if (!result.logo_url) {
+  // Preserve logo_url from settings if it exists (even if empty string - let caller decide)
+  // Only use default if logo_url is null/undefined (not explicitly set)
+  if (settings?.logo_url !== undefined && settings?.logo_url !== null) {
+    result.logo_url = settings.logo_url
+  } else if (!result.logo_url) {
+    // Only fallback to default if no logo_url was provided at all
     result.logo_url = DEFAULT_SETTINGS.logo_url
   }
 

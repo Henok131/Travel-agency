@@ -1,7 +1,7 @@
 // Recycling Bin Helper Functions
 // Centralized functions for saving deleted items to recycling bin
 
-import { supabase } from './supabase'
+import { supabase } from '@/lib/supabaseClient'
 
 /**
  * Save a deleted item to the recycling bin

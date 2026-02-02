@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../../lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
+import { APP_ID } from '@/lib/appConfig'
 import { useNavigate } from 'react-router-dom'
 import { FileText, Edit, Copy, Trash2, Star } from 'lucide-react'
 
@@ -15,9 +16,11 @@ export default function TemplatesList() {
 
   async function fetchTemplates() {
     try {
+      // Single-tenant app: use fixed APP_ID
       const { data, error } = await supabase
         .from('invoice_templates')
         .select('*')
+        .eq('user_id', APP_ID)  // Filter by fixed APP_ID
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: false })
       
@@ -62,16 +65,12 @@ export default function TemplatesList() {
 
   async function handleSetDefault(id) {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      // Remove default from all user's templates
+      // Remove default from all app's templates
       const { error: updateError } = await supabase
         .from('invoice_templates')
         .update({ is_default: false })
-        .eq('user_id', user.id)
-      
+        .eq('user_id', APP_ID)  // Use fixed APP_ID
+        
       if (updateError) throw updateError
 
       // Set new default

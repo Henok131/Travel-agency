@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { loadCalculatorPreferences, persistCalculatorFavorites, persistCalculatorRecentlyUsed } from '@/lib/preferences'
 import { motion, AnimatePresence } from 'framer-motion'
 import CurrencyExchangeCalculator from '../components/Documentation/CurrencyExchangeCalculator'
 import VATCalculator from '../components/Documentation/VATCalculator'
@@ -165,23 +166,37 @@ export default function CalculatorDashboard() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCalculator, setSelectedCalculator] = useState(null)
-  const [favorites, setFavorites] = useState(() => {
-    const saved = localStorage.getItem('calculator-favorites')
-    return saved ? JSON.parse(saved) : []
-  })
-  const [recentlyUsed, setRecentlyUsed] = useState(() => {
-    const saved = localStorage.getItem('calculator-recently-used')
-    return saved ? JSON.parse(saved) : []
-  })
+  const [favorites, setFavorites] = useState([])
+  const [recentlyUsed, setRecentlyUsed] = useState([])
 
-  // Save favorites to localStorage
   useEffect(() => {
-    localStorage.setItem('calculator-favorites', JSON.stringify(favorites))
+    let active = true
+    const hydratePreferences = async () => {
+      try {
+        const { favorites: savedFavorites, recentlyUsed: savedRecentlyUsed } = await loadCalculatorPreferences()
+        if (!active) return
+        setFavorites(savedFavorites)
+        setRecentlyUsed(savedRecentlyUsed)
+      } catch (err) {
+        console.error('Failed to load calculator preferences from Supabase', err)
+      }
+    }
+    hydratePreferences()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    persistCalculatorFavorites(favorites).catch(err => {
+      console.error('Failed to persist calculator favorites to Supabase', err)
+    })
   }, [favorites])
 
-  // Save recently used to localStorage
   useEffect(() => {
-    localStorage.setItem('calculator-recently-used', JSON.stringify(recentlyUsed))
+    persistCalculatorRecentlyUsed(recentlyUsed).catch(err => {
+      console.error('Failed to persist recently used calculators to Supabase', err)
+    })
   }, [recentlyUsed])
 
   // Filter calculators

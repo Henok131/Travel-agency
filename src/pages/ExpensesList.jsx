@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../contexts/StoreContext'
-import { supabase } from '../lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'

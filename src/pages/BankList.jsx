@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link, NavLink } from 'react-router-dom'
+import { applyTheme, DEFAULT_LANGUAGE, DEFAULT_THEME, loadBankData, loadThemeAndLanguage, persistLanguage, persistTheme } from '@/lib/preferences'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
@@ -33,7 +34,7 @@ const translations = {
       error: 'Error loading bank accounts',
       refresh: 'Refresh',
       connectBank: 'Connect Bank Account',
-      demoNote: 'Demo data – Bank integration coming soon',
+      demoNote: 'Data synced from Supabase (single-tenant)',
       accountSummary: 'Account Summary',
       cashflow: 'Cashflow',
       transactions: 'Recent Transactions',
@@ -77,7 +78,7 @@ const translations = {
       error: 'Fehler beim Laden der Bankkonten',
       refresh: 'Aktualisieren',
       connectBank: 'Bankkonto verbinden',
-      demoNote: 'Demo-Daten – Bank-Integration kommt bald',
+      demoNote: 'Daten aus Supabase (Single-Tenant)',
       accountSummary: 'Kontozusammenfassung',
       cashflow: 'Cashflow',
       transactions: 'Letzte Transaktionen',
@@ -98,21 +99,74 @@ const translations = {
   }
 }
 
+const DEFAULT_BANK_DATA = {
+  account: mockBankAccount,
+  transactions: mockTransactions
+}
+
 function BankList() {
-  const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('language') || 'en'
-  })
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('theme') || 'dark'
-  })
-  const [loading, setLoading] = useState(false)
+  const [language, setLanguage] = useState(DEFAULT_LANGUAGE)
+  const [theme, setTheme] = useState(DEFAULT_THEME)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [bankData, setBankData] = useState(DEFAULT_BANK_DATA)
 
   const t = translations[language]
 
-  // Use mock data for demo
-  const account = mockBankAccount
-  const transactions = mockTransactions
+  useEffect(() => {
+    let active = true
+    const hydrate = async () => {
+      try {
+        const [{ language: savedLanguage, theme: savedTheme }, storedBankData] = await Promise.all([
+          loadThemeAndLanguage(),
+          loadBankData(DEFAULT_BANK_DATA)
+        ])
+        if (!active) return
+        setLanguage(savedLanguage)
+        setTheme(savedTheme)
+        applyTheme(savedTheme)
+        setBankData(storedBankData || DEFAULT_BANK_DATA)
+      } catch (err) {
+        console.error('Failed to load bank data from Supabase', err)
+        if (active) setError('Failed to load bank data from Supabase')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    hydrate()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const updateLanguage = async (nextLanguage) => {
+    setLanguage(nextLanguage)
+    try {
+      await persistLanguage(nextLanguage)
+    } catch (err) {
+      console.error('Failed to persist language to Supabase', err)
+    }
+  }
+
+  const handleThemeChange = async () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(newTheme)
+    applyTheme(newTheme)
+    try {
+      await persistTheme(newTheme)
+    } catch (err) {
+      console.error('Failed to persist theme to Supabase', err)
+    }
+  }
+
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
+
+  const account = bankData?.account || DEFAULT_BANK_DATA.account
+  const transactions = Array.isArray(bankData?.transactions)
+    ? bankData.transactions
+    : DEFAULT_BANK_DATA.transactions
 
   // Calculate cashflow statistics
   const cashflow = useMemo(() => calculateCashflow(transactions), [transactions])
@@ -142,23 +196,19 @@ function BankList() {
     return [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date))
   }, [transactions])
 
-  // Handle theme change
-  const handleThemeChange = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark'
-    setTheme(newTheme)
+  const refreshBankData = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await loadBankData(DEFAULT_BANK_DATA)
+      setBankData(data || DEFAULT_BANK_DATA)
+    } catch (err) {
+      console.error('Failed to refresh bank data from Supabase', err)
+      setError(t.table.error)
+    } finally {
+      setLoading(false)
+    }
   }
-
-  // Apply theme to HTML element
-  useEffect(() => {
-    document.documentElement.className = theme
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('theme', theme)
-  }, [theme])
-
-  // Language handling
-  useEffect(() => {
-    localStorage.setItem('language', language)
-  }, [language])
 
   return (
     <div className="page-layout">
@@ -176,7 +226,7 @@ function BankList() {
             className={`lang-button ${language === 'de' ? 'active' : ''}`} 
             type="button" 
             title="Deutsch"
-            onClick={() => setLanguage('de')}
+            onClick={() => updateLanguage('de')}
           >
             DE
           </button>
@@ -184,7 +234,7 @@ function BankList() {
             className={`lang-button ${language === 'en' ? 'active' : ''}`} 
             type="button" 
             title="English"
-            onClick={() => setLanguage('en')}
+            onClick={() => updateLanguage('en')}
           >
             EN
           </button>
@@ -292,7 +342,7 @@ function BankList() {
               }}>
                 ⚠️ {t.table.demoNote}
               </div>
-              <button className="button button-primary">
+              <button className="button button-primary" onClick={refreshBankData}>
                 + {t.table.connectBank}
               </button>
             </div>

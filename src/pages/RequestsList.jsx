@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../contexts/StoreContext'
-import { supabase } from '../lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
+import { APP_ID } from '@/lib/appConfig'
 import { STATUS, STATUS_ORDER, getStatusLabel } from '../constants/statuses'
 import { saveToRecyclingBin, getItemDisplayName } from '../lib/recyclingBin'
 import generateBankTransferInvoicePdf from '../utils/generateBankTransferInvoicePdf'
@@ -422,11 +423,22 @@ function RequestsList() {
     e.stopPropagation()
     
     try {
-      // Fetch invoice settings
-      const { data: settingsData, error: settingsError } = await supabase
-        .from('invoice_settings')
-        .select('*')
-        .maybeSingle()
+      // Fetch invoice settings using fixed APP_ID for single-tenant app
+      let settingsData = null
+      let settingsError = null
+      
+      try {
+        const result = await supabase
+          .from('invoice_settings')
+          .select('*')
+          .eq('user_id', APP_ID)  // Fixed APP_ID for single-tenant
+          .maybeSingle()
+        settingsData = result.data
+        settingsError = result.error
+      } catch (err) {
+        settingsError = err
+        console.error('Error fetching invoice settings:', err)
+      }
       
       if (settingsError) {
         console.error('Error fetching invoice settings:', settingsError)

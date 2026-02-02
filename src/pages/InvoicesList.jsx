@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../contexts/StoreContext'
+import { supabase } from '@/lib/supabaseClient'
+import {
+  applyTheme,
+  DEFAULT_LANGUAGE,
+  DEFAULT_THEME,
+  loadThemeAndLanguage,
+  persistLanguage,
+  persistTheme
+} from '@/lib/preferences'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
@@ -124,12 +133,8 @@ const translations = {
 
 function InvoicesList() {
   const { store } = useStore()
-  const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('language') || 'en'
-  })
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('theme') || 'dark'
-  })
+  const [language, setLanguage] = useState(DEFAULT_LANGUAGE)
+  const [theme, setTheme] = useState(DEFAULT_THEME)
   const [invoices, setInvoices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -156,23 +161,48 @@ function InvoicesList() {
 
   const t = translations[language]
 
-  // Handle theme change
-  const handleThemeChange = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark'
-    setTheme(newTheme)
+  useEffect(() => {
+    let active = true
+    const hydratePreferences = async () => {
+      try {
+        const { language: savedLanguage, theme: savedTheme } = await loadThemeAndLanguage()
+        if (!active) return
+        setLanguage(savedLanguage)
+        setTheme(savedTheme)
+        applyTheme(savedTheme)
+      } catch (err) {
+        console.error('Failed to load UI preferences from Supabase', err)
+      }
+    }
+    hydratePreferences()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const updateLanguage = async (nextLanguage) => {
+    setLanguage(nextLanguage)
+    try {
+      await persistLanguage(nextLanguage)
+    } catch (err) {
+      console.error('Failed to persist language to Supabase', err)
+    }
   }
 
-  // Apply theme to HTML element
-  useEffect(() => {
-    document.documentElement.className = theme
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('theme', theme)
-  }, [theme])
+  const handleThemeChange = async () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(newTheme)
+    applyTheme(newTheme)
+    try {
+      await persistTheme(newTheme)
+    } catch (err) {
+      console.error('Failed to persist theme to Supabase', err)
+    }
+  }
 
-  // Language handling
   useEffect(() => {
-    localStorage.setItem('language', language)
-  }, [language])
+    applyTheme(theme)
+  }, [theme])
 
   // Column resizing handlers
   const handleResizeStart = (field, e) => {
@@ -512,14 +542,16 @@ function InvoicesList() {
     }
   }
 
-  // Fetch invoices from mock store
-  const fetchInvoices = () => {
+  // Fetch invoices from Supabase
+  const fetchInvoices = async () => {
     try {
       setLoading(true)
       setError(null)
-      const data = store.mainTable.getAll()
-        .slice()
-        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+      const { data, error } = await supabase
+        .from('main_table')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (error) throw error
       setInvoices(data || [])
     } catch (err) {
       console.error('Error fetching invoices:', err)
@@ -531,8 +563,6 @@ function InvoicesList() {
 
   useEffect(() => {
     fetchInvoices()
-    const unsubscribe = store.subscribe(fetchInvoices)
-    return unsubscribe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -641,7 +671,7 @@ function InvoicesList() {
             className={`lang-button ${language === 'de' ? 'active' : ''}`} 
             type="button" 
             title="Deutsch"
-            onClick={() => setLanguage('de')}
+            onClick={() => updateLanguage('de')}
           >
             DE
           </button>
@@ -649,7 +679,7 @@ function InvoicesList() {
             className={`lang-button ${language === 'en' ? 'active' : ''}`} 
             type="button" 
             title="English"
-            onClick={() => setLanguage('en')}
+            onClick={() => updateLanguage('en')}
           >
             EN
           </button>

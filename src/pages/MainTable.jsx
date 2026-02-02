@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useStore } from '../contexts/StoreContext'
-import { supabase } from '../lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
+import { APP_ID } from '@/lib/appConfig'
+import {
+  applyTheme,
+  DEFAULT_LANGUAGE,
+  DEFAULT_THEME,
+  loadThemeAndLanguage,
+  persistLanguage,
+  persistTheme
+} from '@/lib/preferences'
 import { STATUS, STATUS_LABELS, STATUS_ORDER, STATUS_TRANSITIONS, getStatusLabel, isValidTransition } from '../constants/statuses'
 import { saveToRecyclingBin, getItemDisplayName } from '../lib/recyclingBin'
 import generateBankTransferInvoicePdf from '../utils/generateBankTransferInvoicePdf'
@@ -225,10 +234,10 @@ const translations = {
 
 function RequestsList() {
   const { store } = useStore()
-  const [language, setLanguage] = useState(() => localStorage.getItem('language') || 'de')
+  const [language, setLanguage] = useState(DEFAULT_LANGUAGE)
   const t = translations[language]
   
-  const [theme, setTheme] = useState('dark')
+  const [theme, setTheme] = useState(DEFAULT_THEME)
   const [requests, setRequests] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
   const [loading, setLoading] = useState(true)
@@ -299,27 +308,48 @@ function RequestsList() {
   })
   const resizingRef = useRef({ isResizing: false, column: null, startX: 0, startWidth: 0 })
 
-  // Handle theme change
-  const handleThemeChange = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark'
-    setTheme(newTheme)
+  useEffect(() => {
+    let active = true
+    const hydratePreferences = async () => {
+      try {
+        const { language: savedLanguage, theme: savedTheme } = await loadThemeAndLanguage()
+        if (!active) return
+        setLanguage(savedLanguage)
+        setTheme(savedTheme)
+        applyTheme(savedTheme)
+      } catch (err) {
+        console.error('Failed to load UI preferences from Supabase', err)
+      }
+    }
+    hydratePreferences()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const updateLanguage = async (nextLanguage) => {
+    setLanguage(nextLanguage)
+    try {
+      await persistLanguage(nextLanguage)
+    } catch (err) {
+      console.error('Failed to persist language to Supabase', err)
+    }
   }
 
-  // Apply theme to HTML element
+  const handleThemeChange = async () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(newTheme)
+    applyTheme(newTheme)
+    try {
+      await persistTheme(newTheme)
+    } catch (err) {
+      console.error('Failed to persist theme to Supabase', err)
+    }
+  }
+
   useEffect(() => {
-    document.documentElement.className = theme
-    document.documentElement.setAttribute('data-theme', theme)
+    applyTheme(theme)
   }, [theme])
-
-  // Persist language choice
-  useEffect(() => {
-    localStorage.setItem('language', language)
-  }, [language])
-
-  // Persist language choice
-  useEffect(() => {
-    localStorage.setItem('language', language)
-  }, [language])
 
   const formatAirlineDisplay = (raw) => {
     if (!raw) return ''
@@ -633,32 +663,30 @@ function RequestsList() {
     e.stopPropagation()
     
     try {
-      // Fetch invoice settings (best effort)
+      // Fetch invoice settings using fixed APP_ID for single-tenant app
       let settingsData = {}
       try {
         const { data, error } = await supabase
           .from('invoice_settings')
           .select('*')
+          .eq('user_id', APP_ID)  // Fixed APP_ID for single-tenant
           .maybeSingle()
         if (!error && data) settingsData = data
       } catch (err) {
         console.warn('Invoice settings fetch failed:', err.message)
       }
       
-      // Try to resolve logo URL (best effort)
-      let logoUrl = settingsData.logo_url || null
+      // Prioritize logo_url from invoice_settings, fallback to storage lookup
+      let logoUrl = settingsData?.logo_url || null
+      
+      // Only try storage if invoice_settings doesn't have a logo_url
       if (!logoUrl && supabase?.storage) {
-        // Try to find logo in storage by listing folders
+        // Try to find logo in storage using APP_ID path
         try {
-          const { data: files } = await supabase.storage
-            .from('logos')
-            .list('', { limit: 100 })
-          const folders = files?.filter(f => !f.name.includes('.')) || []
-          const orgId = folders.length > 0 ? folders[0].name : 'default'
           const formats = ['png', 'jpg', 'jpeg', 'svg']
           for (const fmt of formats) {
             try {
-              const { data } = supabase.storage.from('logos').getPublicUrl(`${orgId}/logo.${fmt}`)
+              const { data } = supabase.storage.from('logos').getPublicUrl(`invoice-settings/${APP_ID}/logo.${fmt}`)
               if (data?.publicUrl) {
                 logoUrl = data.publicUrl
                 break
@@ -672,11 +700,19 @@ function RequestsList() {
         }
       }
       
+      // Ensure logo_url is passed to PDF generator (use invoice_settings value if available)
       const settings = {
         ...settingsData,
         include_qr: settingsData?.include_qr ?? false,
-        logo_url: logoUrl || settingsData.logo_url || ''
+        logo_url: settingsData?.logo_url || logoUrl || ''  // Prioritize invoice_settings.logo_url
       }
+      
+      console.log('Invoice settings passed to PDF generator:', {
+        hasSettingsData: !!settingsData,
+        logoUrlFromSettings: settingsData?.logo_url,
+        logoUrlFromStorage: logoUrl,
+        finalLogoUrl: settings.logo_url
+      })
 
       await generateBankTransferInvoicePdf({
         booking: request,
@@ -722,32 +758,30 @@ function RequestsList() {
         return
       }
 
-      // Fetch invoice settings (best effort)
+      // Fetch invoice settings using fixed APP_ID for single-tenant app
       let settingsData = {}
       try {
         const { data, error } = await supabase
           .from('invoice_settings')
           .select('*')
+          .eq('user_id', APP_ID)  // Fixed APP_ID for single-tenant
           .maybeSingle()
         if (!error && data) settingsData = data
       } catch (err) {
         console.warn('Invoice settings fetch failed:', err.message)
       }
 
-      // Try to resolve logo URL (best effort)
-      let logoUrl = settingsData.logo_url || null
+      // Prioritize logo_url from invoice_settings, fallback to storage lookup
+      let logoUrl = settingsData?.logo_url || null
+      
+      // Only try storage if invoice_settings doesn't have a logo_url
       if (!logoUrl && supabase?.storage) {
-        // Try to find logo in storage by listing folders
+        // Try to find logo in storage using APP_ID path
         try {
-          const { data: files } = await supabase.storage
-            .from('logos')
-            .list('', { limit: 100 })
-          const folders = files?.filter(f => !f.name.includes('.')) || []
-          const orgId = folders.length > 0 ? folders[0].name : 'default'
           const formats = ['png', 'jpg', 'jpeg', 'svg']
           for (const fmt of formats) {
             try {
-              const { data } = supabase.storage.from('logos').getPublicUrl(`${orgId}/logo.${fmt}`)
+              const { data } = supabase.storage.from('logos').getPublicUrl(`invoice-settings/${APP_ID}/logo.${fmt}`)
               if (data?.publicUrl) {
                 logoUrl = data.publicUrl
                 break
@@ -761,11 +795,19 @@ function RequestsList() {
         }
       }
 
+      // Ensure logo_url is passed to PDF generator (use invoice_settings value if available)
       const settings = {
         ...settingsData,
         include_qr: settingsData?.include_qr ?? false,
-        logo_url: logoUrl || settingsData.logo_url || ''
+        logo_url: settingsData?.logo_url || logoUrl || ''  // Prioritize invoice_settings.logo_url
       }
+      
+      console.log('Group invoice settings passed to PDF generator:', {
+        hasSettingsData: !!settingsData,
+        logoUrlFromSettings: settingsData?.logo_url,
+        logoUrlFromStorage: logoUrl,
+        finalLogoUrl: settings.logo_url
+      })
 
       await generateGroupInvoicePdf(selectedBookings, settings, mode, language, true)
       setSelectedIds([])
@@ -2003,7 +2045,7 @@ function RequestsList() {
             className={`lang-button ${language === 'de' ? 'active' : ''}`} 
             type="button" 
             title="Deutsch"
-            onClick={() => setLanguage('de')}
+            onClick={() => updateLanguage('de')}
           >
             DE
           </button>
@@ -2011,7 +2053,7 @@ function RequestsList() {
             className={`lang-button ${language === 'en' ? 'active' : ''}`} 
             type="button" 
             title="English"
-            onClick={() => setLanguage('en')}
+            onClick={() => updateLanguage('en')}
           >
             EN
           </button>

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../contexts/StoreContext'
-import { supabase } from '../lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import AirportAutocomplete from '../components/AirportAutocomplete'
 import CountryAutocomplete from '../components/CountryAutocomplete'
 import * as pdfjsLib from 'pdfjs-dist'

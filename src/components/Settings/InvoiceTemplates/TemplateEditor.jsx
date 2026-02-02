@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { supabase } from '../../../lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
+import { APP_ID } from '@/lib/appConfig'
 import { Save, X } from 'lucide-react'
-import { DEFAULT_INVOICE_TEMPLATE } from '../../../utils/defaultInvoiceTemplate'
+import { DEFAULT_INVOICE_TEMPLATE } from '@/utils/defaultInvoiceTemplate'
 
 export default function TemplateEditor() {
   const [searchParams] = useSearchParams()
@@ -103,16 +104,10 @@ export default function TemplateEditor() {
     
     setLoading(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        alert('You must be logged in to save templates')
-        return
-      }
-      
       const templateToSave = {
         ...templateData,
         template_name: templateName.trim(),
-        user_id: user.id,
+        user_id: APP_ID,
         updated_at: new Date().toISOString()
       }
       
