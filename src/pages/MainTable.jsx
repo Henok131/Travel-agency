@@ -1407,8 +1407,13 @@ function RequestsList() {
     })
     setRequests(updatedRequests)
 
-    // Update backend
+    // Update backend using Supabase with UUID id
     try {
+      // Ensure rowId is a valid UUID
+      if (!rowId || typeof rowId !== 'string') {
+        throw new Error('Invalid row ID: must be a UUID')
+      }
+
       const updateData = {}
       updateData[field] = dbValue
       
@@ -1423,10 +1428,14 @@ function RequestsList() {
         updateData.lst_profit = updatedRequest.lst_profit ?? null
       }
 
-      const result = store.mainTable.update(rowId, updateData)
+      // Update using Supabase with UUID id (never use index, booking_ref, or undefined IDs)
+      const { error } = await supabase
+        .from('main_table')
+        .update(updateData)
+        .eq('id', rowId)
 
-      if (result.error) {
-        throw result.error
+      if (error) {
+        throw error
       }
     } catch (err) {
       console.error('Error updating cell:', err)
@@ -1636,10 +1645,12 @@ function RequestsList() {
       } else if (field === 'booking_status') {
         const current = request.booking_status || request.status || STATUS.DRAFT
         const allowed = STATUS_ORDER
+        // Normalize status to lowercase for CSS class (database may have 'Draft', but CSS uses 'draft')
+        const normalizedCurrent = String(editValue || current).toLowerCase()
         return (
           <select
             ref={editInputRef}
-            className={`excel-cell-input status-dropdown status-${editValue || current}`}
+            className={`excel-cell-input status-dropdown status-${normalizedCurrent}`}
             value={editValue || current}
             onChange={(e) => {
               setEditValue(e.target.value)
@@ -1755,9 +1766,11 @@ function RequestsList() {
       // Special handling for booking_status with color coding
       if (field === 'booking_status') {
         const status = request.booking_status || request.status || STATUS.DRAFT
+        // Normalize status to lowercase for CSS class (database may have 'Draft', but CSS uses 'draft')
+        const normalizedStatus = String(status).toLowerCase()
         return (
           <div
-            className={`excel-cell excel-cell-editable status-dropdown-display status-${status}`}
+            className={`excel-cell excel-cell-editable status-dropdown-display status-${normalizedStatus}`}
             data-row-id={request.id}
             data-field={field}
             onClick={(e) => startEditing(request.id, field, e)}

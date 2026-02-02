@@ -757,26 +757,26 @@ html[data-theme="dark"] .status-dropdown.status-cancelled {
   border-color: #e55555 !important;
 }
 
-/* Status dropdown colors - Gray for Draft */
+/* Status dropdown colors - Gray for Draft with white text */
 .status-dropdown.status-draft {
-  background-color: #dfe6ef !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-color: #6c757d !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 6px center !important;
   background-size: 12px !important;
-  color: #000 !important;
-  border-color: #c3cedd !important;
+  color: #fff !important;
+  border-color: #5a6268 !important;
 }
 
 html.dark .status-dropdown.status-draft,
 html[data-theme="dark"] .status-dropdown.status-draft {
-  background-color: #dfe6ef !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-color: #6c757d !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 6px center !important;
   background-size: 12px !important;
-  color: #000 !important;
-  border-color: #c3cedd !important;
+  color: #fff !important;
+  border-color: #5a6268 !important;
 }
 
 /* Ensure status dropdowns don't get blue highlight and maintain colors */
@@ -830,15 +830,20 @@ html[data-theme="dark"] .status-dropdown.status-draft {
 }
 
 .status-dropdown-display.status-pending {
-  background-color: #ffd700 !important;
+  background-color: hsl(51, 100%, 50%) !important;
 }
 
 .status-dropdown-display.status-confirmed {
-  background-color: #90ee90 !important;
+  background-color: #07c107 !important;
 }
 
 .status-dropdown-display.status-cancelled {
-  background-color: #ff6b6b !important;
+  background-color: #ed2222 !important;
+  color: #fff !important;
+}
+
+.status-dropdown-display.status-draft {
+  background-color: #6c757d !important;
   color: #fff !important;
 }
 
