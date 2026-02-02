@@ -10,10 +10,9 @@ import { supabase } from './supabase'
  * @param {string} params.originalTable - Source table name (e.g., 'requests', 'main_table', 'expenses', 'bookings')
  * @param {Object} params.itemData - Full record data to save
  * @param {string} params.itemName - Display name for the item
- * @param {string} params.organizationId - Organization ID (optional)
  * @returns {Promise<{error: Error|null}>}
  */
-export async function saveToRecyclingBin({ originalId, originalTable, itemData, itemName, organizationId = null }) {
+export async function saveToRecyclingBin({ originalId, originalTable, itemData, itemName }) {
   try {
     // Determine item type from table name
     const itemTypeMap = {
@@ -31,16 +30,14 @@ export async function saveToRecyclingBin({ originalId, originalTable, itemData, 
       original_table: originalTable,
       item_type: itemType,
       item_name: itemName,
-      item_data: itemData,
-      organization_id: organizationId || itemData?.organization_id || null
+      item_data: itemData
     }
 
     console.log('Saving to recycling bin:', {
       originalId,
       originalTable,
       itemType,
-      itemName,
-      organizationId: insertData.organization_id
+      itemName
     })
 
     const { data, error } = await supabase

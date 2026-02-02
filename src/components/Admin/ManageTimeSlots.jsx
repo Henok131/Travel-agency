@@ -196,8 +196,7 @@ function ManageTimeSlots() {
         originalId: bookingId,
         originalTable: 'bookings',
         itemData: bookingData,
-        itemName: itemName,
-        organizationId: bookingData.organization_id || null
+        itemName: itemName
       })
 
       if (recycleError) {

@@ -126,10 +126,7 @@ function PublicBookingView() {
             onChange={(e) => setSelectedDate(e.target.value)}
             min={new Date().toISOString().split('T')[0]}
             className="public-booking-date-picker"
-            placeholder="DD-MM-YYYY"
-            data-flatpickr="true"
-            data-flatpickr-format="d-m-Y"
-            data-flatpickr-min={new Date().toISOString().split('T')[0]}
+            placeholder="DD.MM.YYYY"
           />
         </div>
       </div>

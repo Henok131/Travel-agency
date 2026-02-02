@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../contexts/StoreContext'
+import { supabase } from '../lib/supabase'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
@@ -419,7 +420,7 @@ function ExpensesList() {
     }))
   }
 
-  // Fetch expenses from mock store with pagination
+  // Fetch expenses from Supabase with pagination
   const fetchExpenses = async (page) => {
     try {
       setLoading(true)
@@ -427,25 +428,29 @@ function ExpensesList() {
       
       const offset = (page - 1) * pageSize
       
-      // Get all expenses from mock store
-      const allExpenses = store.expenses.getAll()
+      // Fetch total count
+      const { count, error: countError } = await supabase
+        .from('expenses')
+        .select('*', { count: 'exact', head: true })
       
-      // Sort by expense_date descending, then created_at descending
-      const sortedExpenses = [...allExpenses].sort((a, b) => {
-        const dateA = new Date(a.expense_date || a.created_at || 0)
-        const dateB = new Date(b.expense_date || b.created_at || 0)
-        if (dateB.getTime() !== dateA.getTime()) {
-          return dateB - dateA
-        }
-        const createdA = new Date(a.created_at || 0)
-        const createdB = new Date(b.created_at || 0)
-        return createdB - createdA
-      })
+      if (countError) {
+        throw countError
+      }
       
-      setTotalCount(sortedExpenses.length)
+      setTotalCount(count || 0)
       
-      // Paginate
-      const data = sortedExpenses.slice(offset, offset + pageSize)
+      // Fetch paginated data, ordered by expense_date descending, then created_at descending
+      const { data, error: fetchError } = await supabase
+        .from('expenses')
+        .select('*')
+        .order('expense_date', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + pageSize - 1)
+
+      if (fetchError) {
+        throw fetchError
+      }
+
       setExpenses(data || [])
     } catch (err) {
       console.error('Error fetching expenses:', err)
@@ -457,11 +462,6 @@ function ExpensesList() {
 
   useEffect(() => {
     fetchExpenses(currentPage)
-    // Subscribe to store changes for reactive updates
-    const unsubscribe = store.subscribe(() => {
-      fetchExpenses(currentPage)
-    })
-    return unsubscribe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage])
 
@@ -479,7 +479,7 @@ function ExpensesList() {
     }
   }
 
-  // Convert date from YYYY-MM-DD to DD-MM-YYYY for display
+  // Convert date from YYYY-MM-DD to DD.MM.YYYY for display
   const formatDateForDisplay = (dateStr) => {
     if (!dateStr) return ''
     const date = new Date(dateStr)
@@ -487,10 +487,10 @@ function ExpensesList() {
     const day = String(date.getDate()).padStart(2, '0')
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const year = date.getFullYear()
-    return `${day}-${month}-${year}`
+    return `${day}.${month}.${year}`
   }
 
-  // Format datetime as "DD-MM-YYYY, HH:MM"
+  // Format datetime as "DD.MM.YYYY, HH:MM"
   const formatDateTime = (dateStr) => {
     if (!dateStr) return '-'
     const date = new Date(dateStr)
@@ -500,7 +500,7 @@ function ExpensesList() {
     const year = date.getFullYear()
     const hours = String(date.getHours()).padStart(2, '0')
     const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${day}-${month}-${year}, ${hours}:${minutes}`
+    return `${day}.${month}.${year}, ${hours}:${minutes}`
   }
 
   // Format currency
@@ -879,20 +879,10 @@ function ExpensesList() {
         updateData[field] = updatedExpense[field]
       }
 
-      // Ensure organization_id is included in update if organization exists
-      if (organization?.id && !updateData.organization_id) {
-        updateData.organization_id = organization.id
-      }
-      
       let updateQuery = supabase
         .from('expenses')
         .update(updateData)
         .eq('id', rowId)
-      
-      // Add organization_id filter if organization exists
-      if (organization?.id) {
-        updateQuery = updateQuery.eq('organization_id', organization.id)
-      }
       
       const { error: updateError } = await updateQuery
 
@@ -1476,24 +1466,24 @@ function ExpensesList() {
     fileInputRef.current?.click()
   }
 
-  // Get today's date in DD-MM-YYYY format
+  // Get today's date in DD.MM.YYYY format
   const getTodayDate = () => {
     const today = new Date()
     const day = String(today.getDate()).padStart(2, '0')
     const month = String(today.getMonth() + 1).padStart(2, '0')
     const year = today.getFullYear()
-    return `${day}-${month}-${year}`
+    return `${day}.${month}.${year}`
   }
 
-  // Convert date from DD-MM-YYYY to YYYY-MM-DD for database
+  // Convert date from DD.MM.YYYY to YYYY-MM-DD for database
   const convertDateToISO = (dateStr) => {
     if (!dateStr || dateStr.trim() === '') return null
     
     // Trim whitespace
     const trimmed = dateStr.trim()
     
-    // Try DD-MM-YYYY format first
-    const ddmmyyyyPattern = /^(\d{2})-(\d{2})-(\d{4})$/
+    // Try DD.MM.YYYY format first (German format with dots)
+    const ddmmyyyyPattern = /^(\d{2})[.-](\d{2})[.-](\d{4})$/
     const match = trimmed.match(ddmmyyyyPattern)
     if (match) {
       const [, day, month, year] = match
@@ -1506,7 +1496,7 @@ function ExpensesList() {
         return null
       }
       
-      // Validate actual calendar date (e.g., 31-02-2026 is invalid)
+      // Validate actual calendar date (e.g., 31.02.2026 is invalid)
       const date = new Date(yearNum, monthNum - 1, dayNum)
       if (date.getFullYear() !== yearNum || date.getMonth() !== monthNum - 1 || date.getDate() !== dayNum) {
         return null
@@ -1534,7 +1524,7 @@ function ExpensesList() {
     return null
   }
 
-  // Handle date input with auto-formatting (DD-MM-YYYY)
+  // Handle date input with auto-formatting (DD.MM.YYYY)
   const handleDateInputChange = (e) => {
     const value = e.target.value
     const cursorPosition = e.target.selectionStart || 0
@@ -1546,17 +1536,17 @@ function ExpensesList() {
     // Limit to 8 digits (DDMMYYYY)
     const limitedDigits = digits.slice(0, 8)
     
-    // Build formatted string with auto-inserted hyphens
+    // Build formatted string with auto-inserted dots
     let formatted = ''
     for (let i = 0; i < limitedDigits.length; i++) {
       formatted += limitedDigits[i]
-      // Add hyphen after 2nd digit (DD-)
+      // Add dot after 2nd digit (DD.)
       if (i === 1 && limitedDigits.length >= 2) {
-        formatted += '-'
+        formatted += '.'
       }
-      // Add hyphen after 4th digit (DD-MM-)
+      // Add dot after 4th digit (DD.MM.)
       if (i === 3 && limitedDigits.length >= 4) {
-        formatted += '-'
+        formatted += '.'
       }
     }
     
@@ -1568,10 +1558,10 @@ function ExpensesList() {
     // If digits increased, adjust cursor position
     if (newDigits > oldDigits) {
       if (newDigits === 2 && oldDigits === 1) {
-        // Just completed DD - move past hyphen
+        // Just completed DD - move past dot
         newCursorPosition = 3
       } else if (newDigits === 4 && oldDigits === 3) {
-        // Just completed MM - move past hyphen
+        // Just completed MM - move past dot
         newCursorPosition = 6
       } else {
         // Count digits before cursor to determine new position
@@ -1579,9 +1569,9 @@ function ExpensesList() {
         if (digitsBeforeCursor <= 2) {
           newCursorPosition = digitsBeforeCursor
         } else if (digitsBeforeCursor <= 4) {
-          newCursorPosition = digitsBeforeCursor + 1 // +1 for first hyphen
+          newCursorPosition = digitsBeforeCursor + 1 // +1 for first dot
         } else {
-          newCursorPosition = digitsBeforeCursor + 2 // +2 for both hyphens
+          newCursorPosition = digitsBeforeCursor + 2 // +2 for both dots
         }
       }
     } else {
@@ -1624,30 +1614,30 @@ function ExpensesList() {
       
       // Check if date is required and provided
       if (!dateValue) {
-        setSubmitMessage('Expense date is required. Please enter a date in DD-MM-YYYY format.')
+        setSubmitMessage('Expense date is required. Please enter a date in DD.MM.YYYY format.')
         setSubmitError(true)
         setIsSubmitting(false)
         return
       }
       
-      // Check if date is complete (exactly 10 characters: DD-MM-YYYY)
+      // Check if date is complete (exactly 10 characters: DD.MM.YYYY)
       if (dateValue.length !== 10) {
-        setSubmitMessage('Please enter a complete date in DD-MM-YYYY format (e.g., 13-01-2026).')
+        setSubmitMessage('Please enter a complete date in DD.MM.YYYY format (e.g., 13.01.2026).')
         setSubmitError(true)
         setIsSubmitting(false)
         return
       }
       
-      // Convert date from DD-MM-YYYY to YYYY-MM-DD for database
+      // Convert date from DD.MM.YYYY to YYYY-MM-DD for database
       const expenseDateISO = convertDateToISO(dateValue)
       
       if (!expenseDateISO) {
         // Check if it's a format issue or invalid date
-        const ddmmyyyyPattern = /^(\d{2})-(\d{2})-(\d{4})$/
+        const ddmmyyyyPattern = /^(\d{2})[.-](\d{2})[.-](\d{4})$/
         if (!dateValue.match(ddmmyyyyPattern)) {
-          setSubmitMessage('Invalid date format. Please use DD-MM-YYYY format (e.g., 13-01-2026).')
+          setSubmitMessage('Invalid date format. Please use DD.MM.YYYY format (e.g., 13.01.2026).')
         } else {
-          setSubmitMessage('Invalid date. Please enter a valid calendar date in DD-MM-YYYY format (e.g., 13-01-2026).')
+          setSubmitMessage('Invalid date. Please enter a valid calendar date in DD.MM.YYYY format (e.g., 13.01.2026).')
         }
         setSubmitError(true)
         setIsSubmitting(false)
@@ -1685,8 +1675,7 @@ function ExpensesList() {
         vendor_name: formData.vendor_name.trim(),
         currency: formData.currency || 'EUR',
         description: formData.description || null,
-        receipt_url: formData.receipt_url || null,
-        organization_id: organization?.id || null
+        receipt_url: formData.receipt_url || null
       }
 
       const { data, error } = await supabase
@@ -2093,22 +2082,20 @@ function ExpensesList() {
                 <input
                   id="expense_date"
                   type="text"
-                  placeholder="DD-MM-YYYY"
+                  placeholder="DD.MM.YYYY"
                   value={formData.expense_date}
                   onChange={handleDateInputChange}
                   onBlur={(e) => {
                     const dateValue = e.target.value.trim()
                     if (dateValue && dateValue.length !== 10) {
-                      e.target.setCustomValidity('Please enter a complete date in DD-MM-YYYY format (e.g., 13-01-2026)')
+                      e.target.setCustomValidity('Please enter a complete date in DD.MM.YYYY format (e.g., 13.01.2026)')
                     } else {
                       e.target.setCustomValidity('')
                     }
                   }}
-                  pattern="^\d{2}-\d{2}-\d{4}$"
-                  title="Please enter a date in DD-MM-YYYY format (e.g., 13-01-2026)"
+                  pattern="^\d{2}\.\d{2}\.\d{4}$"
+                  title="Please enter a date in DD.MM.YYYY format (e.g., 13.01.2026)"
                   required
-                  data-flatpickr="true"
-                  data-flatpickr-format="d-m-Y"
                 />
               </div>
 

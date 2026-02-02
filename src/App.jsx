@@ -1,6 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect } from 'react'
-import ensureGlobalFlatpickr from './utils/flatpickrLoader'
 import CreateRequest from './pages/CreateRequest'
 import RequestsList from './pages/RequestsList'
 import MainTable from './pages/MainTable'
@@ -16,10 +14,6 @@ import DocsViewer from './components/DocsViewer'
 import CalculatorDashboard from './pages/CalculatorDashboard'
 
 function App() {
-  useEffect(() => {
-    ensureGlobalFlatpickr()
-  }, [])
-
   return (
     <Routes>
       <Route path="/" element={<RequestsList />} />

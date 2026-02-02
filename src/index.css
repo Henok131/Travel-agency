@@ -27,35 +27,6 @@ html[data-theme="dark"] body {
   color: #ffffff;
 }
 
-/* Force Flatpickr year controls to remain visible */
-.flatpickr-monthDropdown-years,
-.flatpickr-current-year,
-.numInputWrapper {
-  display: inline-block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  text-align: center !important;
-}
-
-/* Center text inside custom Flatpickr dropdowns */
-.flatpickr-yearDropdown-custom,
-.flatpickr-monthDropdown-months {
-  text-align: center !important;
-  text-align-last: center !important;
-  -moz-text-align-last: center !important;
-}
-
-.flatpickr-current-month input.cur-year {
-  text-align: center !important;
-}
-
-.flatpickr-yearDropdown-custom option,
-.flatpickr-monthDropdown-months option {
-  text-align: center !important;
-  text-align-last: center !important;
-  -moz-text-align-last: center !important;
-}
-
 html {
   overflow-x: hidden;
   width: 100%;
@@ -70,4 +41,22 @@ html {
   margin: 0;
   padding: 0;
   display: block;
+}
+
+/* Style calendar icon in date inputs to be white (visible) */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 1;
+}
+
+/* For Firefox and other browsers */
+input[type="date"] {
+  color-scheme: dark;
+}
+
+/* Ensure calendar icon is visible in light mode too */
+html:not(.dark):not([data-theme="dark"]) input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0);
+  opacity: 0.7;
 }

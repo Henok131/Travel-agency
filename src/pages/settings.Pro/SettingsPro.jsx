@@ -632,12 +632,7 @@ function SettingsPro() {
         .select('*')
         .order('deleted_at', { ascending: false })
 
-      // Filter by organization if it exists
-      // If no organization, we'll show all items (no filter)
-      if (organization?.id) {
-        query = query.eq('organization_id', organization.id)
-      }
-      // If no organization, don't filter - show all deleted items
+      // No organization filter - RLS will handle access control
 
       const { data, error } = await query
 
@@ -707,10 +702,10 @@ function SettingsPro() {
       // Remove system fields and prepare restore data
       const { id, created_at, updated_at, organization_id, ...restoreData } = item.data
       
-      // Restore to the original table with current organization_id
+      // Restore to the original table
       const { error } = await supabase
         .from(item.originalTable)
-        .insert([{ ...restoreData, organization_id: organization.id }])
+        .insert([restoreData])
       
       if (error) throw error
       
@@ -865,9 +860,9 @@ function SettingsPro() {
 
       if (type === 'all') {
         const [requests, bookings, expenses] = await Promise.all([
-          supabase.from('requests').select('*').eq('organization_id', organization.id),
-          supabase.from('main_table').select('*').eq('organization_id', organization.id),
-          supabase.from('expenses').select('*').eq('organization_id', organization.id)
+          supabase.from('requests').select('*'),
+          supabase.from('main_table').select('*'),
+          supabase.from('expenses').select('*')
         ])
         data = {
           requests: requests.data || [],
@@ -879,21 +874,18 @@ function SettingsPro() {
         const { data: requestsData } = await supabase
           .from('requests')
           .select('*')
-          .eq('organization_id', organization.id)
         data = requestsData || []
         filename = `lst-travel-requests-${Date.now()}`
       } else if (type === 'bookings') {
         const { data: bookingsData } = await supabase
           .from('main_table')
           .select('*')
-          .eq('organization_id', organization.id)
         data = bookingsData || []
         filename = `lst-travel-bookings-${Date.now()}`
       } else if (type === 'expenses') {
         const { data: expensesData } = await supabase
           .from('expenses')
           .select('*')
-          .eq('organization_id', organization.id)
         data = expensesData || []
         filename = `lst-travel-expenses-${Date.now()}`
       }

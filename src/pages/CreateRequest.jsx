@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../contexts/StoreContext'
+import { supabase } from '../lib/supabase'
 import AirportAutocomplete from '../components/AirportAutocomplete'
 import CountryAutocomplete from '../components/CountryAutocomplete'
 import * as pdfjsLib from 'pdfjs-dist'
@@ -89,9 +90,9 @@ const translations = {
       lastName: 'Enter last name as shown on passport',
       firstName: 'Enter first name as shown on passport',
       middleName: 'Enter middle name(s) as shown on passport (optional)',
-      dateOfBirth: 'DD-MM-YYYY',
-      travelDate: 'DD-MM-YYYY',
-      returnDate: 'DD-MM-YYYY',
+      dateOfBirth: 'DD.MM.YYYY',
+      travelDate: 'DD.MM.YYYY',
+      returnDate: 'DD.MM.YYYY',
       gender: 'Select...',
       nationality: 'Enter nationality/country',
       passportNumber: 'Enter passport number',
@@ -191,9 +192,9 @@ const translations = {
       lastName: 'Nachname wie im Pass angegeben eingeben',
       firstName: 'Vorname wie im Pass angegeben eingeben',
       middleName: 'Zweiter Vorname(n) wie im Pass angegeben eingeben (optional)',
-      dateOfBirth: 'TT-MM-JJJJ',
-      travelDate: 'TT-MM-JJJJ',
-      returnDate: 'TT-MM-JJJJ',
+      dateOfBirth: 'DD.MM.YYYY',
+      travelDate: 'DD.MM.YYYY',
+      returnDate: 'DD.MM.YYYY',
       gender: 'Auswählen...',
       nationality: 'Staatsangehörigkeit/Land eingeben',
       passportNumber: 'Passnummer eingeben',
@@ -243,49 +244,6 @@ function CreateRequest() {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
-  // Load Flatpickr assets (JS + CSS) once (versioned) and expose a ready promise
-  useEffect(() => {
-    const ensureFlatpickrAssets = () => {
-      // CSS (idempotent)
-      if (!document.getElementById('flatpickr-style')) {
-        const link = document.createElement('link')
-        link.id = 'flatpickr-style'
-        link.rel = 'stylesheet'
-        link.href = 'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css'
-        document.head.appendChild(link)
-      }
-
-      // JS (idempotent, with promise for readiness)
-      if (!window.__flatpickrReadyPromise) {
-        window.__flatpickrReadyPromise = new Promise((resolve, reject) => {
-          // If already available, resolve immediately
-          if (typeof window.flatpickr !== 'undefined') {
-            resolve(window.flatpickr)
-            return
-          }
-
-          let script = document.getElementById('flatpickr-script')
-          if (!script) {
-            script = document.createElement('script')
-            script.id = 'flatpickr-script'
-            script.src = 'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js'
-            script.defer = true
-            script.onload = () => resolve(window.flatpickr)
-            script.onerror = (e) => reject(e)
-            document.body.appendChild(script)
-          } else {
-            // If script tag exists but flatpickr not ready yet, hook into onload
-            const onLoad = () => resolve(window.flatpickr)
-            script.addEventListener('load', onLoad, { once: true })
-            script.addEventListener('error', reject, { once: true })
-          }
-        })
-      }
-    }
-
-    ensureFlatpickrAssets()
-  }, [])
-
   // Passport file state - stored in browser memory only
   // File lifecycle: Upload → Create Object URL → Preview → Destroy ONLY after successful database insert
   // IMPORTANT: Files are NOT sent to Supabase Storage - they exist only in browser memory
@@ -305,11 +263,6 @@ function CreateRequest() {
   const [ocrImageRotation, setOcrImageRotation] = useState(0)
   const [ocrImageNaturalSize, setOcrImageNaturalSize] = useState({ width: 0, height: 0 })
   const [ocrImageDisplaySize, setOcrImageDisplaySize] = useState({ width: 0, height: 0 })
-  
-  // Date input refs for Flatpickr
-  const dateOfBirthRef = useRef(null)
-  const travelDateRef = useRef(null)
-  const returnDateRef = useRef(null)
   
   // Form submission state
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -634,7 +587,7 @@ Carefully analyze the document and extract the following fields:
 - firstName: First name (given name) - extract exactly as shown
 - lastName: Last name (surname/family name) - extract exactly as shown
 - middleName: Middle name(s) if present, otherwise empty string ""
-- dateOfBirth: Date of birth in DD-MM-YYYY format (e.g., "15-03-1990")
+- dateOfBirth: Date of birth in DD.MM.YYYY format (e.g., "15.03.1990")
 - gender: Gender code - "M" for Male, "F" for Female, "Other" for other/unspecified
 - nationality: Nationality/country code (e.g., "DE" for Germany, "US" for United States, "GB" for United Kingdom, "FR" for France)
 - passportNumber: Passport number or document number - extract exactly as shown
@@ -643,7 +596,7 @@ IMPORTANT:
 - Return ONLY valid JSON, no markdown, no code blocks, no explanations
 - Extract text exactly as it appears on the document
 - If a field is not visible or unclear, use null for that field
-- For dates, ensure DD-MM-YYYY format with leading zeros
+- For dates, ensure DD.MM.YYYY format with leading zeros
 - For gender, use only "M", "F", or "Other"
 - For nationality, use standard 2-letter country codes
 
@@ -750,8 +703,8 @@ Return format:
         extractedFields.push('middleName')
       }
       if (extractedData.dateOfBirth) {
-        // Validate date format DD-MM-YYYY
-        const datePattern = /^\d{2}-\d{2}-\d{4}$/
+        // Validate date format DD.MM.YYYY
+        const datePattern = /^\d{2}[.-]\d{2}[.-]\d{4}$/
         if (datePattern.test(extractedData.dateOfBirth)) {
           updates.dateOfBirth = extractedData.dateOfBirth
           extractedFields.push('dateOfBirth')
@@ -781,17 +734,6 @@ Return format:
         }))
 
         // Update Flatpickr if date of birth was extracted
-        if (updates.dateOfBirth && dateOfBirthRef.current?._flatpickr) {
-          // Convert DD-MM-YYYY to Date object for Flatpickr
-          const [day, month, year] = updates.dateOfBirth.split('-')
-          if (day && month && year) {
-            const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-            if (!isNaN(dateObj.getTime())) {
-              dateOfBirthRef.current._flatpickr.setDate(dateObj, false)
-            }
-          }
-        }
-
         setOcrExtractedFields(extractedFields)
         
         // Check if critical fields were extracted
@@ -1144,704 +1086,13 @@ Return format:
     }))
   }
 
-  // Initialize Flatpickr date pickers
-  useEffect(() => {
-    let cancelled = false
-
-    const initializeDatePickers = () => {
-      if (typeof window.flatpickr === 'undefined') {
-        // If assets are still loading, try again shortly
-        setTimeout(initializeDatePickers, 100)
-        return
-      }
-
-      if (cancelled) return
-
-      const locale = language === 'de' 
-        ? (window.flatpickr?.l10ns?.de || {
-            firstDayOfWeek: 1,
-            weekdays: {
-              shorthand: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
-              longhand: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag']
-            },
-            months: {
-              shorthand: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
-              longhand: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
-            }
-          })
-        : (window.flatpickr?.l10ns?.en || {
-            firstDayOfWeek: 1,
-            weekdays: {
-              shorthand: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-              longhand: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-            },
-            months: {
-              shorthand: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-              longhand: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-            }
-          })
-
-      const currentYear = new Date().getFullYear()
-      const minYear = currentYear - 100
-      const maxYear = currentYear + 20
-
-      // Shared function to create year dropdown - accessible from all callbacks
-      const createYearDropdown = (instance) => {
-        if (!instance || !instance.calendarContainer) return null
-        
-        // Remove any existing custom dropdown first
-        const existing = instance.calendarContainer.querySelector('.flatpickr-yearDropdown-custom')
-        if (existing) {
-          existing.remove()
-        }
-
-        // Create new year dropdown
-        const yearSelect = document.createElement('select')
-        yearSelect.className = 'flatpickr-yearDropdown-custom'
-        yearSelect.setAttribute('aria-label', 'Year')
-        yearSelect.setAttribute('id', `year-select-${instance.input.id}-${Date.now()}`)
-
-        const currentYear = instance.currentYear
-        const startYear = minYear
-        const endYear = maxYear
-
-        // Populate years
-        for (let y = startYear; y <= endYear; y++) {
-          const option = document.createElement('option')
-          option.value = y
-          option.textContent = y
-          if (y === currentYear) {
-            option.selected = true
-          }
-          yearSelect.appendChild(option)
-        }
-
-        // Sync with Flatpickr when year changes
-        yearSelect.addEventListener('change', (e) => {
-          const newYear = parseInt(e.target.value, 10)
-          if (!isNaN(newYear)) {
-            instance.changeYear(newYear)
-          }
-        })
-
-        // Find insertion point - MUST be in .flatpickr-current-month
-        const currentMonth = instance.calendarContainer.querySelector('.flatpickr-current-month')
-        if (currentMonth) {
-          // Try to insert after month dropdown
-          const monthSelect = currentMonth.querySelector('.flatpickr-monthDropdown-months')
-          if (monthSelect) {
-            monthSelect.insertAdjacentElement('afterend', yearSelect)
-          } else {
-            // Insert at the beginning of current-month
-            currentMonth.insertBefore(yearSelect, currentMonth.firstChild)
-          }
-        }
-
-        // Apply ALL styles immediately
-        Object.assign(yearSelect.style, {
-          display: 'inline-block',
-          visibility: 'visible',
-          opacity: '1',
-          pointerEvents: 'auto',
-          minWidth: '80px',
-          width: 'auto',
-          fontSize: '0.9375rem',
-          fontWeight: '600',
-          padding: '0.25rem 1.5rem 0.25rem 0.5rem',
-          border: '1px solid var(--border-color)',
-          borderRadius: '6px',
-          backgroundColor: 'var(--bg-primary)',
-          color: 'var(--text-primary)',
-          cursor: 'pointer',
-          marginLeft: '0.5rem',
-          verticalAlign: 'middle',
-          position: 'relative',
-          zIndex: '9999',
-          height: '34px',
-          lineHeight: '34px'
-        })
-
-        // Sync when Flatpickr changes year
-        const updateYear = () => {
-          if (yearSelect && yearSelect.value !== String(instance.currentYear)) {
-            yearSelect.value = instance.currentYear
-          }
-        }
-
-        // Hook into year changes
-        if (!yearSelect._synced) {
-          const originalChangeYear = instance.changeYear
-          instance.changeYear = function(year) {
-            const result = originalChangeYear.call(this, year)
-            setTimeout(updateYear, 0)
-            return result
-          }
-          yearSelect._synced = true
-        }
-
-        console.log('✅ Year dropdown created:', {
-          element: yearSelect,
-          parent: yearSelect.parentElement,
-          isInDOM: document.body.contains(yearSelect) || instance.calendarContainer.contains(yearSelect),
-          display: window.getComputedStyle(yearSelect).display
-        })
-
-        return yearSelect
-      }
-
-      const dateConfig = {
-        locale: locale,
-        dateFormat: 'd-m-Y',
-        altInput: false,
-        allowInput: true,
-        clickOpens: true,
-        enableTime: false,
-        animate: true,
-        closeOnSelect: true,
-        monthSelectorType: 'dropdown',
-        yearSelectorType: 'dropdown',
-        // REMOVED yearSelectorType: 'dropdown' - we'll use custom select instead
-        minDate: new Date(minYear, 0, 1),
-        maxDate: new Date(maxYear, 11, 31),
-        static: false,
-        onOpen: (selectedDates, dateStr, instance) => {
-          // Force calendar to open below the input (remove arrowTop class if present)
-          if (instance.calendarContainer) {
-            instance.calendarContainer.classList.remove('arrowTop')
-            instance.calendarContainer.classList.add('arrowBottom')
-            
-            // Ensure custom year dropdown exists and is visible when calendar opens
-            setTimeout(() => {
-              let yearSelect = instance.calendarContainer?.querySelector('.flatpickr-yearDropdown-custom')
-              
-              if (!yearSelect) {
-                // Create it using the shared function
-                yearSelect = createYearDropdown(instance)
-              } else {
-                // Ensure it's visible
-                Object.assign(yearSelect.style, {
-                  display: 'inline-block',
-                  visibility: 'visible',
-                  opacity: '1',
-                  pointerEvents: 'auto'
-                })
-              }
-            }, 100)
-            
-            // Ensure calendar has enough space below for year dropdown to open downward
-            // Scroll the calendar container into view if needed
-            setTimeout(() => {
-              const rect = instance.calendarContainer.getBoundingClientRect()
-              const viewportHeight = window.innerHeight
-              const spaceBelow = viewportHeight - rect.bottom
-              
-              // If there's less than 300px below, scroll the calendar into view
-              if (spaceBelow < 300 && rect.bottom < viewportHeight - 50) {
-                instance.calendarContainer.scrollIntoView({ 
-                  behavior: 'smooth', 
-                  block: 'nearest',
-                  inline: 'nearest'
-                })
-              }
-            }, 50)
-          }
-        },
-        onReady: (selectedDates, dateStr, instance) => {
-          // Force calendar to open below the input (remove arrowTop class if present)
-          if (instance.calendarContainer) {
-            instance.calendarContainer.classList.remove('arrowTop')
-            instance.calendarContainer.classList.add('arrowBottom')
-          }
-
-          // Create year dropdown IMMEDIATELY - don't wait
-          const createYearDropdown = () => {
-            // Remove any existing custom dropdown first
-            const existing = instance.calendarContainer?.querySelector('.flatpickr-yearDropdown-custom')
-            if (existing) {
-              existing.remove()
-            }
-
-            // Create new year dropdown
-            const yearSelect = document.createElement('select')
-            yearSelect.className = 'flatpickr-yearDropdown-custom'
-            yearSelect.setAttribute('aria-label', 'Year')
-            yearSelect.setAttribute('id', `year-select-${Date.now()}`)
-
-            const currentYear = instance.currentYear
-            const startYear = minYear
-            const endYear = maxYear
-
-            // Populate years
-            for (let y = startYear; y <= endYear; y++) {
-              const option = document.createElement('option')
-              option.value = y
-              option.textContent = y
-              if (y === currentYear) {
-                option.selected = true
-              }
-              yearSelect.appendChild(option)
-            }
-
-            // Sync with Flatpickr when year changes
-            yearSelect.addEventListener('change', (e) => {
-              const newYear = parseInt(e.target.value, 10)
-              if (!isNaN(newYear)) {
-                instance.changeYear(newYear)
-              }
-            })
-
-            // Find insertion point - MUST be in .flatpickr-current-month
-            const currentMonth = instance.calendarContainer?.querySelector('.flatpickr-current-month')
-            if (currentMonth) {
-              // Try to insert after month dropdown
-              const monthSelect = currentMonth.querySelector('.flatpickr-monthDropdown-months')
-              if (monthSelect) {
-                monthSelect.insertAdjacentElement('afterend', yearSelect)
-              } else {
-                // Insert at the beginning of current-month
-                currentMonth.insertBefore(yearSelect, currentMonth.firstChild)
-              }
-            }
-
-            // Apply ALL styles immediately
-            Object.assign(yearSelect.style, {
-              display: 'inline-block',
-              visibility: 'visible',
-              opacity: '1',
-              pointerEvents: 'auto',
-              minWidth: '80px',
-              width: 'auto',
-              fontSize: '0.9375rem',
-              fontWeight: '600',
-              padding: '0.25rem 1.5rem 0.25rem 0.5rem',
-              border: '1px solid var(--border-color)',
-              borderRadius: '6px',
-              backgroundColor: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer',
-              marginLeft: '0.5rem',
-              verticalAlign: 'middle',
-              position: 'relative',
-              zIndex: '9999',
-              height: '34px',
-              lineHeight: '34px'
-            })
-
-            // Sync when Flatpickr changes year
-            const updateYear = () => {
-              if (yearSelect && yearSelect.value !== String(instance.currentYear)) {
-                yearSelect.value = instance.currentYear
-              }
-            }
-
-            // Hook into year changes
-            if (!yearSelect._synced) {
-              const originalChangeYear = instance.changeYear
-              instance.changeYear = function(year) {
-                const result = originalChangeYear.call(this, year)
-                setTimeout(updateYear, 0)
-                return result
-              }
-              yearSelect._synced = true
-            }
-
-            return yearSelect
-          }
-
-          // Create immediately
-          const createdDropdown = createYearDropdown()
-          console.log('Year dropdown created in onReady:', {
-            element: createdDropdown,
-            parent: createdDropdown?.parentElement,
-            isInDOM: createdDropdown ? document.body.contains(createdDropdown) || instance.calendarContainer?.contains(createdDropdown) : false
-          })
-
-          // Use setTimeout to ensure DOM is fully ready
-          setTimeout(() => {
-            // Ensure month dropdown is visible, functional, and properly styled
-            const monthInput = instance.calendarContainer?.querySelector('.flatpickr-monthDropdown-months')
-            if (monthInput) {
-              monthInput.style.display = ''
-              monthInput.style.visibility = 'visible'
-              monthInput.style.opacity = '1'
-              monthInput.style.pointerEvents = 'auto'
-              if (monthInput.disabled !== undefined) {
-                monthInput.disabled = false
-              }
-              monthInput.removeAttribute('disabled')
-            }
-
-            // Hide ALL Flatpickr year selectors FIRST (they're unreliable) - comprehensive hiding
-            const hideAllFlatpickrYearSelectors = () => {
-              // Hide Flatpickr's year dropdown select
-              const flatpickrYearSelect = instance.calendarContainer?.querySelector('.flatpickr-monthDropdown-years')
-              if (flatpickrYearSelect) {
-                flatpickrYearSelect.style.display = 'none'
-                flatpickrYearSelect.style.visibility = 'hidden'
-                flatpickrYearSelect.style.opacity = '0'
-                flatpickrYearSelect.style.position = 'absolute'
-                flatpickrYearSelect.style.left = '-9999px'
-              }
-              
-              // Hide Flatpickr's year input (currentYearElement)
-              const yearInput = instance.currentYearElement
-              if (yearInput) {
-                yearInput.style.display = 'none'
-                yearInput.style.visibility = 'hidden'
-                yearInput.style.opacity = '0'
-                yearInput.style.position = 'absolute'
-                yearInput.style.left = '-9999px'
-              }
-              
-              // Hide any year input wrappers (numInputWrapper)
-              const yearInputWrappers = instance.calendarContainer?.querySelectorAll('.numInputWrapper')
-              yearInputWrappers?.forEach(wrapper => {
-                const numInput = wrapper.querySelector('input[type="number"]')
-                if (numInput) {
-                  // Check if it's a year input (has year-like value or is in year position)
-                  const value = parseInt(numInput.value)
-                  const isYearInput = (value > 1900 && value < 2100) || 
-                                     numInput.classList.contains('cur-year') ||
-                                     numInput.getAttribute('aria-label')?.toLowerCase().includes('year')
-                  
-                  if (isYearInput) {
-                    wrapper.style.display = 'none'
-                    wrapper.style.visibility = 'hidden'
-                    wrapper.style.opacity = '0'
-                    wrapper.style.position = 'absolute'
-                    wrapper.style.left = '-9999px'
-                    numInput.style.display = 'none'
-                  }
-                }
-              })
-              
-              // Hide any other year-related inputs in the calendar header
-              const currentMonth = instance.calendarContainer?.querySelector('.flatpickr-current-month')
-              if (currentMonth) {
-                const allInputs = currentMonth.querySelectorAll('input')
-                allInputs.forEach(input => {
-                  if (input.type === 'number') {
-                    const value = parseInt(input.value)
-                    if (value > 1900 && value < 2100) {
-                      input.style.display = 'none'
-                      input.style.visibility = 'hidden'
-                      input.style.opacity = '0'
-                      input.style.position = 'absolute'
-                      input.style.left = '-9999px'
-                    }
-                  }
-                })
-              }
-            }
-            
-            // Hide Flatpickr year selectors
-            hideAllFlatpickrYearSelectors()
-            
-            // Also hide after a short delay to catch any late-rendered elements
-            setTimeout(hideAllFlatpickrYearSelectors, 10)
-            setTimeout(hideAllFlatpickrYearSelectors, 100)
-
-            // Create custom year dropdown if it doesn't exist
-            if (!yearSelect) {
-              yearSelect = document.createElement('select')
-              yearSelect.className = 'flatpickr-yearDropdown-custom'
-              yearSelect.setAttribute('aria-label', 'Year')
-
-              const currentYear = instance.currentYear
-              const startYear = minYear
-              const endYear = maxYear
-
-              // Populate years
-              for (let y = startYear; y <= endYear; y++) {
-                const option = document.createElement('option')
-                option.value = y
-                option.textContent = y
-                if (y === currentYear) {
-                  option.selected = true
-                }
-                yearSelect.appendChild(option)
-              }
-
-              // Sync with Flatpickr when year changes from dropdown
-              yearSelect.addEventListener('change', (e) => {
-                const newYear = parseInt(e.target.value, 10)
-                instance.changeYear(newYear)
-              })
-
-              // Insert the select in the calendar header - try multiple insertion strategies
-              const currentMonth = instance.calendarContainer?.querySelector('.flatpickr-current-month')
-              const monthSelect = instance.calendarContainer?.querySelector('.flatpickr-monthDropdown-months')
-              
-              if (currentMonth) {
-                // Strategy 1: Insert after month dropdown if it exists
-                if (monthSelect && monthSelect.parentNode) {
-                  // Insert right after the month select
-                  monthSelect.parentNode.insertBefore(yearSelect, monthSelect.nextSibling)
-                } else if (monthSelect) {
-                  // Insert after month select element
-                  monthSelect.after(yearSelect)
-                } else {
-                  // Strategy 2: Find the month text and insert after it
-                  const monthText = currentMonth.querySelector('.flatpickr-month')
-                  if (monthText) {
-                    monthText.after(yearSelect)
-                  } else {
-                    // Strategy 3: Insert at the end of current-month container
-                    currentMonth.appendChild(yearSelect)
-                  }
-                }
-              } else {
-                // Fallback: Insert in calendar container
-                const calendarHeader = instance.calendarContainer?.querySelector('.flatpickr-months')
-                if (calendarHeader) {
-                  calendarHeader.appendChild(yearSelect)
-                }
-              }
-            }
-
-            // Always ensure the custom year dropdown is visible and styled
-            if (yearSelect) {
-              // Force visibility with inline styles
-              yearSelect.style.display = 'inline-block'
-              yearSelect.style.visibility = 'visible'
-              yearSelect.style.opacity = '1'
-              yearSelect.style.pointerEvents = 'auto'
-              yearSelect.style.minWidth = '80px'
-              yearSelect.style.width = 'auto'
-              yearSelect.style.fontSize = '0.9375rem'
-              yearSelect.style.fontWeight = '600'
-              yearSelect.style.padding = '0.25rem 1.5rem 0.25rem 0.5rem'
-              yearSelect.style.border = '1px solid var(--border-color)'
-              yearSelect.style.borderRadius = '6px'
-              yearSelect.style.backgroundColor = 'var(--bg-primary)'
-              yearSelect.style.color = 'var(--text-primary)'
-              yearSelect.style.cursor = 'pointer'
-              yearSelect.style.marginLeft = '0.5rem'
-              yearSelect.style.verticalAlign = 'middle'
-              yearSelect.style.position = 'relative'
-              yearSelect.style.zIndex = '10'
-              
-              // Ensure it's not hidden by any parent
-              if (yearSelect.parentElement) {
-                yearSelect.parentElement.style.overflow = 'visible'
-              }
-              
-              // Update selected year if it changed
-              if (yearSelect.value !== String(instance.currentYear)) {
-                yearSelect.value = instance.currentYear
-              }
-              
-              // Verify it's actually in the DOM and visible
-              const isInDOM = document.body.contains(yearSelect) || instance.calendarContainer?.contains(yearSelect)
-              if (!isInDOM) {
-                console.warn('Year dropdown not in DOM, attempting to re-insert')
-                const currentMonth = instance.calendarContainer?.querySelector('.flatpickr-current-month')
-                if (currentMonth) {
-                  currentMonth.appendChild(yearSelect)
-                }
-              }
-
-              // Sync year select when Flatpickr changes year internally
-              const updateYearSelect = () => {
-                if (yearSelect && yearSelect.value !== String(instance.currentYear)) {
-                  yearSelect.value = instance.currentYear
-                }
-              }
-
-              // Hook into Flatpickr's year change events
-              if (!yearSelect._yearSyncAttached) {
-                const originalChangeYear = instance.changeYear
-                instance.changeYear = function(year) {
-                  const result = originalChangeYear.call(this, year)
-                  setTimeout(updateYearSelect, 0)
-                  return result
-                }
-
-                // Update on month navigation
-                instance.calendarContainer?.addEventListener('click', (e) => {
-                  if (e.target.classList.contains('flatpickr-prev-month') || 
-                      e.target.classList.contains('flatpickr-next-month') ||
-                      e.target.closest('.flatpickr-prev-month') ||
-                      e.target.closest('.flatpickr-next-month')) {
-                    setTimeout(updateYearSelect, 50)
-                  }
-                })
-                
-                yearSelect._yearSyncAttached = true
-              }
-            }
-          }, 100)
-          
-          // Final check after longer delay - ensure year dropdown exists and is visible
-          setTimeout(() => {
-            let yearSelect = instance.calendarContainer?.querySelector('.flatpickr-yearDropdown-custom')
-            
-            if (!yearSelect) {
-              // Create it if still missing
-              const currentMonth = instance.calendarContainer?.querySelector('.flatpickr-current-month')
-              if (currentMonth) {
-                yearSelect = document.createElement('select')
-                yearSelect.className = 'flatpickr-yearDropdown-custom'
-                yearSelect.setAttribute('aria-label', 'Year')
-                
-                const currentYear = instance.currentYear
-                const startYear = minYear
-                const endYear = maxYear
-                
-                for (let y = startYear; y <= endYear; y++) {
-                  const option = document.createElement('option')
-                  option.value = y
-                  option.textContent = y
-                  if (y === currentYear) {
-                    option.selected = true
-                  }
-                  yearSelect.appendChild(option)
-                }
-                
-                yearSelect.addEventListener('change', (e) => {
-                  const newYear = parseInt(e.target.value, 10)
-                  instance.changeYear(newYear)
-                })
-                
-                const monthSelect = currentMonth.querySelector('.flatpickr-monthDropdown-months')
-                if (monthSelect) {
-                  monthSelect.after(yearSelect)
-                } else {
-                  currentMonth.appendChild(yearSelect)
-                }
-              }
-            }
-            
-            // Ensure it's visible
-            if (yearSelect) {
-              yearSelect.style.display = 'inline-block'
-              yearSelect.style.visibility = 'visible'
-              yearSelect.style.opacity = '1'
-              yearSelect.style.pointerEvents = 'auto'
-              yearSelect.style.minWidth = '80px'
-              yearSelect.style.width = 'auto'
-              yearSelect.style.fontSize = '0.9375rem'
-              yearSelect.style.fontWeight = '600'
-              yearSelect.style.padding = '0.25rem 1.5rem 0.25rem 0.5rem'
-              yearSelect.style.border = '1px solid var(--border-color)'
-              yearSelect.style.borderRadius = '6px'
-              yearSelect.style.backgroundColor = 'var(--bg-primary)'
-              yearSelect.style.color = 'var(--text-primary)'
-              yearSelect.style.cursor = 'pointer'
-              yearSelect.style.marginLeft = '0.5rem'
-              yearSelect.style.verticalAlign = 'middle'
-              yearSelect.style.position = 'relative'
-              yearSelect.style.zIndex = '10'
-            }
-          }, 200)
-        },
-        onChange: (selectedDates, dateStr, instance) => {
-          const value = dateStr || instance?.input?.value || ''
-          if (!value) return
-          const fieldName = instance?.input?.id
-          if (fieldName === 'dateOfBirth') {
-            setFormData(prev => ({ ...prev, dateOfBirth: value }))
-          } else if (fieldName === 'travelDate') {
-            setFormData(prev => ({ ...prev, travelDate: value }))
-          } else if (fieldName === 'returnDate') {
-            setFormData(prev => ({ ...prev, returnDate: value }))
-          }
-        },
-        onClose: (selectedDates, dateStr, instance) => {
-          const value = dateStr || instance?.input?.value || ''
-          if (!value) return
-          const fieldName = instance?.input?.id
-          if (fieldName === 'dateOfBirth') {
-            setFormData(prev => ({ ...prev, dateOfBirth: value }))
-          } else if (fieldName === 'travelDate') {
-            setFormData(prev => ({ ...prev, travelDate: value }))
-          } else if (fieldName === 'returnDate') {
-            setFormData(prev => ({ ...prev, returnDate: value }))
-          }
-        },
-        onValueUpdate: (selectedDates, dateStr, instance) => {
-          const value = dateStr || instance?.input?.value || ''
-          if (!value) return
-          const fieldName = instance?.input?.id
-          if (fieldName === 'dateOfBirth') {
-            setFormData(prev => ({ ...prev, dateOfBirth: value }))
-          } else if (fieldName === 'travelDate') {
-            setFormData(prev => ({ ...prev, travelDate: value }))
-          } else if (fieldName === 'returnDate') {
-            setFormData(prev => ({ ...prev, returnDate: value }))
-          }
-        }
-      }
-
-      if (dateOfBirthRef.current && !dateOfBirthRef.current._flatpickr) {
-        window.flatpickr(dateOfBirthRef.current, dateConfig)
-      }
-
-      if (travelDateRef.current && !travelDateRef.current._flatpickr) {
-        const fp = window.flatpickr(travelDateRef.current, dateConfig)
-        if (formData.travelDate) {
-          fp.setDate(formData.travelDate, true)
-        }
-      }
-
-      if (returnDateRef.current && !returnDateRef.current._flatpickr) {
-        const fp = window.flatpickr(returnDateRef.current, dateConfig)
-        if (formData.returnDate) {
-          fp.setDate(formData.returnDate, true)
-        }
-      }
+  // Handle date input with auto-formatting (DD.MM.YYYY)
+  const handleDateInputChange = (field, value) => {
+    // If value is from HTML5 date input (YYYY-MM-DD), convert to DD.MM.YYYY
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [year, month, day] = value.split('-')
+      value = `${day}.${month}.${year}`
     }
-
-    const start = async () => {
-      try {
-        if (window.__flatpickrReadyPromise) {
-          await window.__flatpickrReadyPromise
-        }
-      } catch (e) {
-        console.error('Flatpickr failed to load', e)
-      }
-      if (!cancelled) {
-        initializeDatePickers()
-      }
-    }
-
-    start()
-
-    return () => {
-      cancelled = true
-      if (dateOfBirthRef.current?._flatpickr) {
-        dateOfBirthRef.current._flatpickr.destroy()
-        delete dateOfBirthRef.current._flatpickr
-      }
-      if (travelDateRef.current?._flatpickr) {
-        travelDateRef.current._flatpickr.destroy()
-        delete travelDateRef.current._flatpickr
-      }
-      if (returnDateRef.current?._flatpickr) {
-        returnDateRef.current._flatpickr.destroy()
-        delete returnDateRef.current._flatpickr
-      }
-    }
-  }, [language])
-
-  // Keep flatpickr in sync if formData changes programmatically
-  useEffect(() => {
-    if (travelDateRef.current?._flatpickr) {
-      travelDateRef.current._flatpickr.setDate(formData.travelDate || null, false)
-    }
-    if (returnDateRef.current?._flatpickr) {
-      returnDateRef.current._flatpickr.setDate(formData.returnDate || null, false)
-    }
-    if (dateOfBirthRef.current?._flatpickr) {
-      dateOfBirthRef.current._flatpickr.setDate(formData.dateOfBirth || null, false)
-    }
-  }, [formData.travelDate, formData.returnDate, formData.dateOfBirth])
-
-  // Handle date input with auto-formatting (DD-MM-YYYY)
-  const handleDateInputChange = (fieldName, e) => {
-    const value = e.target.value
-    const cursorPosition = e.target.selectionStart || 0
-    const oldValue = formData[fieldName] || ''
     
     // Remove all non-numeric characters
     const digits = value.replace(/\D/g, '')
@@ -1849,69 +1100,24 @@ Return format:
     // Limit to 8 digits (DDMMYYYY)
     const limitedDigits = digits.slice(0, 8)
     
-    // Build formatted string with auto-inserted hyphens
+    // Build formatted string with auto-inserted dots
     let formatted = ''
     for (let i = 0; i < limitedDigits.length; i++) {
       formatted += limitedDigits[i]
-      // Add hyphen after 2nd digit (DD-)
+      // Add dot after 2nd digit (DD.)
       if (i === 1 && limitedDigits.length >= 2) {
-        formatted += '-'
+        formatted += '.'
       }
-      // Add hyphen after 4th digit (DD-MM-)
+      // Add dot after 4th digit (DD.MM.)
       if (i === 3 && limitedDigits.length >= 4) {
-        formatted += '-'
+        formatted += '.'
       }
     }
     
-    // Calculate new cursor position
-    const oldDigits = oldValue.replace(/\D/g, '').length
-    const newDigits = limitedDigits.length
-    let newCursorPosition = cursorPosition
-    
-    // If digits increased, adjust cursor position
-    if (newDigits > oldDigits) {
-      if (newDigits === 2 && oldDigits === 1) {
-        // Just completed DD - move past hyphen
-        newCursorPosition = 3
-      } else if (newDigits === 4 && oldDigits === 3) {
-        // Just completed MM - move past hyphen
-        newCursorPosition = 6
-      } else {
-        // Count digits before cursor to determine new position
-        const digitsBeforeCursor = value.substring(0, cursorPosition).replace(/\D/g, '').length
-        if (digitsBeforeCursor <= 2) {
-          newCursorPosition = digitsBeforeCursor
-        } else if (digitsBeforeCursor <= 4) {
-          newCursorPosition = digitsBeforeCursor + 1 // +1 for first hyphen
-        } else {
-          newCursorPosition = digitsBeforeCursor + 2 // +2 for both hyphens
-        }
-      }
-    } else {
-      // Digits decreased or stayed same - maintain relative position
-      const digitsBeforeCursor = value.substring(0, cursorPosition).replace(/\D/g, '').length
-      if (digitsBeforeCursor <= 2) {
-        newCursorPosition = digitsBeforeCursor
-      } else if (digitsBeforeCursor <= 4) {
-        newCursorPosition = digitsBeforeCursor + 1
-      } else {
-        newCursorPosition = digitsBeforeCursor + 2
-      }
-    }
-    
-    // Update form state
     setFormData(prev => ({
       ...prev,
-      [fieldName]: formatted
+      [field]: formatted
     }))
-    
-    // Set cursor position after state update
-    setTimeout(() => {
-      if (e.target && document.activeElement === e.target) {
-        const clampedPos = Math.min(Math.max(0, newCursorPosition), formatted.length)
-        e.target.setSelectionRange(clampedPos, clampedPos)
-      }
-    }, 0)
   }
 
   // Handle checkbox changes (request types)
@@ -1926,7 +1132,7 @@ Return format:
   }
 
 
-  // Convert date from DD-MM-YYYY to YYYY-MM-DD format for PostgreSQL
+  // Convert date from DD.MM.YYYY to YYYY-MM-DD format for PostgreSQL
   const convertDateToISO = (dateStr) => {
     if (!dateStr) return null
     const value = typeof dateStr === 'string' ? dateStr.trim() : dateStr
@@ -1938,8 +1144,8 @@ Return format:
 
     if (typeof value !== 'string' || value === '') return null
     
-    // DD-MM-YYYY
-    const ddmmyyyyPattern = /^(\d{2})-(\d{2})-(\d{4})$/
+    // DD.MM.YYYY or DD-MM-YYYY (accept both for compatibility)
+    const ddmmyyyyPattern = /^(\d{2})[.-](\d{2})[.-](\d{4})$/
     const match = value.match(ddmmyyyyPattern)
     
     if (match) {
@@ -2113,22 +1319,26 @@ Return format:
             ocr_confidence: null
           }))
 
-          // Insert all family members into mock store
-          const result = store.requests.createMultiple(familyDataArray)
+          // Insert all family members into Supabase
+          const { data, error } = await supabase
+            .from('requests')
+            .insert(familyDataArray)
+            .select()
           
-          if (result.error) {
-            throw result.error
+          if (error) {
+            throw error
           }
 
-          const data = result.data
-
-          // Update main_table with booking_ref if provided
+          // Update main_table with booking_ref if provided (main_table is synced via trigger, but we can update booking_ref)
           if (bookingRef && data && data.length > 0) {
-            data.forEach(item => {
+            for (const item of data) {
               if (bookingRef) {
-                store.mainTable.update(item.id, { booking_ref: bookingRef })
+                await supabase
+                  .from('main_table')
+                  .update({ booking_ref: bookingRef })
+                  .eq('id', item.id)
               }
-            })
+            }
           }
         } else {
           // Family members already saved - use shared travel info
@@ -2169,23 +1379,27 @@ Return format:
           ocr_confidence: null
         }))
 
-        // Insert all family members into mock store
+        // Insert all family members into Supabase
         const bookingRef = sharedBookingRef || formData.bookingRef || null
-        const result = store.requests.createMultiple(familyDataArray)
+        const { data, error } = await supabase
+          .from('requests')
+          .insert(familyDataArray)
+          .select()
         
-        if (result.error) {
-          throw result.error
+        if (error) {
+          throw error
         }
 
-        const data = result.data
-
-        // Update main_table with booking_ref if provided
+        // Update main_table with booking_ref if provided (main_table is synced via trigger, but we can update booking_ref)
         if (bookingRef && data && data.length > 0) {
-          data.forEach(item => {
+          for (const item of data) {
             if (bookingRef) {
-              store.mainTable.update(item.id, { booking_ref: bookingRef })
+              await supabase
+                .from('main_table')
+                .update({ booking_ref: bookingRef })
+                .eq('id', item.id)
             }
-          })
+          }
         }
       }
     } else {
@@ -2193,7 +1407,7 @@ Return format:
         const bookingRefSingle = formData.bookingRef || null
         // Map form data to database columns exactly
         // Empty strings are converted to null for nullable fields
-        // Convert dates from DD-MM-YYYY to YYYY-MM-DD format for PostgreSQL
+        // Convert dates from DD.MM.YYYY to YYYY-MM-DD format for PostgreSQL
         const dbData = {
           first_name: formData.firstName || null,
           middle_name: formData.middleName || null,
@@ -2213,18 +1427,22 @@ Return format:
           ocr_confidence: null // NULL - no OCR yet
         }
 
-        // Insert directly into mock store
-        const result = store.requests.create(dbData)
+        // Insert directly into Supabase
+        const { data, error } = await supabase
+          .from('requests')
+          .insert([dbData])
+          .select()
         
-        if (result.error) {
-          throw result.error
+        if (error) {
+          throw error
         }
 
-        const data = result.data
-
-        // Update main_table with booking_ref if provided
+        // Update main_table with booking_ref if provided (main_table is synced via trigger, but we can update booking_ref)
         if (bookingRefSingle && data && data.length > 0) {
-          store.mainTable.update(data[0].id, { booking_ref: bookingRefSingle })
+          await supabase
+            .from('main_table')
+            .update({ booking_ref: bookingRefSingle })
+            .eq('id', data[0].id)
         }
       }
 
@@ -2865,17 +2083,6 @@ Return format:
                   }
                 })
                 
-                // Reset date pickers
-                if (dateOfBirthRef.current?._flatpickr) {
-                  dateOfBirthRef.current._flatpickr.clear()
-                }
-                if (travelDateRef.current?._flatpickr) {
-                  travelDateRef.current._flatpickr.clear()
-                }
-                if (returnDateRef.current?._flatpickr) {
-                  returnDateRef.current._flatpickr.clear()
-                }
-                
                 if (fileInputRef.current) {
                   fileInputRef.current.value = ''
                 }
@@ -2997,14 +2204,13 @@ Return format:
                 <div className="form-field">
                   <label htmlFor="dateOfBirth">{t.fields.dateOfBirth}</label>
                   <input
-                    ref={dateOfBirthRef}
                     id="dateOfBirth"
                     type="text"
-                    placeholder={t.placeholders.dateOfBirth}
+                    placeholder="DD.MM.YYYY"
                     value={formData.dateOfBirth}
-                    onChange={(e) => handleDateInputChange('dateOfBirth', e)}
-                  data-flatpickr="true"
-                  data-flatpickr-format="d-m-Y"
+                    onChange={(e) => handleDateInputChange('dateOfBirth', e.target.value)}
+                    pattern="^\d{2}\.\d{2}\.\d{4}$"
+                    title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
                   />
                 </div>
 
@@ -3079,32 +2285,30 @@ Return format:
                 <div className="form-field">
                   <label htmlFor="travelDate">{t.fields.travelDate}</label>
                   <input
-                    ref={travelDateRef}
                     id="travelDate"
                     type="text"
-                    placeholder={t.placeholders.travelDate}
+                    placeholder="DD.MM.YYYY"
                     value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.travelDate || '') : formData.travelDate}
-                    onChange={(e) => handleDateInputChange('travelDate', e)}
+                    onChange={(e) => handleDateInputChange('travelDate', e.target.value)}
                     disabled={requestMode === 'family' && currentFamilyIndex > 0}
+                    pattern="^\d{2}\.\d{2}\.\d{4}$"
+                    title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
                     style={requestMode === 'family' && currentFamilyIndex > 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
-                  data-flatpickr="true"
-                  data-flatpickr-format="d-m-Y"
                   />
                 </div>
 
                 <div className="form-field">
                   <label htmlFor="returnDate">{t.fields.returnDate}</label>
                   <input
-                    ref={returnDateRef}
                     id="returnDate"
                     type="text"
-                    placeholder={t.placeholders.returnDate}
+                    placeholder="DD.MM.YYYY"
                     value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.returnDate || '') : formData.returnDate}
-                    onChange={(e) => handleDateInputChange('returnDate', e)}
+                    onChange={(e) => handleDateInputChange('returnDate', e.target.value)}
                     disabled={requestMode === 'family' && currentFamilyIndex > 0}
+                    pattern="^\d{2}\.\d{2}\.\d{4}$"
+                    title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
                     style={requestMode === 'family' && currentFamilyIndex > 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
-                  data-flatpickr="true"
-                  data-flatpickr-format="d-m-Y"
                   />
                 </div>
 

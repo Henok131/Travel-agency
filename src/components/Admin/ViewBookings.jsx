@@ -63,8 +63,7 @@ function ViewBookings() {
         originalId: bookingId,
         originalTable: 'bookings',
         itemData: bookingData,
-        itemName: itemName,
-        organizationId: bookingData.organization_id || null
+        itemName: itemName
       })
 
       if (recycleError) {
@@ -118,9 +117,7 @@ function ViewBookings() {
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             className="bookings-date-picker"
-            placeholder="DD-MM-YYYY"
-            data-flatpickr="true"
-            data-flatpickr-format="d-m-Y"
+            placeholder="DD.MM.YYYY"
           />
         </div>
         <button className="bookings-refresh-btn" onClick={handleRefresh}>

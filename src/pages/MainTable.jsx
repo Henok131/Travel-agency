@@ -538,27 +538,36 @@ function RequestsList() {
     }))
   }
 
-  // Fetch requests from mock store with pagination
+  // Fetch requests from Supabase with pagination
   const fetchRequests = async (page) => {
     try {
       setLoading(true)
       setError(null)
       
-      // Get all data from mock store
-      const allData = store.mainTable.getAll()
-      
-      // Sort by created_at descending
-      const sortedData = [...allData].sort((a, b) => {
-        const dateA = new Date(a.created_at || 0)
-        const dateB = new Date(b.created_at || 0)
-        return dateB - dateA
-      })
-      
-      setTotalCount(sortedData.length)
-      
-      // Calculate offset and paginate
+      // Calculate offset
       const offset = (page - 1) * pageSize
-      const data = sortedData.slice(offset, offset + pageSize)
+      
+      // Fetch total count
+      const { count, error: countError } = await supabase
+        .from('main_table')
+        .select('*', { count: 'exact', head: true })
+      
+      if (countError) {
+        throw countError
+      }
+      
+      setTotalCount(count || 0)
+      
+      // Fetch paginated data
+      const { data, error: fetchError } = await supabase
+        .from('main_table')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + pageSize - 1)
+
+      if (fetchError) {
+        throw fetchError
+      }
 
       // Calculate financial fields for loaded data (migration support)
       const dataWithCalculations = (data || []).map(request => {
@@ -592,11 +601,6 @@ function RequestsList() {
 
   useEffect(() => {
     fetchRequests(currentPage)
-    // Subscribe to store changes
-    const unsubscribe = store.subscribe(() => {
-      fetchRequests(currentPage)
-    })
-    return unsubscribe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage])
 
@@ -643,19 +647,28 @@ function RequestsList() {
       
       // Try to resolve logo URL (best effort)
       let logoUrl = settingsData.logo_url || null
-      const orgId = request.organization_id || 'default'
       if (!logoUrl && supabase?.storage) {
-        const formats = ['png', 'jpg', 'jpeg', 'svg']
-        for (const fmt of formats) {
-          try {
-            const { data } = supabase.storage.from('logos').getPublicUrl(`${orgId}/logo.${fmt}`)
-            if (data?.publicUrl) {
-              logoUrl = data.publicUrl
-              break
+        // Try to find logo in storage by listing folders
+        try {
+          const { data: files } = await supabase.storage
+            .from('logos')
+            .list('', { limit: 100 })
+          const folders = files?.filter(f => !f.name.includes('.')) || []
+          const orgId = folders.length > 0 ? folders[0].name : 'default'
+          const formats = ['png', 'jpg', 'jpeg', 'svg']
+          for (const fmt of formats) {
+            try {
+              const { data } = supabase.storage.from('logos').getPublicUrl(`${orgId}/logo.${fmt}`)
+              if (data?.publicUrl) {
+                logoUrl = data.publicUrl
+                break
+              }
+            } catch (_) {
+              // ignore and try next format
             }
-          } catch (_) {
-            // ignore and try next format
           }
+        } catch (_) {
+          // ignore storage errors
         }
       }
       
@@ -723,19 +736,28 @@ function RequestsList() {
 
       // Try to resolve logo URL (best effort)
       let logoUrl = settingsData.logo_url || null
-      const orgId = selectedBookings[0]?.organization_id || 'default'
       if (!logoUrl && supabase?.storage) {
-        const formats = ['png', 'jpg', 'jpeg', 'svg']
-        for (const fmt of formats) {
-          try {
-            const { data } = supabase.storage.from('logos').getPublicUrl(`${orgId}/logo.${fmt}`)
-            if (data?.publicUrl) {
-              logoUrl = data.publicUrl
-              break
+        // Try to find logo in storage by listing folders
+        try {
+          const { data: files } = await supabase.storage
+            .from('logos')
+            .list('', { limit: 100 })
+          const folders = files?.filter(f => !f.name.includes('.')) || []
+          const orgId = folders.length > 0 ? folders[0].name : 'default'
+          const formats = ['png', 'jpg', 'jpeg', 'svg']
+          for (const fmt of formats) {
+            try {
+              const { data } = supabase.storage.from('logos').getPublicUrl(`${orgId}/logo.${fmt}`)
+              if (data?.publicUrl) {
+                logoUrl = data.publicUrl
+                break
+              }
+            } catch (_) {
+              // ignore and try next format
             }
-          } catch (_) {
-            // ignore and try next format
           }
+        } catch (_) {
+          // ignore storage errors
         }
       }
 
@@ -763,18 +785,28 @@ function RequestsList() {
     }
 
     try {
-      // Get the request data before deleting
-      const requestData = store.mainTable.getById(requestId)
+      // Get the request data before deleting (for recycling bin)
+      const { data: requestData } = await supabase
+        .from('main_table')
+        .select('*')
+        .eq('id', requestId)
+        .single()
 
       if (!requestData) {
         throw new Error('Request not found')
       }
 
-      // Delete from mock store
-      const result = store.mainTable.delete(requestId)
+      // Save to recycling bin before deleting
+      saveToRecyclingBin('main_table', requestData, getItemDisplayName(requestData))
 
-      if (result.error) {
-        throw result.error
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('main_table')
+        .delete()
+        .eq('id', requestId)
+
+      if (error) {
+        throw error
       }
 
       // Show success message
@@ -788,21 +820,21 @@ function RequestsList() {
     }
   }
 
-  // Convert date from YYYY-MM-DD to DD.MM.YY for display
+  // Convert date from YYYY-MM-DD to DD.MM.YYYY for display
   const formatDateForDisplay = (dateStr) => {
     if (!dateStr) return ''
     const date = new Date(dateStr)
     if (isNaN(date.getTime())) return dateStr
     const day = String(date.getDate()).padStart(2, '0')
     const month = String(date.getMonth() + 1).padStart(2, '0')
-    const year = String(date.getFullYear()).slice(-2)
+    const year = date.getFullYear()
     return `${day}.${month}.${year}`
   }
 
-  // Convert date from DD-MM-YYYY or DD.MM.YY/YY to YYYY-MM-DD for database
+  // Convert date from DD.MM.YYYY or DD-MM-YYYY to YYYY-MM-DD for database
   const convertDateToISO = (dateStr) => {
     if (!dateStr || dateStr.trim() === '') return null
-    const ddmmyyyyPattern = /^(\d{2})[-.](\d{2})[-.](\d{2,4})$/
+    const ddmmyyyyPattern = /^(\d{2})[.-](\d{2})[.-](\d{2,4})$/
     const match = dateStr.match(ddmmyyyyPattern)
     if (match) {
       const [, day, month, yearRaw] = match
@@ -824,7 +856,7 @@ function RequestsList() {
     return null
   }
 
-  // Format datetime as "DD-MM-YYYY, HH:MM"
+  // Format datetime as "DD.MM.YYYY, HH:MM"
   const formatDateTime = (dateStr) => {
     if (!dateStr) return '-'
     const date = new Date(dateStr)
@@ -834,7 +866,7 @@ function RequestsList() {
     const year = date.getFullYear()
     const hours = String(date.getHours()).padStart(2, '0')
     const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${day}-${month}-${year}, ${hours}:${minutes}`
+    return `${day}.${month}.${year}, ${hours}:${minutes}`
   }
 
   // Date filter functions - calculate ranges dynamically

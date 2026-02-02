@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../contexts/StoreContext'
+import { supabase } from '../lib/supabase'
 import { STATUS, STATUS_ORDER, getStatusLabel } from '../constants/statuses'
 import { saveToRecyclingBin, getItemDisplayName } from '../lib/recyclingBin'
 import generateBankTransferInvoicePdf from '../utils/generateBankTransferInvoicePdf'
@@ -342,27 +343,36 @@ function RequestsList() {
     }))
   }
 
-  // Fetch requests from mock store with pagination
+  // Fetch requests from Supabase with pagination
   const fetchRequests = async (page) => {
     try {
       setLoading(true)
       setError(null)
       
-      // Get all data from mock store
-      const allData = store.requests.getAll()
-      
-      // Sort by created_at descending
-      const sortedData = [...allData].sort((a, b) => {
-        const dateA = new Date(a.created_at || 0)
-        const dateB = new Date(b.created_at || 0)
-        return dateB - dateA
-      })
-      
-      setTotalCount(sortedData.length)
-      
-      // Calculate offset and paginate
+      // Calculate offset
       const offset = (page - 1) * pageSize
-      const data = sortedData.slice(offset, offset + pageSize)
+      
+      // Fetch total count
+      const { count, error: countError } = await supabase
+        .from('requests')
+        .select('*', { count: 'exact', head: true })
+      
+      if (countError) {
+        throw countError
+      }
+      
+      setTotalCount(count || 0)
+      
+      // Fetch paginated data
+      const { data, error: fetchError } = await supabase
+        .from('requests')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + pageSize - 1)
+
+      if (fetchError) {
+        throw fetchError
+      }
 
       setRequests(data || [])
     } catch (err) {
@@ -380,11 +390,6 @@ function RequestsList() {
 
   useEffect(() => {
     fetchRequests(currentPage)
-    // Subscribe to store changes
-    const unsubscribe = store.subscribe(() => {
-      fetchRequests(currentPage)
-    })
-    return unsubscribe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage])
 
@@ -430,49 +435,40 @@ function RequestsList() {
       // Fetch logo directly from storage to avoid RLS recursion issues
       let logoUrl = null
       try {
-        // Try to get organization_id from request
-        let organizationId = request.organization_id
-        
-        // If no organization_id, try to list storage to find any logo
-        if (!organizationId) {
-          try {
-            // List files in logos bucket to find organization folders
-            const { data: files, error: listError } = await supabase.storage
-              .from('logos')
-              .list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } })
-            
-            if (!listError && files && files.length > 0) {
-              // Find first folder (organization ID) that might contain a logo
-              const folders = files.filter(f => !f.name.includes('.'))
-              if (folders.length > 0) {
-                organizationId = folders[0].name
-                console.log('Found organization folder from storage:', organizationId)
+        // Try to list storage to find any logo
+        try {
+          // List files in logos bucket to find organization folders
+          const { data: files, error: listError } = await supabase.storage
+            .from('logos')
+            .list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } })
+          
+          if (!listError && files && files.length > 0) {
+            // Find first folder that might contain a logo
+            const folders = files.filter(f => !f.name.includes('.'))
+            if (folders.length > 0) {
+              const organizationId = folders[0].name
+              console.log('Found organization folder from storage:', organizationId)
+              // Get public URL directly from storage (bypasses RLS issues)
+              // Try different image formats
+              const formats = ['png', 'jpg', 'jpeg', 'svg']
+              for (const format of formats) {
+                try {
+                  const { data: storageData } = supabase.storage
+                    .from('logos')
+                    .getPublicUrl(`${organizationId}/logo.${format}`)
+                  if (storageData?.publicUrl) {
+                    console.log('Found logo URL:', storageData.publicUrl)
+                    logoUrl = storageData.publicUrl
+                    break // Use first found format
+                  }
+                } catch (storageErr) {
+                  // Continue to next format
+                }
               }
             }
-          } catch (e) {
-            console.warn('Could not list storage:', e)
           }
-        }
-        
-        if (organizationId) {
-          console.log('Fetching logo for organization:', organizationId)
-          // Get public URL directly from storage (bypasses RLS issues)
-          // Try different image formats
-          const formats = ['png', 'jpg', 'jpeg', 'svg']
-          for (const format of formats) {
-            try {
-              const { data: storageData } = supabase.storage
-                .from('logos')
-                .getPublicUrl(`${organizationId}/logo.${format}`)
-              if (storageData?.publicUrl) {
-                console.log('Found logo URL:', storageData.publicUrl)
-                logoUrl = storageData.publicUrl
-                break // Use first found format
-              }
-            } catch (storageErr) {
-              // Continue to next format
-            }
-          }
+        } catch (e) {
+          console.warn('Could not list storage:', e)
         }
         
         // If still no logo, try to get from invoice_settings (might have logo_url stored there)
@@ -546,18 +542,28 @@ function RequestsList() {
     }
 
     try {
-      // Get the request data before deleting
-      const requestData = store.requests.getById(requestId)
+      // Get the request data before deleting (for recycling bin)
+      const { data: requestData } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('id', requestId)
+        .single()
 
       if (!requestData) {
         throw new Error('Request not found')
       }
 
-      // Delete from mock store
-      const result = store.requests.delete(requestId)
+      // Save to recycling bin before deleting
+      saveToRecyclingBin('request', requestData, getItemDisplayName(requestData))
 
-      if (result.error) {
-        throw result.error
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('requests')
+        .delete()
+        .eq('id', requestId)
+
+      if (error) {
+        throw error
       }
 
       // Show success message
@@ -571,7 +577,7 @@ function RequestsList() {
     }
   }
 
-  // Convert date from YYYY-MM-DD to DD-MM-YYYY for display
+  // Convert date from YYYY-MM-DD to DD.MM.YYYY for display
   const formatDateForDisplay = (dateStr) => {
     if (!dateStr) return ''
     const date = new Date(dateStr)
@@ -579,13 +585,13 @@ function RequestsList() {
     const day = String(date.getDate()).padStart(2, '0')
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const year = date.getFullYear()
-    return `${day}-${month}-${year}`
+    return `${day}.${month}.${year}`
   }
 
-  // Convert date from DD-MM-YYYY to YYYY-MM-DD for database
+  // Convert date from DD.MM.YYYY to YYYY-MM-DD for database
   const convertDateToISO = (dateStr) => {
     if (!dateStr || dateStr.trim() === '') return null
-    const ddmmyyyyPattern = /^(\d{2})-(\d{2})-(\d{4})$/
+    const ddmmyyyyPattern = /^(\d{2})[.-](\d{2})[.-](\d{4})$/
     const match = dateStr.match(ddmmyyyyPattern)
     if (match) {
       const [, day, month, year] = match
@@ -604,7 +610,7 @@ function RequestsList() {
     return null
   }
 
-  // Format datetime as "DD-MM-YYYY, HH:MM"
+  // Format datetime as "DD.MM.YYYY, HH:MM"
   const formatDateTime = (dateStr) => {
     if (!dateStr) return '-'
     const date = new Date(dateStr)
@@ -614,7 +620,7 @@ function RequestsList() {
     const year = date.getFullYear()
     const hours = String(date.getHours()).padStart(2, '0')
     const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${day}-${month}-${year}, ${hours}:${minutes}`
+    return `${day}.${month}.${year}, ${hours}:${minutes}`
   }
 
   // Date filter functions - calculate ranges dynamically
