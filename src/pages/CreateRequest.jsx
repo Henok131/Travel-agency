@@ -9,6 +9,7 @@ import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import './CreateRequest.css'
 
+
 // Configure PDF.js worker - use unpkg CDN (more reliable)
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
 
@@ -816,19 +817,18 @@ Return format:
         
         const file = item.getAsFile()
         if (file) {
-          // When pasting (Ctrl+V), automatically process for OCR extraction
-          // This is useful when copying images from WhatsApp and pasting them
-          console.log('Pasting image for OCR extraction (Ctrl+V)')
-          await processOCRFile(file)
-          
-          // Disable OCR mode after paste
-          setOcrMode(false)
-          
-          // Automatically trigger OCR extraction after a short delay to ensure preview is ready
-          setTimeout(() => {
-            setOcrRetryCount(0)
-            handleExtractOCR(false)
-          }, 500) // Small delay to ensure image preview is loaded
+          if (ocrMode) {
+            console.log('Pasting image for OCR extraction (Ctrl+V)')
+            await processOCRFile(file)
+            setOcrMode(false)
+            setTimeout(() => {
+              setOcrRetryCount(0)
+              handleExtractOCR(false)
+            }, 500)
+          } else {
+            console.log('Pasting image for manual upload (Ctrl+V, no OCR)')
+            await processPassportFile(file)
+          }
           return
         }
       }
@@ -839,23 +839,23 @@ Return format:
         
         const file = item.getAsFile()
         if (file) {
-          // When pasting (Ctrl+V), automatically process for OCR extraction
-          console.log('Pasting file for OCR extraction (Ctrl+V)')
-          await processOCRFile(file)
-          
-          // Disable OCR mode after paste
-          setOcrMode(false)
-          
-          // Automatically trigger OCR extraction after a short delay to ensure preview is ready
-          setTimeout(() => {
-            setOcrRetryCount(0)
-            handleExtractOCR(false)
-          }, 500) // Small delay to ensure file preview is loaded
+          if (ocrMode) {
+            console.log('Pasting file for OCR extraction (Ctrl+V)')
+            await processOCRFile(file)
+            setOcrMode(false)
+            setTimeout(() => {
+              setOcrRetryCount(0)
+              handleExtractOCR(false)
+            }, 500)
+          } else {
+            console.log('Pasting file for manual upload (Ctrl+V, no OCR)')
+            await processPassportFile(file)
+          }
           return
         }
       }
     }
-  }, [processOCRFile, handleExtractOCR])
+  }, [processOCRFile, handleExtractOCR, ocrMode, processPassportFile])
 
   // Handle image load to capture natural and displayed dimensions
   const handleImageLoad = (e) => {
@@ -1319,7 +1319,7 @@ Return format:
             ocr_confidence: null
           }))
 
-          // Insert all family members into Supabase
+        // Insert all family members into Supabase
           const { data, error } = await supabase
             .from('requests')
             .insert(familyDataArray)
@@ -1328,6 +1328,34 @@ Return format:
           if (error) {
             throw error
           }
+
+        // Upsert into main_table so columns stay in sync with Requests
+        if (data && data.length > 0) {
+          const mainRows = data.map(item => ({
+            id: item.id,
+            first_name: item.first_name ?? null,
+            middle_name: item.middle_name ?? null,
+            last_name: item.last_name ?? null,
+            date_of_birth: item.date_of_birth ?? null,
+            gender: item.gender ?? null,
+            nationality: item.nationality ?? null,
+            passport_number: item.passport_number ?? null,
+            departure_airport: item.departure_airport ?? travelInfo.departureAirport ?? null,
+            destination_airport: item.destination_airport ?? travelInfo.destinationAirport ?? null,
+            travel_date: item.travel_date ?? convertDateToISO(travelInfo.travelDate) ?? null,
+            return_date: item.return_date ?? convertDateToISO(travelInfo.returnDate) ?? null,
+            request_types: item.request_types ?? selectedRequestTypes ?? null,
+            status: item.status ?? 'draft',
+            booking_ref: bookingRef || null
+          }))
+          try {
+            await supabase
+              .from('main_table')
+              .upsert(mainRows, { onConflict: 'id' })
+          } catch (syncErr) {
+            console.warn('Main table sync failed (family insert)', syncErr)
+          }
+        }
 
           // Update main_table with booking_ref if provided (main_table is synced via trigger, but we can update booking_ref)
           if (bookingRef && data && data.length > 0) {
@@ -1390,6 +1418,34 @@ Return format:
           throw error
         }
 
+        // Upsert into main_table so columns stay in sync with Requests
+        if (data && data.length > 0) {
+          const mainRows = data.map(item => ({
+            id: item.id,
+            first_name: item.first_name ?? null,
+            middle_name: item.middle_name ?? null,
+            last_name: item.last_name ?? null,
+            date_of_birth: item.date_of_birth ?? null,
+            gender: item.gender ?? null,
+            nationality: item.nationality ?? null,
+            passport_number: item.passport_number ?? null,
+            departure_airport: item.departure_airport ?? sharedTravelInfo?.departureAirport ?? null,
+            destination_airport: item.destination_airport ?? sharedTravelInfo?.destinationAirport ?? null,
+            travel_date: item.travel_date ?? convertDateToISO(sharedTravelInfo?.travelDate) ?? null,
+            return_date: item.return_date ?? convertDateToISO(sharedTravelInfo?.returnDate) ?? null,
+            request_types: item.request_types ?? selectedRequestTypes ?? null,
+            status: item.status ?? 'draft',
+            booking_ref: bookingRef || null
+          }))
+          try {
+            await supabase
+              .from('main_table')
+              .upsert(mainRows, { onConflict: 'id' })
+          } catch (syncErr) {
+            console.warn('Main table sync failed (family insert shared travel)', syncErr)
+          }
+        }
+
         // Update main_table with booking_ref if provided (main_table is synced via trigger, but we can update booking_ref)
         if (bookingRef && data && data.length > 0) {
           for (const item of data) {
@@ -1435,6 +1491,34 @@ Return format:
         
         if (error) {
           throw error
+        }
+
+        // Upsert into main_table so columns stay in sync with Requests
+        if (data && data.length > 0) {
+          const mainRows = data.map(item => ({
+            id: item.id,
+            first_name: item.first_name ?? null,
+            middle_name: item.middle_name ?? null,
+            last_name: item.last_name ?? null,
+            date_of_birth: item.date_of_birth ?? null,
+            gender: item.gender ?? null,
+            nationality: item.nationality ?? null,
+            passport_number: item.passport_number ?? null,
+            departure_airport: item.departure_airport ?? dbData.departure_airport ?? null,
+            destination_airport: item.destination_airport ?? dbData.destination_airport ?? null,
+            travel_date: item.travel_date ?? dbData.travel_date ?? null,
+            return_date: item.return_date ?? dbData.return_date ?? null,
+            request_types: item.request_types ?? dbData.request_types ?? null,
+            status: item.status ?? 'draft',
+            booking_ref: bookingRefSingle || null
+          }))
+          try {
+            await supabase
+              .from('main_table')
+              .upsert(mainRows, { onConflict: 'id' })
+          } catch (syncErr) {
+            console.warn('Main table sync failed (single insert)', syncErr)
+          }
         }
 
         // Update main_table with booking_ref if provided (main_table is synced via trigger, but we can update booking_ref)
@@ -1903,11 +1987,24 @@ Return format:
                     <div className="upload-buttons-group">
                       <button
                         className="upload-button"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => {
+                          setOcrMode(false)
+                          fileInputRef.current?.click()
+                          setSubmitMessage(t.passport.ocrPasteHint)
+                          setSubmitError(false)
+                          setTimeout(() => {
+                            setSubmitMessage(null)
+                          }, 3000)
+                        }}
                         type="button"
                       >
                         {t.passport.chooseFile}
                       </button>
+                      <div className="upload-hint">
+                        {language === 'de'
+                          ? 'Oder drücken Sie Strg+V, um das Dokument ohne OCR einzufügen.'
+                          : 'Or press Ctrl+V to paste the document (no OCR).'}
+                      </div>
                       <button
                         className="upload-button ocr-button"
                         onClick={() => setShowOCROptions(true)}
@@ -2209,7 +2306,7 @@ Return format:
                     placeholder="DD.MM.YYYY"
                     value={formData.dateOfBirth}
                     onChange={(e) => handleDateInputChange('dateOfBirth', e.target.value)}
-                    pattern="^\d{2}\.\d{2}\.\d{4}$"
+                    pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
                     title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
                   />
                 </div>
@@ -2229,12 +2326,13 @@ Return format:
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="nationality">{t.fields.nationality}</label>
-                  <CountryAutocomplete
-                    id="nationality"
-                    value={formData.nationality}
-                    placeholder={t.placeholders.nationality}
-                    onChange={(val) => handleInputChange('nationality', val)}
+                  <label htmlFor="passportNumber">{t.fields.passportNumber}</label>
+                  <input
+                    id="passportNumber"
+                    type="text"
+                    placeholder={t.placeholders.passportNumber}
+                    value={formData.passportNumber}
+                    onChange={(e) => handleInputChange('passportNumber', e.target.value)}
                   />
                 </div>
               </div>
@@ -2244,13 +2342,12 @@ Return format:
             <div className="form-section-group">
               <div className="form-grid">
                 <div className="form-field">
-                  <label htmlFor="passportNumber">{t.fields.passportNumber}</label>
-                  <input
-                    id="passportNumber"
-                    type="text"
-                    placeholder={t.placeholders.passportNumber}
-                    value={formData.passportNumber}
-                    onChange={(e) => handleInputChange('passportNumber', e.target.value)}
+                  <label htmlFor="nationality">{t.fields.nationality}</label>
+                  <CountryAutocomplete
+                    id="nationality"
+                    value={formData.nationality}
+                    placeholder={t.placeholders.nationality}
+                    onChange={(val) => handleInputChange('nationality', val)}
                   />
                 </div>
               </div>
@@ -2291,7 +2388,7 @@ Return format:
                     value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.travelDate || '') : formData.travelDate}
                     onChange={(e) => handleDateInputChange('travelDate', e.target.value)}
                     disabled={requestMode === 'family' && currentFamilyIndex > 0}
-                    pattern="^\d{2}\.\d{2}\.\d{4}$"
+                    pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
                     title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
                     style={requestMode === 'family' && currentFamilyIndex > 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
                   />
@@ -2306,7 +2403,7 @@ Return format:
                     value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.returnDate || '') : formData.returnDate}
                     onChange={(e) => handleDateInputChange('returnDate', e.target.value)}
                     disabled={requestMode === 'family' && currentFamilyIndex > 0}
-                    pattern="^\d{2}\.\d{2}\.\d{4}$"
+                    pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
                     title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
                     style={requestMode === 'family' && currentFamilyIndex > 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
                   />
@@ -2328,8 +2425,8 @@ Return format:
                   />
                 </div>
 
-                <div className="airport-arrow" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '0.5rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: 'var(--text-primary)' }}>
+                <div className="airport-arrow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem' }}>
+                  <svg width="28" height="68" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: 'var(--text-primary)' }}>
                     {/* Top-left arrow (L-shaped hook pointing left) */}
                     <path d="M16 4L10 4L10 10L5 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
                     <path d="M5 10L8.5 6.5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>

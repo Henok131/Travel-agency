@@ -32,7 +32,7 @@
 
 /* Dark theme support */
 [data-theme="dark"] .airlines-autocomplete input {
-  background: var(--input-bg, #2d2d2d);
+  background: var(--input-bg, #000105);
   color: var(--input-color, #fff);
   border-color: #555;
 }
@@ -44,18 +44,19 @@
 .airlines-autocomplete-dropdown {
   position: fixed;
   z-index: 1000000;
-  background: var(--dropdown-bg, #fff);
+  background: #000307;
   border: 1px solid #ccc;
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   max-height: 300px;
   overflow-y: auto;
   min-width: 200px;
+  backdrop-filter: none;
 }
 
 [data-theme="dark"] .airlines-autocomplete-dropdown {
-  background: var(--dropdown-bg, #2d2d2d);
-  border-color: #555;
+  background: #000307;
+  border-color: #00040b;
 }
 
 .airlines-autocomplete-item {
@@ -74,7 +75,7 @@
 }
 
 [data-theme="dark"] .airlines-autocomplete-item:hover {
-  background-color: var(--dropdown-hover-bg, #3d3d3d);
+  background-color: var(--dropdown-hover-bg, #020106);
 }
 
 .airlines-autocomplete-item:last-child {
@@ -136,4 +137,97 @@
 
 .airlines-autocomplete-custom-text {
   font-size: 0.875rem;
+}
+
+
+/* ======================================================================
+   AIRLINES AUTOCOMPLETE — ABSOLUTE HARD ISOLATION (NO BLEED EVER)
+   ====================================================================== */
+
+   .airlines-autocomplete-dropdown {
+    /* positioning */
+    position: fixed !important;
+    z-index: 2147483647 !important;
+  
+    /* HARD SOLID BACKGROUND */
+    background: #0a0f1a !important;
+    background-image: none !important;
+  
+    /* KILL ALL TRANSPARENCY / BLENDING */
+    opacity: 1 !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    mix-blend-mode: normal !important;
+  
+    /* FORCE NEW PAINT LAYER */
+    isolation: isolate !important;
+    transform: translateZ(0) !important;
+    will-change: transform !important;
+  
+    /* VISUALS */
+    border: 1px solid #1f2937 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65) !important;
+  
+    max-height: 320px !important;
+    overflow-y: auto !important;
+    min-width: 260px !important;
+  }
+  
+  /* =========================================================
+     ITEMS — ALSO HARD SOLID
+     ========================================================= */
+  
+  .airlines-autocomplete-item {
+    background: #0a0f1a !important;
+    color: #e5e7eb !important;
+    padding: 8px 12px !important;
+  }
+  
+  /* Hover */
+  .airlines-autocomplete-item:hover {
+    background: #0e1624 !important;
+  }
+  
+  /* Active / selected */
+  .airlines-autocomplete-item.active,
+  .airlines-autocomplete-item[aria-selected="true"] {
+    background: #2563eb !important;
+    color: #ffffff !important;
+  }
+  
+  /* =========================================================
+     PREVENT CHILD BLEED / TEXT OVERLAY
+     ========================================================= */
+  
+  .airlines-autocomplete-dropdown *,
+  .airlines-autocomplete-item * {
+    background: transparent !important;
+    mix-blend-mode: normal !important;
+  }
+  
+  /* =========================================================
+     LIGHT MODE — STILL SOLID
+     ========================================================= */
+  
+  html:not(.dark) .airlines-autocomplete-dropdown {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+  }
+  
+  html:not(.dark) .airlines-autocomplete-item {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  
+  html:not(.dark) .airlines-autocomplete-item:hover {
+    background: #f1f5f9 !important;
+  }
+  
+  table,
+tr,
+td {
+  transform: none !important;
+  filter: none !important;
 }

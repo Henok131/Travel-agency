@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { APP_ID } from '@/lib/appConfig'
 import { useToast } from '../../Toast'
+import { getAppSetting, setAppSetting } from '@/lib/appSettings'
 
 const DEFAULT_SETTINGS = {
   logo_url: '',
@@ -17,7 +18,7 @@ const DEFAULT_SETTINGS = {
   bank_name: 'Commerzbank AG',
   iban: 'DE28 5134 0013 0185 3597 00',
   bic: 'COBADEFFXXX',
-  include_qr: true
+  whatsapp_number: ''
 }
 
 const normalizeSettings = (data = {}) => {
@@ -64,7 +65,6 @@ export default function InvoiceSettingsForm() {
       const queryPromise = supabase
         .from('invoice_settings')
         .select('*')
-        .eq('user_id', APP_ID)  // Use fixed APP_ID for single-tenant
         .limit(1)
         .maybeSingle()
 
@@ -86,6 +86,44 @@ export default function InvoiceSettingsForm() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Attempt to find an existing user id to satisfy NOT NULL + FK
+  const getFallbackUserId = async () => {
+    try {
+      const { data } = await supabase
+        .from('invoice_settings')
+        .select('user_id')
+        .limit(1)
+        .maybeSingle()
+      if (data?.user_id) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvoiceSettingsForm.jsx:getFallbackUserId',message:'using existing invoice_settings user_id',data:{user_id:data.user_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{})
+        // #endregion
+        return data.user_id
+      }
+    } catch (e) {
+      // ignore
+    }
+    try {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .limit(1)
+        .maybeSingle()
+      if (data?.id) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvoiceSettingsForm.jsx:getFallbackUserId',message:'using user_profiles id as user_id',data:{user_id:data.id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{})
+        // #endregion
+        return data.id
+      }
+    } catch (e) {
+      // ignore
+    }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvoiceSettingsForm.jsx:getFallbackUserId',message:'falling back to APP_ID',data:{user_id:APP_ID},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{})
+    // #endregion
+    return APP_ID
   }
 
   const handleChange = (field) => (event) => {
@@ -136,35 +174,18 @@ export default function InvoiceSettingsForm() {
         logo_url: urlData.publicUrl
       }))
       
-      // Auto-save logo_url to invoice_settings immediately after upload
-      // This ensures logo_url is persisted even if user doesn't click "Save"
+      // Auto-save logo_url to app_settings to avoid invoice_settings FK
       try {
-        const updatePayload = { logo_url: urlData.publicUrl }
-        
-        if (settingsId) {
-          // Update existing settings
-          await supabase
-            .from('invoice_settings')
-            .update(updatePayload)
-            .eq('id', settingsId)
-        } else {
-          // Create new settings record with logo_url
-          const { data: newSettings } = await supabase
-            .from('invoice_settings')
-            .insert({
-              user_id: APP_ID,  // Use fixed APP_ID for single-tenant
-              logo_url: urlData.publicUrl,
-              ...DEFAULT_SETTINGS
-            })
-            .select('id')
-            .single()
-          
-          if (newSettings?.id) {
-            setSettingsId(newSettings.id)
-          }
-        }
+        const updatePayload = { ...formData, logo_url: urlData.publicUrl }
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvoiceSettingsForm.jsx:logoSaveAppSettings',message:'saving logo to app_settings',data:{updatePayload},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{})
+        // #endregion
+        await setAppSetting('invoice_settings', updatePayload)
       } catch (saveErr) {
-        console.warn('Failed to auto-save logo_url to invoice_settings:', saveErr)
+        console.warn('Failed to auto-save logo_url to app_settings:', saveErr)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvoiceSettingsForm.jsx:logoAutoSaveError',message:'auto-save logo failed',data:{error:saveErr?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{})
+        // #endregion
         // Don't show error - user can still save manually
       }
       
@@ -183,9 +204,17 @@ export default function InvoiceSettingsForm() {
 
     setSaving(true)
     try {
-      // Single-tenant app: use fixed APP_ID instead of user_id
+      const normalizedWhatsApp = (formData.whatsapp_number || '').trim()
+      if (normalizedWhatsApp) {
+        const valid = /^\+\d+$/.test(normalizedWhatsApp)
+        if (!valid) {
+          toast.error('WhatsApp number must start with + and contain digits only.')
+          setSaving(false)
+          return
+        }
+      }
+
       const payload = {
-        user_id: APP_ID,  // Use fixed APP_ID for single-tenant
         logo_url: formData.logo_url || null,  // Ensure logo_url is saved from formData
         company_name: formData.company_name,
         contact_person: formData.contact_person,
@@ -199,28 +228,16 @@ export default function InvoiceSettingsForm() {
         bank_name: formData.bank_name,
         iban: formData.iban,
         bic: formData.bic,
-        include_qr: formData.include_qr
+        whatsapp_number: normalizedWhatsApp
       }
 
-      if (settingsId) {
-        const { error } = await supabase
-          .from('invoice_settings')
-          .update(payload)
-          .eq('id', settingsId)
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvoiceSettingsForm.jsx:handleSubmit',message:'saving invoice settings payload (app_settings)',data:{payload},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{})
+      // #endregion
 
-        if (error) throw error
-      } else {
-        const { data, error } = await supabase
-          .from('invoice_settings')
-          .insert(payload)
-          .select('id')
-          .single()
+      await setAppSetting('invoice_settings', payload)
 
-        if (error) throw error
-        setSettingsId(data?.id || null)
-      }
-
-      toast.success('Invoice settings saved to database.')
+      toast.success('Invoice settings saved.')
     } catch (err) {
       console.error('Error saving invoice settings:', err)
       toast.error('Failed to save invoice settings: ' + (err.message || 'Unknown error'))
@@ -326,6 +343,15 @@ export default function InvoiceSettingsForm() {
               Mobile
               <input value={formData.mobile} onChange={handleChange('mobile')} />
             </label>
+            <label>
+              WhatsApp Number
+              <input
+                value={formData.whatsapp_number}
+                onChange={handleChange('whatsapp_number')}
+                placeholder="+491234567890"
+              />
+              <small>Use international format. Start with + and digits only.</small>
+            </label>
           </div>
         </div>
 
@@ -351,14 +377,6 @@ export default function InvoiceSettingsForm() {
             <label>
               BIC
               <input value={formData.bic} onChange={handleChange('bic')} />
-            </label>
-            <label>
-              Include QR Code
-              <input
-                type="checkbox"
-                checked={Boolean(formData.include_qr)}
-                onChange={handleToggle('include_qr')}
-              />
             </label>
           </div>
         </div>

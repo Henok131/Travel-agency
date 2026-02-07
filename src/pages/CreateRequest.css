@@ -1416,6 +1416,9 @@ button {
    AIRPORT AUTOCOMPLETE STYLING
    ============================================================================ */
 
+
+
+
 /* Import airport autocomplete styles - handled by AirportAutocomplete.css */
 /* Additional overrides if needed can go here */
 
@@ -1539,3 +1542,12 @@ button {
   background: var(--bg-surface);
   border-color: var(--border-focus);
 }
+
+.upload-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.35rem;
+}
+/* ============================================================================
+   Flatpickr - production styling for calendar popover
+   ============================================================================ */

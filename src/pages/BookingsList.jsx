@@ -14,6 +14,7 @@ import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
 import './RequestsList.css'
+import { SidebarWhatsApp } from '@/components/SidebarWhatsApp'
 
 // Translation dictionaries
 const translations = {
@@ -777,6 +778,7 @@ function BookingsList() {
         </nav>
 
         <div className="sidebar-footer">
+          <SidebarWhatsApp currentPath="/bookings" />
           <div className="sidebar-footer-text">{t.sidebar.footer}</div>
         </div>
       </aside>

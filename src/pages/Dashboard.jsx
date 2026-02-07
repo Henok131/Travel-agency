@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import './RequestsList.css'
 import './Dashboard.css'
+import { SidebarWhatsApp } from '@/components/SidebarWhatsApp'
 
 const fetch = () => Promise.resolve()
 
@@ -1173,6 +1174,7 @@ function Dashboard() {
             </Link>
           </nav>
           <div className="sidebar-footer">
+          <SidebarWhatsApp currentPath="/dashboard" />
             <div className="sidebar-footer-text">{t.sidebar.footer}</div>
           </div>
         </aside>

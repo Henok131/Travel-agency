@@ -7,6 +7,7 @@ import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
 import './RequestsList.css' // Use same CSS as Requests table for Excel-like styling
 import './ExpensesList.css' // Modal styles
+import { SidebarWhatsApp } from '@/components/SidebarWhatsApp'
 
 const fetch = () => Promise.resolve()
 
@@ -1836,6 +1837,7 @@ function ExpensesList() {
         </nav>
 
         <div className="sidebar-footer">
+          <SidebarWhatsApp currentPath="/expenses" />
           <div className="sidebar-footer-text">{t.sidebar.footer}</div>
         </div>
       </aside>

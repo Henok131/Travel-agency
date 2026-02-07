@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { BankImportModal } from '@/components/BankImportModal'
 import { Link, NavLink } from 'react-router-dom'
 import { applyTheme, DEFAULT_LANGUAGE, DEFAULT_THEME, loadBankData, loadThemeAndLanguage, persistLanguage, persistTheme } from '@/lib/preferences'
+import { supabase } from '@/lib/supabaseClient'
+import { importBankFile } from '@/lib/bankImport/importService'
+import { SidebarWhatsApp } from '@/components/SidebarWhatsApp'
+import { useWhatsappNumber } from '@/hooks/useWhatsappNumber'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
@@ -110,6 +115,10 @@ function BankList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [bankData, setBankData] = useState(DEFAULT_BANK_DATA)
+  const [editingTx, setEditingTx] = useState(null)
+  const csvInputRef = React.useRef(null)
+  const pdfInputRef = React.useRef(null)
+  const whatsappNumber = useWhatsappNumber()
 
   const t = translations[language]
 
@@ -163,7 +172,9 @@ function BankList() {
     applyTheme(theme)
   }, [theme])
 
+  // Always use the first available account for imports (single-client mode)
   const account = bankData?.account || DEFAULT_BANK_DATA.account
+  const accountId = account?.id || ''
   const transactions = Array.isArray(bankData?.transactions)
     ? bankData.transactions
     : DEFAULT_BANK_DATA.transactions
@@ -208,6 +219,89 @@ function BankList() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDeleteTransaction = async (transactionId) => {
+    if (!transactionId) return
+    const confirmed = window.confirm('Delete this transaction?')
+    if (!confirmed) return
+    try {
+      await supabase.from('bank_transactions').delete().eq('id', transactionId)
+      await refreshBankData()
+    } catch (err) {
+      console.error('Failed to delete transaction', err)
+      alert('Failed to delete transaction.')
+    }
+  }
+
+  const handleEditSave = async () => {
+    if (!editingTx?.id) return
+    const parsedAmount = parseFloat(editingTx.amount)
+    if (!Number.isFinite(parsedAmount)) {
+      alert('Invalid amount')
+      return
+    }
+    const typeNormalized = editingTx.type === 'debit' ? 'debit' : 'credit'
+    const signedAmount = typeNormalized === 'debit' ? -Math.abs(parsedAmount) : Math.abs(parsedAmount)
+    try {
+      await supabase
+        .from('bank_transactions')
+        .update({
+          transaction_date: editingTx.date,
+          description: editingTx.description.trim(),
+          amount: signedAmount,
+          transaction_type: typeNormalized
+        })
+        .eq('id', editingTx.id)
+      setEditingTx(null)
+      await refreshBankData()
+    } catch (err) {
+      console.error('Failed to update transaction', err)
+      alert('Failed to update transaction.')
+    }
+  }
+
+  const handleCsvSelect = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      setLoading(true)
+      await importBankFile(file, accountId)
+      await refreshBankData()
+    } catch (err) {
+      console.error('CSV import failed', err)
+      setError(err.message || 'CSV import failed')
+    } finally {
+      setLoading(false)
+      e.target.value = ''
+    }
+  }
+
+  const handlePdfSelect = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      setLoading(true)
+      await importBankFile(file, accountId)
+      await refreshBankData()
+    } catch (err) {
+      console.error('PDF import failed', err)
+      setError(err.message || 'PDF import failed')
+    } finally {
+      setLoading(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleEditTransaction = async (transaction) => {
+    if (!transaction?.id) return
+    setEditingTx({
+      id: transaction.id,
+      date: transaction.date,
+      description: transaction.description || '',
+      amount: Math.abs(transaction.amount),
+      type: transaction.type || 'credit'
+    })
   }
 
   return (
@@ -320,6 +414,7 @@ function BankList() {
         </nav>
 
         <div className="sidebar-footer">
+          <SidebarWhatsApp currentPath="/bank" />
           <div className="sidebar-footer-text">{t.sidebar.footer}</div>
         </div>
       </aside>
@@ -330,21 +425,33 @@ function BankList() {
           {/* Page Header */}
           <div className="requests-header">
             <h1 className="requests-title">{t.table.title}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{
-                padding: '0.5rem 1rem',
-                background: 'hsl(45, 93%, 47%, 0.1)',
-                border: '1px solid hsl(45, 93%, 47%, 0.3)',
-                borderRadius: '0.375rem',
-                fontSize: '0.875rem',
-                color: 'hsl(45, 93%, 47%)',
-                fontWeight: '500'
-              }}>
-                ⚠️ {t.table.demoNote}
-              </div>
-              <button className="button button-primary" onClick={refreshBankData}>
-                + {t.table.connectBank}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button
+                className="button button-primary"
+                onClick={() => csvInputRef.current?.click()}
+              >
+                Import Bank Statement (CSV)
               </button>
+              <button
+                className="button button-secondary"
+                onClick={() => pdfInputRef.current?.click()}
+              >
+                Import Bank Statement (PDF)
+              </button>
+              <input
+                ref={csvInputRef}
+                type="file"
+                accept=".csv"
+                style={{ display: 'none' }}
+                onChange={handleCsvSelect}
+              />
+              <input
+                ref={pdfInputRef}
+                type="file"
+                accept=".pdf"
+                style={{ display: 'none' }}
+                onChange={handlePdfSelect}
+              />
             </div>
           </div>
 
@@ -356,7 +463,19 @@ function BankList() {
 
           {error && (
             <div className="requests-error">
-              {error}
+              <div>{error}</div>
+              {whatsappNumber && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <a
+                    href={`https://wa.me/${whatsappNumber.replace('+', '')}?text=${encodeURIComponent(`Hi, I need help with the system. Page: ${typeof window !== 'undefined' ? window.location.pathname : '/bank'}`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: '#22c55e', textDecoration: 'none', fontWeight: 600 }}
+                  >
+                    Need help? Contact us on WhatsApp
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
@@ -609,7 +728,7 @@ function BankList() {
                   }}>
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: '120px 1fr 150px 100px 150px',
+                      gridTemplateColumns: '120px 1fr 130px 90px 140px 120px',
                       gap: '1rem',
                       padding: '1rem',
                       background: 'hsl(222, 20%, 13%)',
@@ -625,6 +744,7 @@ function BankList() {
                       <div>{t.table.amount}</div>
                       <div>{t.table.type}</div>
                       <div>{t.table.reference}</div>
+                      <div>Actions</div>
                     </div>
                     <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
                       {sortedTransactions.map((transaction, index) => (
@@ -632,7 +752,7 @@ function BankList() {
                           key={transaction.id}
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: '120px 1fr 150px 100px 150px',
+                            gridTemplateColumns: '120px 1fr 130px 90px 140px 120px',
                             gap: '1rem',
                             padding: '1rem',
                             borderBottom: index < sortedTransactions.length - 1 ? '1px solid hsl(222, 15%, 25%)' : 'none',
@@ -670,6 +790,22 @@ function BankList() {
                           <div style={{ fontSize: '0.75rem', color: 'hsl(210, 20%, 70%)' }}>
                             {transaction.reference}
                           </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              className="button button-secondary"
+                              style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}
+                              onClick={() => handleEditTransaction(transaction)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="button button-danger"
+                              style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}
+                              onClick={() => handleDeleteTransaction(transaction.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -679,6 +815,64 @@ function BankList() {
             </>
           )}
         </div>
+        {editingTx && (
+          <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+            <div className="modal-content" style={{ background: '#111827', padding: '1.5rem', borderRadius: '0.75rem', width: '420px', border: '1px solid #1f2937' }}>
+              <h3 style={{ color: '#fff', marginBottom: '1rem' }}>Edit Transaction</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <label style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>
+                  Date
+                  <input
+                    type="date"
+                    value={editingTx.date}
+                    onChange={(e) => setEditingTx({ ...editingTx, date: e.target.value })}
+                    style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', borderRadius: '0.375rem', border: '1px solid #334155', background: '#0f172a', color: '#fff' }}
+                  />
+                </label>
+                <label style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>
+                  Description
+                  <textarea
+                    rows={3}
+                    value={editingTx.description}
+                    onChange={(e) => setEditingTx({ ...editingTx, description: e.target.value })}
+                    style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', borderRadius: '0.375rem', border: '1px solid #334155', background: '#0f172a', color: '#fff' }}
+                  />
+                </label>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <label style={{ color: '#cbd5e1', fontSize: '0.9rem', flex: 1 }}>
+                    Amount
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editingTx.amount}
+                      onChange={(e) => setEditingTx({ ...editingTx, amount: e.target.value })}
+                      style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', borderRadius: '0.375rem', border: '1px solid #334155', background: '#0f172a', color: '#fff' }}
+                    />
+                  </label>
+                  <label style={{ color: '#cbd5e1', fontSize: '0.9rem', width: '140px' }}>
+                    Type
+                    <select
+                      value={editingTx.type}
+                      onChange={(e) => setEditingTx({ ...editingTx, type: e.target.value })}
+                      style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', borderRadius: '0.375rem', border: '1px solid #334155', background: '#0f172a', color: '#fff' }}
+                    >
+                      <option value="credit">Income</option>
+                      <option value="debit">Expense</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
+                <button className="button button-secondary" onClick={() => setEditingTx(null)} style={{ padding: '0.6rem 1rem' }}>
+                  Cancel
+                </button>
+                <button className="button button-primary" onClick={handleEditSave} style={{ padding: '0.6rem 1rem' }}>
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )

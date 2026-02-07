@@ -24,6 +24,7 @@ import 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import './RequestsList.css'
 import './TaxPage.css'
+import { SidebarWhatsApp } from '@/components/SidebarWhatsApp'
 
 // Translation dictionaries
 const translations = {
@@ -2274,6 +2275,7 @@ function TaxPage() {
         </nav>
 
         <div className="sidebar-footer">
+        <SidebarWhatsApp currentPath="/tax" />
           <div className="sidebar-footer-text">{t.sidebar.footer}</div>
         </div>
       </aside>

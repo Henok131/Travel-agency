@@ -10,6 +10,7 @@ import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
 import './RequestsList.css'
+import { SidebarWhatsApp } from '@/components/SidebarWhatsApp'
 
 // Translation dictionaries
 const translations = {
@@ -214,8 +215,8 @@ function RequestsList() {
     date_of_birth: 110,
     gender: 80,
     delete: 60,
-    nationality: 120,
     passport_number: 130,
+    nationality: 120,
     departure_airport: 200,
     destination_airport: 200,
     travel_date: 110,
@@ -977,6 +978,19 @@ function RequestsList() {
       if (updateError) {
         throw updateError
       }
+
+      // Keep main_table in sync for the shared columns
+      const syncFields = ['first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender', 'nationality', 'passport_number', 'departure_airport', 'destination_airport', 'travel_date', 'return_date', 'request_types']
+      if (syncFields.includes(field)) {
+        try {
+          await supabase
+            .from('main_table')
+            .update(updateData)
+            .eq('id', rowId)
+        } catch (syncErr) {
+          console.warn('Main table sync failed (request update)', syncErr)
+        }
+      }
     } catch (err) {
       console.error('Error updating cell:', err)
       // Revert on error
@@ -1359,6 +1373,7 @@ function RequestsList() {
         </nav>
 
         <div className="sidebar-footer">
+          <SidebarWhatsApp currentPath="/requests" />
           <div className="sidebar-footer-text">{t.sidebar.footer}</div>
         </div>
       </aside>
