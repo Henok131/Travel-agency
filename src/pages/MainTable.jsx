@@ -875,7 +875,57 @@ function RequestsList() {
     }
   }
 
-  // Create pending row when holding a mock flight
+  const handleFlightSelection = async (flightData) => {
+    const { offer, price, currency, airline, flightNumber, from, to, date, depart, arrive, duration } = flightData || {}
+    const passenger = {
+      firstName: 'Philipp',
+      lastName: 'Petros',
+      dateOfBirth: '1994-08-31',
+      passportNumber: 'K0622909',
+      gender: 'Male',
+      email: 'philipp@example.com',
+      phone: '+491234567890'
+    }
+
+    try {
+      const holdResult = await amadeusHold({
+        offer,
+        passengers: [passenger],
+        itinerary: {
+          origin: from,
+          destination: to,
+          travelDate: date,
+          departureTime: depart,
+          arrivalTime: arrive,
+          duration
+        },
+        pricing: {
+          total: price,
+          currency: currency || 'EUR'
+        },
+        bookingRef: `LH${Date.now().toString().slice(-6)}`,
+        holdExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      })
+
+      console.log('🟡 Booking created:', {
+        id: holdResult?.data?.id,
+        pnr: holdResult?.data?.amadeus_pnr,
+        orderId: holdResult?.data?.amadeus_order_id,
+        expires: holdResult?.data?.hold_expires_at
+      })
+
+      alert(
+        `✅ Booking Created!\n\nPNR: ${holdResult?.data?.amadeus_pnr || 'N/A'}\nOrder ID: ${holdResult?.data?.amadeus_order_id || 'N/A'}\nAmount: €${price}\n\nStatus: PENDING\nExpires in 24 hours`
+      )
+
+      fetchRequests(currentPage)
+    } catch (error) {
+      console.error('Booking failed', error)
+      alert('❌ Booking failed: ' + (error.message || 'Unknown error'))
+    }
+  }
+
+  // Create pending row for mock/local hold (fallback)
   const handleHoldBooking = async (flight) => {
     try {
       const price = parseFloat(flight?.price) || 0
@@ -1602,9 +1652,32 @@ function RequestsList() {
             paymentAmount: paymentCaptured,
             paymentCurrency: 'EUR'
           })
-          console.log('🟢 Ticket issued (payment)', ticketResult?.data?.amadeus_ticket_number || ticketResult?.data?.amadeus_order_id || rowId)
+          const ticketNumber =
+            ticketResult?.ticketNumber ||
+            ticketResult?.data?.amadeus_ticket_number ||
+            ticketResult?.data?.ticketNumber ||
+            ticketResult?.data?.amadeus_order_id ||
+            'TICKET'
+
+          setRequests((prev) =>
+            prev.map((req) =>
+              req.id === rowId
+                ? {
+                    ...req,
+                    booking_status: 'confirmed',
+                    payment_status: 'paid',
+                    amadeus_ticket_number: ticketNumber,
+                    payment_amount: paymentCaptured
+                  }
+                : req
+            )
+          )
+
+          alert(`🟢 Ticket issued\nTicket #: ${ticketNumber}`)
+          console.log('🟢 Ticket issued (payment)', ticketNumber)
         } catch (ticketErr) {
           console.warn('Amadeus ticket update skipped', ticketErr)
+          alert(`❌ Ticketing failed: ${ticketErr.message || 'Unknown error'}`)
         }
       }
     } catch (err) {
@@ -1949,6 +2022,68 @@ function RequestsList() {
           </div>
         )
       }
+
+      if (field === 'amadeus_ticket_number') {
+        const value = request.amadeus_ticket_number || '-'
+        const canRetry = (request.booking_status || '').toLowerCase() !== 'confirmed'
+        return (
+          <div className="excel-cell">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>{value}</span>
+              {value && value !== '-' && (
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  style={{ padding: '2px 6px', fontSize: '0.75rem' }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigator.clipboard?.writeText(value).catch(() => {})
+                  }}
+                >
+                  Copy
+                </button>
+              )}
+              {canRetry && (
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  style={{ padding: '2px 6px', fontSize: '0.75rem' }}
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    try {
+                      const paymentCaptured =
+                        (parseFloat(request?.cash_paid) || 0) + (parseFloat(request?.bank_transfer) || 0)
+                      const ticketResult = await amadeusTicket({
+                        bookingId: request.id,
+                        paymentAmount: paymentCaptured,
+                        paymentCurrency: 'EUR'
+                      })
+                      const ticketNumber =
+                        ticketResult?.ticketNumber ||
+                        ticketResult?.data?.amadeus_ticket_number ||
+                        ticketResult?.data?.ticketNumber ||
+                        'TICKET'
+                      setRequests((prev) =>
+                        prev.map((r) =>
+                          r.id === request.id
+                            ? { ...r, amadeus_ticket_number: ticketNumber, booking_status: 'confirmed', payment_status: 'paid' }
+                            : r
+                        )
+                      )
+                      alert(`🟢 Ticket issued\nTicket #: ${ticketNumber}`)
+                    } catch (err) {
+                      console.warn('Ticket retry failed', err)
+                      alert(`❌ Ticketing failed: ${err.message || 'Unknown error'}`)
+                    }
+                  }}
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          </div>
+        )
+      }
       
       // Special handling for print_invoice checkbox display
       if (field === 'print_invoice') {
@@ -2053,6 +2188,7 @@ function RequestsList() {
     'row_number',
     'booking_ref',
     'booking_status',
+    'amadeus_ticket_number',
     'invoice_action',
     'first_name',
     'middle_name',
@@ -2092,6 +2228,7 @@ function RequestsList() {
       row_number: '#',
       booking_ref: t.table.columns.bookingRef,
       booking_status: t.table.columns.bookingStatus,
+    amadeus_ticket_number: 'Ticket #',
       invoice_action: t.table.columns.invoiceAction,
       print_invoice: t.table.columns.printInvoice,
       first_name: t.table.columns.firstName,
@@ -2557,7 +2694,7 @@ function RequestsList() {
       loading={searchLoading}
       error={searchError}
       onRetry={handleRetrySearch}
-      onSelectFlight={(flight) => handleHoldBooking(flight)}
+      onSelectFlight={(flight) => handleFlightSelection(flight)}
       searchFrom={searchFrom}
       searchTo={searchTo}
       searchDate={searchDate}

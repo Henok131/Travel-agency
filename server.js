@@ -153,7 +153,7 @@ const safeNumber = (value) => {
   return Number.isFinite(num) ? num : null
 }
 
-const buildMainTablePayload = ({ passenger = {}, itinerary = {}, pricing = {}, bookingRef, amadeusOrderId, holdExpiresAt }) => {
+const buildMainTablePayload = ({ passenger = {}, itinerary = {}, pricing = {}, bookingRef, amadeusOrderId, amadeusPnr, holdExpiresAt }) => {
   const outboundDate = itinerary.departureDate || itinerary.travelDate || null
   const returnDate = itinerary.returnDate || null
   const total = safeNumber(pricing.total || pricing.grandTotal)
@@ -178,6 +178,7 @@ const buildMainTablePayload = ({ passenger = {}, itinerary = {}, pricing = {}, b
     hold_expires_at: holdExpiresAt || null,
     amadeus_offer_id: pricing.offerId || pricing.offer_id || null,
     amadeus_order_id: amadeusOrderId || null,
+    amadeus_pnr: amadeusPnr || null,
     payment_status: 'unpaid',
     payment_currency: pricing.currency || 'EUR',
     total_ticket_price: total,
@@ -536,11 +537,42 @@ app.post('/api/amadeus/hold', async (req, res) => {
     // Optional: attempt to create Amadeus flight-order when offer is provided
     try {
       if (offer) {
+        const normalizeTraveler = (traveler, idx) => {
+          const phoneRaw = traveler?.phone || traveler?.phoneNumber || ''
+          const cleanPhone = phoneRaw.replace(/[^\d+]/g, '')
+          const countryCallingCode = cleanPhone.startsWith('+') ? cleanPhone.slice(1, 3) : ''
+          const number = cleanPhone.startsWith('+') ? cleanPhone.slice(3) : cleanPhone
+
+          return {
+            id: String(idx + 1),
+            dateOfBirth: traveler?.dateOfBirth || traveler?.date_of_birth || null,
+            name: {
+              firstName: (traveler?.firstName || traveler?.first_name || '').toUpperCase(),
+              lastName: (traveler?.lastName || traveler?.last_name || '').toUpperCase()
+            },
+            gender: (traveler?.gender || '').toUpperCase(),
+            contact: traveler?.email || phoneRaw ? {
+              emailAddress: traveler?.email || traveler?.emailAddress || null,
+              phones: phoneRaw ? [{
+                deviceType: 'MOBILE',
+                countryCallingCode: countryCallingCode || undefined,
+                number: number || undefined
+              }] : undefined
+            } : undefined,
+            documents: traveler?.passportNumber ? [{
+              documentType: 'PASSPORT',
+              number: traveler.passportNumber,
+              holder: true
+            }] : undefined
+          }
+        }
+
+        const travelers = passengers.map(normalizeTraveler)
         const payload = {
           data: {
             type: 'flight-order',
             flightOffers: [offer],
-            travelers: passengers
+            travelers
           }
         }
         const result = await amadeusFetch('/v1/shopping/flight-orders', {
@@ -563,6 +595,7 @@ app.post('/api/amadeus/hold', async (req, res) => {
       pricing,
       bookingRef,
       amadeusOrderId,
+      amadeusPnr,
       holdExpiresAt: holdExpiry
     })
 
@@ -609,9 +642,6 @@ app.post('/api/amadeus/ticket', async (req, res) => {
   try {
     const {
       bookingId,
-      amadeusOrderId,
-      amadeusPnr,
-      ticketNumber,
       paymentAmount,
       paymentCurrency = 'EUR',
       eticketUrl
@@ -621,32 +651,81 @@ app.post('/api/amadeus/ticket', async (req, res) => {
       return res.status(400).json({ error: 'bookingId is required to update ticketing' })
     }
 
-    const update = {
+    // Fetch booking to get order id
+    const { data: booking, error: bookingError } = await supabase
+      .from('main_table')
+      .select('*')
+      .eq('id', bookingId)
+      .maybeSingle()
+
+    if (bookingError) throw bookingError
+
+    if (!booking?.amadeus_order_id) {
+      return res.status(400).json({ error: 'No Amadeus order found' })
+    }
+
+    const baseUpdate = {
       booking_status: 'confirmed',
       payment_status: 'paid',
       payment_amount: safeNumber(paymentAmount),
       payment_currency: paymentCurrency || 'EUR',
-      amadeus_order_id: amadeusOrderId || null,
-      amadeus_pnr: amadeusPnr || null,
-      amadeus_ticket_number: ticketNumber || null,
+      bank_transfer: paymentAmount ? true : booking?.bank_transfer,
       eticket_url: eticketUrl || null
     }
 
-    // Optional: treat payment as bank transfer so existing analytics see it
-    if (paymentAmount !== undefined && paymentAmount !== null) {
-      update.bank_transfer = true
+    try {
+      const ticketResponse = await amadeusFetch(
+        `/v1/booking/flight-orders/${booking.amadeus_order_id}/ticketing`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: { ticketingMethod: 'AUTOMATIC' } })
+        }
+      )
+
+      const ticketNumber =
+        ticketResponse?.data?.ticketNumber ||
+        ticketResponse?.data?.documents?.[0]?.number ||
+        `ETKT-${booking.amadeus_order_id}`
+
+      const { data, error } = await supabase
+        .from('main_table')
+        .update({
+          ...baseUpdate,
+          amadeus_ticket_number: ticketNumber
+        })
+        .eq('id', bookingId)
+        .select()
+        .maybeSingle()
+
+      if (error) throw error
+
+      console.log('🟢 Amadeus ticketed', { bookingId, ticketNumber, order: booking.amadeus_order_id })
+
+      res.json({ success: true, ticketNumber, data })
+    } catch (autoErr) {
+      console.warn('Auto-ticketing not available:', autoErr.message)
+
+      const manualTicket = `MANUAL-${booking.amadeus_order_id}`
+      const { data, error } = await supabase
+        .from('main_table')
+        .update({
+          ...baseUpdate,
+          amadeus_ticket_number: manualTicket
+        })
+        .eq('id', bookingId)
+        .select()
+        .maybeSingle()
+
+      if (error) throw error
+
+      res.json({
+        success: true,
+        ticketNumber: manualTicket,
+        note: 'Manual ticketing required',
+        data
+      })
     }
-
-    const { data, error } = await supabase
-      .from('main_table')
-      .update(update)
-      .eq('id', bookingId)
-      .select()
-      .maybeSingle()
-
-    if (error) throw error
-
-    res.json({ success: true, data })
   } catch (error) {
     console.error('❌ Amadeus ticket update failed:', error)
     res.status(500).json({ error: error.message || 'Amadeus ticket update failed', details: error.response || null })
