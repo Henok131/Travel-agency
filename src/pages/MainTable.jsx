@@ -18,6 +18,8 @@ import generateGroupInvoicePdf from '../utils/generateGroupInvoicePdf'
 import AirlinesAutocomplete from '../components/AirlinesAutocomplete'
 import { loadAirlines, formatAirlineCompact } from '../lib/airlines'
 import AirportAutocomplete from '../components/AirportAutocomplete'
+import FlightSearchForm from '../components/FlightSearchForm'
+import FlightSearchModal from '../components/FlightSearchModal'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
@@ -249,6 +251,7 @@ function RequestsList() {
   const [searchFrom, setSearchFrom] = useState('MUC')
   const [searchTo, setSearchTo] = useState('IST')
   const [searchDate, setSearchDate] = useState('2026-02-10')
+  const [searchReturnDate, setSearchReturnDate] = useState('')
   const [searchModalOpen, setSearchModalOpen] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchResults, setSearchResults] = useState([])
@@ -669,23 +672,33 @@ function RequestsList() {
     }
   }
 
-  // Handle mock Amadeus search and open modal
-  const handleSearchFlights = async () => {
+  // Handle Amadeus search and open modal
+  const handleSearchFlights = async (options = {}) => {
+    const payload = {
+      originLocationCode: options.originLocationCode || searchFrom,
+      destinationLocationCode: options.destinationLocationCode || searchTo,
+      departureDate: options.departureDate || searchDate,
+      returnDate: options.returnDate || searchReturnDate || undefined,
+      adults: options.adults ?? 1,
+      children: options.children ?? 0,
+      infants: options.infants ?? 0,
+      currencyCode: options.currencyCode || 'EUR',
+      travelClass: options.travelClass || 'ECONOMY',
+      nonStop: options.nonStop ?? false
+    }
+
+    // keep UI state in sync for modal header
+    setSearchFrom(payload.originLocationCode)
+    setSearchTo(payload.destinationLocationCode)
+    setSearchDate(payload.departureDate)
+    setSearchReturnDate(payload.returnDate || '')
+
+    setSearchResults([])
     setSearchModalOpen(true)
     setSearchLoading(true)
     setSearchError(null)
     try {
-      const { data } = await amadeusSearch({
-        originLocationCode: searchFrom,
-        destinationLocationCode: searchTo,
-        departureDate: searchDate,
-        adults: 1,
-        children: 0,
-        infants: 0,
-        currencyCode: 'EUR',
-        travelClass: 'ECONOMY',
-        nonStop: false
-      })
+      const { data } = await amadeusSearch(payload)
       const flights = data?.offers || []
       console.log('🔍 Amadeus search results', flights)
       setSearchResults(flights)
@@ -2286,45 +2299,9 @@ function RequestsList() {
       <main className="main-content">
         <div className="requests-list-page">
           {/* Page Header */}
-          <div className="requests-header">
+          <div className="requests-header" style={{ gap: '1rem', flexDirection: 'column' }}>
             <h1 className="requests-title">{t.table.title}</h1>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', marginTop: '0.75rem' }}>
-              <input
-                type="text"
-                value={searchFrom}
-                onChange={(e) => setSearchFrom(e.target.value.toUpperCase())}
-                className="query-search-input"
-                style={{ width: '110px' }}
-                placeholder="From"
-                aria-label="From airport"
-              />
-              <input
-                type="text"
-                value={searchTo}
-                onChange={(e) => setSearchTo(e.target.value.toUpperCase())}
-                className="query-search-input"
-                style={{ width: '110px' }}
-                placeholder="To"
-                aria-label="To airport"
-              />
-              <input
-                type="date"
-                value={searchDate}
-                onChange={(e) => setSearchDate(e.target.value)}
-                className="query-search-input"
-                style={{ width: '150px' }}
-                aria-label="Departure date"
-              />
-              <button
-                type="button"
-                className="button button-primary"
-                onClick={handleSearchFlights}
-                disabled={searchLoading}
-                style={{ whiteSpace: 'nowrap' }}
-              >
-                {searchLoading ? 'Searching…' : '🔍 Search Flights'}
-              </button>
-            </div>
+            <FlightSearchForm onSearch={handleSearchFlights} />
           </div>
 
           {loading && (
@@ -2573,101 +2550,19 @@ function RequestsList() {
       </main>
     </div>
 
-    {searchModalOpen && (
-      <div
-        className="excel-table-container"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.65)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 999
-        }}
-        onClick={() => setSearchModalOpen(false)}
-      >
-        <div
-          style={{
-            background: 'var(--background, #0d1117)',
-            color: 'var(--foreground, #e5e7eb)',
-            border: '1px solid var(--border, #1f2937)',
-            borderRadius: '12px',
-            width: 'min(900px, 95vw)',
-            maxHeight: '80vh',
-            overflow: 'hidden',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.35)'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{ padding: '16px', borderBottom: '1px solid var(--border, #1f2937)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '1rem' }}>Flight offers</div>
-              <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>
-                {searchFrom}-{searchTo} · {searchDate}
-              </div>
-            </div>
-            <button className="button button-secondary" onClick={() => setSearchModalOpen(false)}>
-              Close
-            </button>
-          </div>
-          <div style={{ padding: '12px' }}>
-            <div className="excel-table" style={{ width: '100%' }}>
-              <table className="excel-table" style={{ width: '100%' }}>
-                <thead>
-                  <tr className="excel-column-headers-row">
-                    {['Airline', 'Depart', 'Arrive', 'Duration', 'Price', ''].map((h) => (
-                      <th key={h} className="excel-header-cell" style={{ textAlign: 'left' }}>
-                        <span className="excel-header-label">{h}</span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {searchLoading && (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '1rem', textAlign: 'center' }}>Loading...</td>
-                    </tr>
-                  )}
-                  {!searchLoading && searchError && (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '1rem', textAlign: 'center' }}>
-                        <div style={{ marginBottom: '8px' }}>Search failed: {searchError}</div>
-                        <button className="button button-secondary" onClick={handleRetrySearch}>Retry</button>
-                      </td>
-                    </tr>
-                  )}
-                  {!searchLoading && !searchError && searchResults.length === 0 && (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '1rem', textAlign: 'center' }}>No flights found</td>
-                    </tr>
-                  )}
-                  {!searchLoading && searchResults.map((flight) => (
-                    <tr key={flight.id} className="excel-group-header">
-                      <td className="excel-cell">{flight.airline} {flight.flightNumber || flight.id}</td>
-                      <td className="excel-cell">{flight.depart}</td>
-                      <td className="excel-cell">{flight.arrive}</td>
-                      <td className="excel-cell">{flight.duration}</td>
-                      <td className="excel-cell">{`${flight.currency || 'EUR'} ${parseFloat(flight.price || 0).toFixed(2)}`}</td>
-                      <td className="excel-cell">
-                        <button
-                          type="button"
-                          className="button button-primary"
-                          onClick={() => handleHoldBooking(flight)}
-                          style={{ padding: '6px 10px' }}
-                        >
-                          Hold
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
+    <FlightSearchModal
+      open={searchModalOpen}
+      onClose={() => setSearchModalOpen(false)}
+      results={searchResults}
+      loading={searchLoading}
+      error={searchError}
+      onRetry={handleRetrySearch}
+      onSelectFlight={(flight) => handleHoldBooking(flight)}
+      searchFrom={searchFrom}
+      searchTo={searchTo}
+      searchDate={searchDate}
+      searchReturnDate={searchReturnDate}
+    />
     </>
   )
 }
