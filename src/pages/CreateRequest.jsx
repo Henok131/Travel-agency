@@ -4,6 +4,7 @@ import { useStore } from '../contexts/StoreContext'
 import { supabase } from '@/lib/supabaseClient'
 import AirportAutocomplete from '../components/AirportAutocomplete'
 import CountryAutocomplete from '../components/CountryAutocomplete'
+import { amadeusHold } from '@/lib/amadeusProxy'
 import * as pdfjsLib from 'pdfjs-dist'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
@@ -1457,6 +1458,43 @@ Return format:
             }
           }
         }
+
+        // Trigger Amadeus hold for the first passenger in family mode to show PENDING in main table
+        if (data && data.length > 0 && selectedRequestTypes.includes('flight')) {
+          const first = data[0]
+          const travelInfo = sharedTravelInfo || {
+            departureAirport: formData.departureAirport,
+            destinationAirport: formData.destinationAirport,
+            travelDate: formData.travelDate,
+            returnDate: formData.returnDate
+          }
+          try {
+            const holdResult = await amadeusHold({
+              bookingId: first.id,
+              bookingRef: bookingRef || null,
+              passengers: [
+                {
+                  firstName: first.first_name,
+                  middleName: first.middle_name,
+                  lastName: first.last_name,
+                  dateOfBirth: first.date_of_birth,
+                  passportNumber: first.passport_number,
+                  gender: first.gender
+                }
+              ],
+              itinerary: {
+                origin: travelInfo.departureAirport || first.departure_airport,
+                destination: travelInfo.destinationAirport || first.destination_airport,
+                travelDate: convertDateToISO(travelInfo.travelDate || first.travel_date),
+                returnDate: convertDateToISO(travelInfo.returnDate || first.return_date)
+              },
+              pricing: { currency: 'EUR' }
+            })
+            console.log('🟡 PNR created (family)', holdResult?.data?.amadeus_pnr || holdResult?.data?.amadeus_order_id || first.id)
+          } catch (holdErr) {
+            console.warn('Amadeus hold (family) skipped', holdErr)
+          }
+        }
       }
     } else {
         // Single mode - use existing logic (no changes)
@@ -1518,6 +1556,38 @@ Return format:
               .upsert(mainRows, { onConflict: 'id' })
           } catch (syncErr) {
             console.warn('Main table sync failed (single insert)', syncErr)
+          }
+
+          // Trigger Amadeus hold to flip booking_status → pending without changing UI
+          if (selectedRequestTypes.includes('flight')) {
+          try {
+            const holdResult = await amadeusHold({
+                bookingId: data[0].id,
+                bookingRef: bookingRefSingle,
+                passengers: [
+                  {
+                    firstName: dbData.first_name,
+                    middleName: dbData.middle_name,
+                    lastName: dbData.last_name,
+                    dateOfBirth: dbData.date_of_birth,
+                    passportNumber: dbData.passport_number,
+                    gender: dbData.gender
+                  }
+                ],
+                itinerary: {
+                  origin: dbData.departure_airport,
+                  destination: dbData.destination_airport,
+                  travelDate: dbData.travel_date,
+                  returnDate: dbData.return_date
+                },
+                pricing: {
+                  currency: 'EUR'
+                }
+              })
+              console.log('🟡 PNR created (single)', holdResult?.data?.amadeus_pnr || holdResult?.data?.amadeus_order_id || data[0].id)
+            } catch (holdErr) {
+              console.warn('Amadeus hold could not be recorded; proceeding without hold', holdErr)
+            }
           }
         }
 

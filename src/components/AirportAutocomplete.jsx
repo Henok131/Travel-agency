@@ -1,78 +1,105 @@
-import { useState, useEffect, useRef } from 'react'
-import { loadAirports, filterAirports, formatAirport } from '../lib/airports'
+import { useEffect, useRef, useState } from 'react'
+import { searchAirports, getAirportName, formatAirportLabel } from '../lib/iataLookup'
 import './AirportAutocomplete.css'
 
-export default function AirportAutocomplete({ value, onChange, placeholder, id, name, disabled = false }) {
-  const [inputValue, setInputValue] = useState(value || '')
+export default function AirportAutocomplete({
+  value,
+  onChange,
+  onBlur,
+  placeholder,
+  id,
+  name,
+  disabled = false
+}) {
+  const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState([])
   const [isOpen, setIsOpen] = useState(false)
-  const [airports, setAirports] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
   const wrapperRef = useRef(null)
   const inputRef = useRef(null)
-
-  // Load airports data on mount
-  useEffect(() => {
-    loadAirports()
-      .then(data => {
-        setAirports(data)
-        setIsLoading(false)
-      })
-      .catch(error => {
-        console.error('Failed to load airports:', error)
-        setIsLoading(false)
-      })
-  }, [])
-
-  // Sync input value with prop
-  useEffect(() => {
-    setInputValue(value || '')
-  }, [value])
-
-  // Filter suggestions based on input
-  useEffect(() => {
-    if (inputValue.trim().length > 0 && airports.length > 0) {
-      filterAirports(airports, inputValue)
-        .then(filtered => {
-          setSuggestions(filtered)
-          setIsOpen(filtered.length > 0)
-        })
-        .catch(error => {
-          console.error('Error filtering airports:', error)
-          setSuggestions([])
-          setIsOpen(false)
-        })
-    } else {
-      setSuggestions([])
-      setIsOpen(false)
-    }
-  }, [inputValue, airports])
+  const debounceRef = useRef(null)
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    function handleClickOutside(event) {
+    const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
         setIsOpen(false)
       }
     }
-
     document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Sync display label from the current value using cached lookups
+  useEffect(() => {
+    let active = true
+    const syncLabel = async () => {
+      if (!value) {
+        if (active) setInputValue('')
+        return
+      }
+      try {
+        const label = await getAirportName(value)
+        if (active) setInputValue(label || value)
+      } catch (_) {
+        if (active) setInputValue(value)
+      }
+    }
+    syncLabel()
+    return () => {
+      active = false
+    }
+  }, [value])
+
+  // Debounced search to Amadeus
+  useEffect(() => {
+    const term = inputValue.trim()
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+    }
+    if (!term) {
+      setSuggestions([])
+      setIsOpen(false)
+      setError(null)
+      return
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setIsLoading(true)
+      try {
+        const results = await searchAirports(term)
+        setSuggestions(results)
+        setIsOpen(results.length > 0)
+        setError(null)
+      } catch (err) {
+        setSuggestions([])
+        setIsOpen(false)
+        setError(err.message || 'Search failed')
+      } finally {
+        setIsLoading(false)
+      }
+    }, 300)
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [inputValue])
 
   const handleInputChange = (e) => {
     const newValue = e.target.value
     setInputValue(newValue)
-    onChange(newValue)
+    onChange?.(newValue) // manual fallback: store whatever user typed
+    setError(null)
   }
 
   const handleSelect = (airport) => {
-    const formatted = formatAirport(airport)
-    setInputValue(formatted)
-    onChange(formatted)
+    const label = formatAirportLabel(airport)
+    const code = airport?.iataCode || airport?.iata || label
+    setInputValue(label)
+    onChange?.(code) // store IATA code in state
     setIsOpen(false)
+    setError(null)
     inputRef.current?.focus()
   }
 
@@ -88,10 +115,9 @@ export default function AirportAutocomplete({ value, onChange, placeholder, id, 
     }
   }
 
-  const handleCustomEntry = () => {
-    // Keep the current input value as-is (already set via handleInputChange)
-    setIsOpen(false)
-    inputRef.current?.focus()
+  const handleBlur = () => {
+    setTimeout(() => setIsOpen(false), 100)
+    onBlur?.()
   }
 
   // If disabled, render a simple read-only input
@@ -120,30 +146,36 @@ export default function AirportAutocomplete({ value, onChange, placeholder, id, 
         onChange={handleInputChange}
         onFocus={handleInputFocus}
         onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
         placeholder={placeholder}
         autoComplete="off"
       />
       {isOpen && (suggestions.length > 0 || inputValue.trim().length > 0) && (
         <div className="airport-autocomplete-dropdown">
+          {isLoading && (
+            <div className="airport-autocomplete-item airport-autocomplete-status">
+              Searching...
+            </div>
+          )}
+          {error && (
+            <div className="airport-autocomplete-item airport-autocomplete-status error">
+              {error} — you can still type an IATA code manually.
+            </div>
+          )}
           {suggestions.map((airport, index) => (
             <div
-              key={`${airport.id}-${index}`}
+              key={`${airport.iataCode || airport.name || 'airport'}-${index}`}
               className="airport-autocomplete-item"
               onClick={() => handleSelect(airport)}
             >
               <div className="airport-autocomplete-main">
-                <span className="airport-autocomplete-name">{formatAirport(airport)}</span>
+                <span className="airport-autocomplete-name">{formatAirportLabel(airport)}</span>
               </div>
             </div>
           ))}
-          {inputValue.trim().length > 0 && (
-            <div
-              className="airport-autocomplete-item airport-autocomplete-custom"
-              onClick={handleCustomEntry}
-            >
-              <span className="airport-autocomplete-custom-text">
-                Use custom: "{inputValue}"
-              </span>
+          {!isLoading && suggestions.length === 0 && inputValue.trim().length > 0 && (
+            <div className="airport-autocomplete-item airport-autocomplete-status">
+              No matches — press Enter to keep "{inputValue}"
             </div>
           )}
         </div>

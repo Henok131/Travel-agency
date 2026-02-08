@@ -8,6 +8,10 @@ dotenv.config({ path: '.env.local' })
 
 const app = express()
 const PORT = process.env.API_PORT || 3001
+const AMADEUS_HOST = process.env.AMADEUS_HOST || 'https://test.api.amadeus.com'
+const AMADEUS_CLIENT_ID = process.env.AMADEUS_CLIENT_ID || ''
+const AMADEUS_CLIENT_SECRET = process.env.AMADEUS_CLIENT_SECRET || ''
+const AMADEUS_TIMEOUT_MS = Number(process.env.AMADEUS_TIMEOUT_MS || 10000)
 
 // Middleware
 app.use(cors())
@@ -34,6 +38,156 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 console.log('✅ Supabase service role client initialized')
 console.log('✅ Dev Organization ID:', devOrganizationId)
+console.log('✅ Amadeus host:', AMADEUS_HOST)
+console.log('✅ Amadeus client_id:', maskValue(AMADEUS_CLIENT_ID))
+console.log('✅ Amadeus client_secret:', AMADEUS_CLIENT_SECRET ? '*** set ***' : '❌ missing')
+
+// -----------------------------------------------------------------------------
+// Amadeus helpers (token cache + guarded fetch)
+// -----------------------------------------------------------------------------
+
+let amadeusTokenCache = {
+  token: null,
+  expiresAt: 0
+}
+
+const maskValue = (value) => {
+  if (!value) return '❌ missing'
+  if (value.length <= 4) return '***'
+  if (value.length <= 8) return `${value.slice(0, 2)}***${value.slice(-2)}`
+  return `${value.slice(0, 4)}***${value.slice(-4)}`
+}
+
+const ensureAmadeusCredentials = () => {
+  const missing = []
+  if (!AMADEUS_CLIENT_ID) missing.push('AMADEUS_CLIENT_ID')
+  if (!AMADEUS_CLIENT_SECRET) missing.push('AMADEUS_CLIENT_SECRET')
+  if (!AMADEUS_HOST) missing.push('AMADEUS_HOST')
+
+  return {
+    ok: missing.length === 0,
+    missing,
+    message: missing.length === 0 ? 'Amadeus credentials present' : `Missing required Amadeus env vars: ${missing.join(', ')}`
+  }
+}
+
+const amadeusHeaders = () => ({
+  'Content-Type': 'application/x-www-form-urlencoded'
+})
+
+const getAmadeusToken = async () => {
+  if (!AMADEUS_CLIENT_ID || !AMADEUS_CLIENT_SECRET) {
+    throw new Error('Amadeus credentials missing; set AMADEUS_CLIENT_ID/AMADEUS_CLIENT_SECRET')
+  }
+
+  const now = Date.now()
+  if (amadeusTokenCache.token && amadeusTokenCache.expiresAt > now + 10_000) {
+    return amadeusTokenCache.token
+  }
+
+  const body = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: AMADEUS_CLIENT_ID,
+    client_secret: AMADEUS_CLIENT_SECRET
+  })
+
+  const resp = await fetch(`${AMADEUS_HOST}/v1/security/oauth2/token`, {
+    method: 'POST',
+    headers: amadeusHeaders(),
+    body,
+    signal: AbortSignal.timeout(AMADEUS_TIMEOUT_MS)
+  })
+
+  if (!resp.ok) {
+    const text = await resp.text()
+    throw new Error(`Amadeus token failed: ${resp.status} ${text}`)
+  }
+
+  const json = await resp.json()
+  const expiresIn = json.expires_in ? Number(json.expires_in) * 1000 : 30 * 60 * 1000
+  amadeusTokenCache = {
+    token: json.access_token,
+    expiresAt: Date.now() + expiresIn
+  }
+  return json.access_token
+}
+
+const amadeusFetch = async (path, options = {}) => {
+  const token = await getAmadeusToken()
+  const headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${token}`
+  }
+  const resp = await fetch(`${AMADEUS_HOST}${path}`, {
+    ...options,
+    headers,
+    signal: options.signal || AbortSignal.timeout(AMADEUS_TIMEOUT_MS)
+  })
+  const text = await resp.text()
+  const json = text ? JSON.parse(text) : {}
+  if (!resp.ok) {
+    const err = new Error(`Amadeus error ${resp.status}`)
+    err.response = json
+    err.status = resp.status
+    throw err
+  }
+  return json
+}
+
+const verifyAmadeusConnection = async () => {
+  const creds = ensureAmadeusCredentials()
+  if (!creds.ok) {
+    console.error('❌ Amadeus credentials check failed:', creds.message)
+    return
+  }
+  try {
+    await getAmadeusToken()
+    console.log('✅ Amadeus API connected')
+  } catch (err) {
+    console.error('❌ Amadeus API connection failed:', err.message)
+  }
+}
+
+const safeNumber = (value) => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : null
+}
+
+const buildMainTablePayload = ({ passenger = {}, itinerary = {}, pricing = {}, bookingRef, amadeusOrderId, holdExpiresAt }) => {
+  const outboundDate = itinerary.departureDate || itinerary.travelDate || null
+  const returnDate = itinerary.returnDate || null
+  const total = safeNumber(pricing.total || pricing.grandTotal)
+
+  const serviceFee = pricing.serviceFee !== undefined ? safeNumber(pricing.serviceFee) : null
+  const airlinesPrice = pricing.base !== undefined ? safeNumber(pricing.base) : null
+
+  return {
+    first_name: passenger.firstName || passenger.first_name || null,
+    middle_name: passenger.middleName || passenger.middle_name || null,
+    last_name: passenger.lastName || passenger.last_name || null,
+    date_of_birth: passenger.dateOfBirth || passenger.date_of_birth || null,
+    gender: passenger.gender || null,
+    passport_number: passenger.passportNumber || passenger.passport_number || null,
+    departure_airport: itinerary.origin || itinerary.departureAirport || null,
+    destination_airport: itinerary.destination || itinerary.destinationAirport || null,
+    travel_date: outboundDate,
+    return_date: returnDate,
+    request_types: ['flight'],
+    booking_ref: bookingRef || null,
+    booking_status: 'pending',
+    hold_expires_at: holdExpiresAt || null,
+    amadeus_offer_id: pricing.offerId || pricing.offer_id || null,
+    amadeus_order_id: amadeusOrderId || null,
+    payment_status: 'unpaid',
+    payment_currency: pricing.currency || 'EUR',
+    total_ticket_price: total,
+    airlines_price: airlinesPrice,
+    service_fee: serviceFee,
+    total_amount_due: total,
+    passenger_json: passenger ? passenger : null,
+    pricing_json: pricing ? pricing : null
+  }
+}
 
 // API Endpoint: Create Request
 app.post('/api/create-request', async (req, res) => {
@@ -233,6 +387,272 @@ app.post('/api/signup-complete', async (req, res) => {
   }
 })
 
+// ---------------------------------------------------------------------------
+// Amadeus: Search flights
+// ---------------------------------------------------------------------------
+app.post('/api/amadeus/search', async (req, res) => {
+  try {
+    const {
+      originLocationCode,
+      destinationLocationCode,
+      departureDate,
+      returnDate,
+      adults = 1,
+      children = 0,
+      infants = 0,
+      currencyCode = 'EUR',
+      travelClass,
+      nonStop
+    } = req.body || {}
+    if (!originLocationCode || !destinationLocationCode || !departureDate) {
+      return res.status(400).json({ error: 'originLocationCode, destinationLocationCode, and departureDate are required' })
+    }
+
+    const params = new URLSearchParams({
+      originLocationCode,
+      destinationLocationCode,
+      departureDate,
+      adults: String(adults),
+      currencyCode
+    })
+    if (returnDate) params.append('returnDate', returnDate)
+    if (children) params.append('children', String(children))
+    if (infants) params.append('infants', String(infants))
+    if (travelClass) params.append('travelClass', travelClass)
+    if (nonStop !== undefined) params.append('nonStop', String(!!nonStop))
+
+    const data = await amadeusFetch(`/v2/shopping/flight-offers?${params.toString()}`, { method: 'GET' })
+
+    const offers = (data?.data || []).map((offer) => {
+      const itineraries = offer?.itineraries || []
+      const firstItinerary = itineraries[0] || {}
+      const lastItinerary = itineraries[itineraries.length - 1] || firstItinerary
+      const firstSeg = firstItinerary?.segments?.[0]
+      const lastSeg = lastItinerary?.segments?.[lastItinerary?.segments?.length - 1]
+
+      const departAt = firstSeg?.departure?.at || ''
+      const arriveAt = lastSeg?.arrival?.at || ''
+
+      const departTime = departAt ? departAt.slice(11, 16) : ''
+      const arriveTime = arriveAt ? arriveAt.slice(11, 16) : ''
+
+      return {
+        id: offer?.id,
+        price: Number(offer?.price?.total) || null,
+        currency: offer?.price?.currency || currencyCode || 'EUR',
+        airline: firstSeg?.carrierCode || '',
+        flightNumber: firstSeg?.number || '',
+        depart: departTime,
+        arrive: arriveTime,
+        duration: firstItinerary?.duration || '',
+        from: firstSeg?.departure?.iataCode || originLocationCode,
+        to: lastSeg?.arrival?.iataCode || destinationLocationCode,
+        date: departAt ? departAt.slice(0, 10) : departureDate,
+        offer
+      }
+    })
+
+    res.json({ success: true, data: { offers, raw: data } })
+  } catch (error) {
+    console.error('❌ Amadeus search failed:', error)
+    res.status(500).json({ error: error.message || 'Amadeus search failed', details: error.response || null })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Amadeus: Health check (token validation)
+// ---------------------------------------------------------------------------
+app.get('/api/amadeus/health', async (_req, res) => {
+  const creds = ensureAmadeusCredentials()
+  if (!creds.ok) {
+    return res.status(400).json({ status: 'error', error: creds.message })
+  }
+
+  try {
+    await getAmadeusToken()
+    res.json({
+      status: 'ok',
+      host: AMADEUS_HOST,
+      tokenCached: !!amadeusTokenCache.token,
+      tokenExpiresAt: amadeusTokenCache.expiresAt ? new Date(amadeusTokenCache.expiresAt).toISOString() : null
+    })
+  } catch (error) {
+    console.error('❌ Amadeus health failed:', error)
+    res.status(500).json({ status: 'error', error: error.message || 'Amadeus health failed', details: error.response || null })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Amadeus: Airport/City search (IATA autocomplete)
+// ---------------------------------------------------------------------------
+app.post('/api/amadeus/airports/search', async (req, res) => {
+  const { keyword } = req.body || {}
+  const trimmed = (keyword || '').trim()
+
+  if (!trimmed) {
+    return res.status(400).json({ error: 'keyword is required' })
+  }
+
+  const creds = ensureAmadeusCredentials()
+  if (!creds.ok) {
+    return res.status(400).json({ error: creds.message })
+  }
+
+  try {
+    const params = new URLSearchParams({
+      keyword: trimmed,
+      subType: 'AIRPORT,CITY'
+    })
+    params.append('page[limit]', '20')
+    params.append('sort', 'analytics.travelers.score')
+
+    const data = await amadeusFetch(`/v1/reference-data/locations?${params.toString()}`, { method: 'GET' })
+    const list = (data?.data || []).map((item) => ({
+      iataCode: item?.iataCode || '',
+      name: item?.name || item?.detailedName || '',
+      cityName: item?.address?.cityName || item?.address?.cityCode || '',
+      countryCode: item?.address?.countryCode || '',
+      detailedName: item?.detailedName || ''
+    }))
+
+    res.json({ success: true, data: list })
+  } catch (error) {
+    console.error('❌ Amadeus airport search failed:', error)
+    res.status(500).json({ error: error.message || 'Amadeus airport search failed', details: error.response || null })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Amadeus: Create hold -> write to main_table (pending)
+// ---------------------------------------------------------------------------
+app.post('/api/amadeus/hold', async (req, res) => {
+  try {
+    const { bookingId, offer, passengers = [], pricing = {}, itinerary = {}, bookingRef, holdExpiresAt } = req.body || {}
+
+    let amadeusOrderId = null
+    let amadeusPnr = null
+    let holdExpiry = holdExpiresAt || null
+
+    // Optional: attempt to create Amadeus flight-order when offer is provided
+    try {
+      if (offer) {
+        const payload = {
+          data: {
+            type: 'flight-order',
+            flightOffers: [offer],
+            travelers: passengers
+          }
+        }
+        const result = await amadeusFetch('/v1/shopping/flight-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        amadeusOrderId = result?.data?.id || null
+        amadeusPnr = result?.data?.associatedRecords?.[0]?.reference || null
+        holdExpiry = holdExpiry || result?.data?.flightOffers?.[0]?.lastTicketingDateTime || null
+      }
+    } catch (amadeusErr) {
+      console.warn('⚠️ Amadeus hold call failed; falling back to local insert', amadeusErr.message)
+    }
+
+    const primaryPassenger = passengers[0] || {}
+    const payload = buildMainTablePayload({
+      passenger: primaryPassenger,
+      itinerary,
+      pricing,
+      bookingRef,
+      amadeusOrderId,
+      holdExpiresAt: holdExpiry
+    })
+
+    let record = null
+    if (bookingId) {
+      const { data, error } = await supabase
+        .from('main_table')
+        .update(payload)
+        .eq('id', bookingId)
+        .select()
+        .maybeSingle()
+
+      if (error) throw error
+      record = data
+    } else {
+      const { data, error } = await supabase
+        .from('main_table')
+        .insert([payload])
+        .select()
+        .maybeSingle()
+
+      if (error) throw error
+      record = data
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...record,
+        amadeus_order_id: amadeusOrderId || record?.amadeus_order_id || null,
+        amadeus_pnr: amadeusPnr || record?.amadeus_pnr || null
+      }
+    })
+  } catch (error) {
+    console.error('❌ Amadeus hold failed:', error)
+    res.status(500).json({ error: error.message || 'Amadeus hold failed', details: error.response || null })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Amadeus: Ticket issuance -> update main_table (confirmed)
+// ---------------------------------------------------------------------------
+app.post('/api/amadeus/ticket', async (req, res) => {
+  try {
+    const {
+      bookingId,
+      amadeusOrderId,
+      amadeusPnr,
+      ticketNumber,
+      paymentAmount,
+      paymentCurrency = 'EUR',
+      eticketUrl
+    } = req.body || {}
+
+    if (!bookingId) {
+      return res.status(400).json({ error: 'bookingId is required to update ticketing' })
+    }
+
+    const update = {
+      booking_status: 'confirmed',
+      payment_status: 'paid',
+      payment_amount: safeNumber(paymentAmount),
+      payment_currency: paymentCurrency || 'EUR',
+      amadeus_order_id: amadeusOrderId || null,
+      amadeus_pnr: amadeusPnr || null,
+      amadeus_ticket_number: ticketNumber || null,
+      eticket_url: eticketUrl || null
+    }
+
+    // Optional: treat payment as bank transfer so existing analytics see it
+    if (paymentAmount !== undefined && paymentAmount !== null) {
+      update.bank_transfer = true
+    }
+
+    const { data, error } = await supabase
+      .from('main_table')
+      .update(update)
+      .eq('id', bookingId)
+      .select()
+      .maybeSingle()
+
+    if (error) throw error
+
+    res.json({ success: true, data })
+  } catch (error) {
+    console.error('❌ Amadeus ticket update failed:', error)
+    res.status(500).json({ error: error.message || 'Amadeus ticket update failed', details: error.response || null })
+  }
+})
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
@@ -247,5 +667,11 @@ app.listen(PORT, () => {
   console.log(`📡 Endpoints:`)
   console.log(`   POST /api/create-request`)
   console.log(`   POST /api/create-requests`)
+  console.log(`   POST /api/amadeus/search`)
+  console.log(`   POST /api/amadeus/airports/search`)
+  console.log(`   POST /api/amadeus/hold`)
+  console.log(`   POST /api/amadeus/ticket`)
+  console.log(`   GET  /api/amadeus/health`)
   console.log(`   GET  /api/health`)
+  verifyAmadeusConnection()
 })

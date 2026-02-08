@@ -23,6 +23,7 @@ import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
 import './RequestsList.css'
 import { SidebarWhatsApp } from '@/components/SidebarWhatsApp'
+import { amadeusTicket, amadeusSearch } from '@/lib/amadeusProxy'
 
 // Translation dictionaries
 const translations = {
@@ -244,6 +245,15 @@ function RequestsList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   
+  // Flight search state (sandbox mock)
+  const [searchFrom, setSearchFrom] = useState('MUC')
+  const [searchTo, setSearchTo] = useState('IST')
+  const [searchDate, setSearchDate] = useState('2026-02-10')
+  const [searchModalOpen, setSearchModalOpen] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchResults, setSearchResults] = useState([])
+  const [searchError, setSearchError] = useState(null)
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize] = useState(50) // Fixed page size
@@ -659,6 +669,40 @@ function RequestsList() {
     }
   }
 
+  // Handle mock Amadeus search and open modal
+  const handleSearchFlights = async () => {
+    setSearchModalOpen(true)
+    setSearchLoading(true)
+    setSearchError(null)
+    try {
+      const { data } = await amadeusSearch({
+        originLocationCode: searchFrom,
+        destinationLocationCode: searchTo,
+        departureDate: searchDate,
+        adults: 1,
+        children: 0,
+        infants: 0,
+        currencyCode: 'EUR',
+        travelClass: 'ECONOMY',
+        nonStop: false
+      })
+      const flights = data?.offers || []
+      console.log('🔍 Amadeus search results', flights)
+      setSearchResults(flights)
+    } catch (err) {
+      console.warn('Search failed', err)
+      setSearchResults([])
+      setSearchError(err.message || 'Search failed')
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  const handleRetrySearch = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation()
+    handleSearchFlights()
+  }
+
   // Handle generate invoice (Supabase-enabled)
   const handleGenerateInvoice = async (request, e, mode = 'preview') => {
     e.stopPropagation()
@@ -815,6 +859,60 @@ function RequestsList() {
     } catch (err) {
       console.error('Error generating group invoice:', err)
       alert('Failed to generate group invoice: ' + (err.message || 'Unknown error'))
+    }
+  }
+
+  // Create pending row when holding a mock flight
+  const handleHoldBooking = async (flight) => {
+    try {
+      const price = parseFloat(flight?.price) || 0
+      const offer = flight?.offer || null
+      const firstSeg = offer?.itineraries?.[0]?.segments?.[0]
+      const lastItin = offer?.itineraries?.[offer?.itineraries?.length - 1]
+      const lastSeg = lastItin?.segments?.[lastItin?.segments?.length - 1]
+      const departureCode = flight?.from || firstSeg?.departure?.iataCode || searchFrom
+      const arrivalCode = flight?.to || lastSeg?.arrival?.iataCode || searchTo
+      const departureDate = flight?.date || firstSeg?.departure?.at?.slice(0, 10) || searchDate
+
+      const insertPayload = {
+        first_name: 'Philipp',
+        middle_name: null,
+        last_name: 'Petros',
+        date_of_birth: null,
+        gender: null,
+        passport_number: null,
+        departure_airport: departureCode,
+        destination_airport: arrivalCode,
+        travel_date: departureDate,
+        return_date: null,
+        request_types: ['flight'],
+        booking_ref: flight?.flightNumber || flight?.id || null,
+        booking_status: 'pending',
+        status: 'draft',
+        airlines: flight?.airline,
+        airlines_price: price,
+        service_fee: 0,
+        total_ticket_price: price,
+        total_amount_due: price,
+        cash_paid: 0,
+        bank_transfer: 0,
+        payment_status: 'unpaid'
+      }
+
+      const { data, error } = await supabase
+        .from('main_table')
+        .insert([insertPayload])
+        .select()
+        .maybeSingle()
+
+      if (error) throw error
+
+      console.log('🟡 PNR created (mock hold)', data?.booking_ref || data?.id)
+      // Refresh table to show the new pending row
+      fetchRequests(currentPage)
+    } catch (err) {
+      console.error('Hold booking failed', err)
+      alert('Failed to create pending booking.')
     }
   }
 
@@ -1480,6 +1578,22 @@ function RequestsList() {
       if (error) {
         throw error
       }
+
+      // Auto-ticket when payment captured to keep dashboard in sync (no UI change)
+      const updatedBookingStatus = String(updatedRequest?.booking_status || updatedRequest?.status || '').toLowerCase()
+      const paymentCaptured = (parseFloat(updatedRequest?.cash_paid) || 0) + (parseFloat(updatedRequest?.bank_transfer) || 0)
+      if ((field === 'cash_paid' || field === 'bank_transfer') && paymentCaptured > 0 && updatedBookingStatus === 'pending') {
+        try {
+          const ticketResult = await amadeusTicket({
+            bookingId: rowId,
+            paymentAmount: paymentCaptured,
+            paymentCurrency: 'EUR'
+          })
+          console.log('🟢 Ticket issued (payment)', ticketResult?.data?.amadeus_ticket_number || ticketResult?.data?.amadeus_order_id || rowId)
+        } catch (ticketErr) {
+          console.warn('Amadeus ticket update skipped', ticketErr)
+        }
+      }
     } catch (err) {
       console.error('Error updating cell:', err)
       // Revert on error
@@ -2031,6 +2145,7 @@ function RequestsList() {
   const selectedCount = selectedIds.length
 
   return (
+    <>
     <div className="page-layout">
       {/* Sidebar - Same as CreateRequest */}
       <aside className="sidebar">
@@ -2173,6 +2288,43 @@ function RequestsList() {
           {/* Page Header */}
           <div className="requests-header">
             <h1 className="requests-title">{t.table.title}</h1>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', marginTop: '0.75rem' }}>
+              <input
+                type="text"
+                value={searchFrom}
+                onChange={(e) => setSearchFrom(e.target.value.toUpperCase())}
+                className="query-search-input"
+                style={{ width: '110px' }}
+                placeholder="From"
+                aria-label="From airport"
+              />
+              <input
+                type="text"
+                value={searchTo}
+                onChange={(e) => setSearchTo(e.target.value.toUpperCase())}
+                className="query-search-input"
+                style={{ width: '110px' }}
+                placeholder="To"
+                aria-label="To airport"
+              />
+              <input
+                type="date"
+                value={searchDate}
+                onChange={(e) => setSearchDate(e.target.value)}
+                className="query-search-input"
+                style={{ width: '150px' }}
+                aria-label="Departure date"
+              />
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={handleSearchFlights}
+                disabled={searchLoading}
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {searchLoading ? 'Searching…' : '🔍 Search Flights'}
+              </button>
+            </div>
           </div>
 
           {loading && (
@@ -2420,6 +2572,103 @@ function RequestsList() {
         </div>
       </main>
     </div>
+
+    {searchModalOpen && (
+      <div
+        className="excel-table-container"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.65)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999
+        }}
+        onClick={() => setSearchModalOpen(false)}
+      >
+        <div
+          style={{
+            background: 'var(--background, #0d1117)',
+            color: 'var(--foreground, #e5e7eb)',
+            border: '1px solid var(--border, #1f2937)',
+            borderRadius: '12px',
+            width: 'min(900px, 95vw)',
+            maxHeight: '80vh',
+            overflow: 'hidden',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.35)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ padding: '16px', borderBottom: '1px solid var(--border, #1f2937)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '1rem' }}>Flight offers</div>
+              <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>
+                {searchFrom}-{searchTo} · {searchDate}
+              </div>
+            </div>
+            <button className="button button-secondary" onClick={() => setSearchModalOpen(false)}>
+              Close
+            </button>
+          </div>
+          <div style={{ padding: '12px' }}>
+            <div className="excel-table" style={{ width: '100%' }}>
+              <table className="excel-table" style={{ width: '100%' }}>
+                <thead>
+                  <tr className="excel-column-headers-row">
+                    {['Airline', 'Depart', 'Arrive', 'Duration', 'Price', ''].map((h) => (
+                      <th key={h} className="excel-header-cell" style={{ textAlign: 'left' }}>
+                        <span className="excel-header-label">{h}</span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchLoading && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '1rem', textAlign: 'center' }}>Loading...</td>
+                    </tr>
+                  )}
+                  {!searchLoading && searchError && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '1rem', textAlign: 'center' }}>
+                        <div style={{ marginBottom: '8px' }}>Search failed: {searchError}</div>
+                        <button className="button button-secondary" onClick={handleRetrySearch}>Retry</button>
+                      </td>
+                    </tr>
+                  )}
+                  {!searchLoading && !searchError && searchResults.length === 0 && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '1rem', textAlign: 'center' }}>No flights found</td>
+                    </tr>
+                  )}
+                  {!searchLoading && searchResults.map((flight) => (
+                    <tr key={flight.id} className="excel-group-header">
+                      <td className="excel-cell">{flight.airline} {flight.flightNumber || flight.id}</td>
+                      <td className="excel-cell">{flight.depart}</td>
+                      <td className="excel-cell">{flight.arrive}</td>
+                      <td className="excel-cell">{flight.duration}</td>
+                      <td className="excel-cell">{`${flight.currency || 'EUR'} ${parseFloat(flight.price || 0).toFixed(2)}`}</td>
+                      <td className="excel-cell">
+                        <button
+                          type="button"
+                          className="button button-primary"
+                          onClick={() => handleHoldBooking(flight)}
+                          style={{ padding: '6px 10px' }}
+                        >
+                          Hold
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
