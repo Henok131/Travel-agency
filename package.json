@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.94.1",
+    "axios": "^1.13.5",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "dotenv": "^16.3.1",
@@ -28,6 +29,7 @@
     "pdfjs-dist": "^5.4.530",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
+    "qs": "^6.14.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-flatpickr": "^4.0.11",

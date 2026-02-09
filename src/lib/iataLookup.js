@@ -74,10 +74,10 @@ export const searchAirports = async (keyword) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ keyword: trimmed })
     })
-    const body = await resp.json().catch(() => ({}))
-    if (!resp.ok || body?.error) {
-      throw new Error(body?.error || 'Airport search failed')
+    if (!resp.ok) {
+      throw new Error(`Search failed: ${resp.status}`)
     }
+    const body = await resp.json().catch(() => ({}))
     const results = body?.data || []
     return cacheResult(trimmed, results)
   } catch (err) {

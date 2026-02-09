@@ -1,17 +1,72 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import net from 'node:net'
 import express from 'express'
 import cors from 'cors'
 import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
+import axios from 'axios'
+import qs from 'qs'
 
-// Load environment variables
-dotenv.config({ path: '.env.local' })
+const maskValue = (value) => {
+  if (!value) return '❌ missing'
+  if (value.length <= 4) return '***'
+  if (value.length <= 8) return `${value.slice(0, 2)}***${value.slice(-2)}`
+  return `${value.slice(0, 4)}***${value.slice(-4)}`
+}
+
+// Load environment variables with fallbacks so local dev picks up credentials
+const envFiles = ['.env.local', 'env.local', '.env']
+let loadedEnvFile = null
+for (const file of envFiles) {
+  const fullPath = path.resolve(process.cwd(), file)
+  if (fs.existsSync(fullPath)) {
+    const result = dotenv.config({ path: fullPath })
+    if (!result.error) {
+      loadedEnvFile = file
+      break
+    }
+  }
+}
+if (!loadedEnvFile) {
+  dotenv.config()
+}
+console.log('🔧 Env loaded from:', loadedEnvFile || 'process env only')
+
+const REQUIRED_ENV_VARS = ['AMADEUS_CLIENT_ID', 'AMADEUS_CLIENT_SECRET', 'AMADEUS_HOST']
+const missingEnv = REQUIRED_ENV_VARS.filter((v) => {
+  const val = process.env[v]
+  return !val || String(val).trim().length === 0
+})
+if (missingEnv.length > 0) {
+  console.error('❌ Missing environment variables in .env.local:', missingEnv.join(', '))
+  process.exit(1)
+}
+console.log('🔎 Amadeus env check:')
+console.log('   Client ID (masked):', maskValue(process.env.AMADEUS_CLIENT_ID || ''))
+console.log('   Secret present:', !!process.env.AMADEUS_CLIENT_SECRET)
+console.log('   Host:', process.env.AMADEUS_HOST)
+
+console.log('✅ Amadeus credentials loaded')
+console.log('   Client ID:', maskValue(process.env.AMADEUS_CLIENT_ID || ''))
+console.log('   Host:', process.env.AMADEUS_HOST)
+console.log('\n🔍 Amadeus Configuration:')
+console.log('Environment: TEST (sandbox)')
+console.log('Host:', process.env.AMADEUS_HOST)
+console.log('Client ID:', (process.env.AMADEUS_CLIENT_ID || '').substring(0, 10) + '...')
+if (!String(process.env.AMADEUS_HOST || '').includes('test.api.amadeus.com')) {
+  console.warn('⚠️  WARNING: Not using test environment!')
+  console.warn('   Expected: https://test.api.amadeus.com')
+  console.warn('   Got:', process.env.AMADEUS_HOST)
+}
 
 const app = express()
-const PORT = process.env.API_PORT || 3001
-const AMADEUS_HOST = process.env.AMADEUS_HOST || 'https://test.api.amadeus.com'
-const AMADEUS_CLIENT_ID = process.env.AMADEUS_CLIENT_ID || ''
-const AMADEUS_CLIENT_SECRET = process.env.AMADEUS_CLIENT_SECRET || ''
+const PREFERRED_PORT = Number(process.env.API_PORT || 3001)
+const AMADEUS_HOST = (process.env.AMADEUS_HOST || '').trim()
+const AMADEUS_CLIENT_ID = (process.env.AMADEUS_CLIENT_ID || '').trim()
+const AMADEUS_CLIENT_SECRET = (process.env.AMADEUS_CLIENT_SECRET || '').trim()
 const AMADEUS_TIMEOUT_MS = Number(process.env.AMADEUS_TIMEOUT_MS || 10000)
+const BACKEND_PORT_FILE = path.resolve(process.cwd(), '.backend-port')
 
 // Middleware
 app.use(cors())
@@ -51,13 +106,6 @@ let amadeusTokenCache = {
   expiresAt: 0
 }
 
-const maskValue = (value) => {
-  if (!value) return '❌ missing'
-  if (value.length <= 4) return '***'
-  if (value.length <= 8) return `${value.slice(0, 2)}***${value.slice(-2)}`
-  return `${value.slice(0, 4)}***${value.slice(-4)}`
-}
-
 const ensureAmadeusCredentials = () => {
   const missing = []
   if (!AMADEUS_CLIENT_ID) missing.push('AMADEUS_CLIENT_ID')
@@ -85,53 +133,69 @@ const getAmadeusToken = async () => {
     return amadeusTokenCache.token
   }
 
-  const body = new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: AMADEUS_CLIENT_ID,
-    client_secret: AMADEUS_CLIENT_SECRET
-  })
+  try {
+    // Log request config (masked) for debugging invalid_client
+    console.log('🔎 Amadeus token request:', {
+      url: `${AMADEUS_HOST}/v1/security/oauth2/token`,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      bodyKeys: ['grant_type', 'client_id', 'client_secret'],
+      clientId: maskValue(AMADEUS_CLIENT_ID),
+      secretPresent: !!AMADEUS_CLIENT_SECRET
+    })
 
-  const resp = await fetch(`${AMADEUS_HOST}/v1/security/oauth2/token`, {
-    method: 'POST',
-    headers: amadeusHeaders(),
-    body,
-    signal: AbortSignal.timeout(AMADEUS_TIMEOUT_MS)
-  })
+    const response = await axios.post(
+      `${AMADEUS_HOST}/v1/security/oauth2/token`,
+      qs.stringify({
+        grant_type: 'client_credentials',
+        client_id: AMADEUS_CLIENT_ID,
+        client_secret: AMADEUS_CLIENT_SECRET
+      }),
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: AMADEUS_TIMEOUT_MS
+      }
+    )
 
-  if (!resp.ok) {
-    const text = await resp.text()
-    throw new Error(`Amadeus token failed: ${resp.status} ${text}`)
+    const json = response.data || {}
+    const expiresIn = json.expires_in ? Number(json.expires_in) * 1000 : 30 * 60 * 1000
+    amadeusTokenCache = {
+      token: json.access_token,
+      expiresAt: Date.now() + expiresIn
+    }
+    return json.access_token
+  } catch (error) {
+    const msg = error?.response?.data ? JSON.stringify(error.response.data) : error.message
+    console.error('❌ Amadeus token error:', msg)
+    throw new Error(`Amadeus token failed: ${msg}`)
   }
-
-  const json = await resp.json()
-  const expiresIn = json.expires_in ? Number(json.expires_in) * 1000 : 30 * 60 * 1000
-  amadeusTokenCache = {
-    token: json.access_token,
-    expiresAt: Date.now() + expiresIn
-  }
-  return json.access_token
 }
 
 const amadeusFetch = async (path, options = {}) => {
-  const token = await getAmadeusToken()
-  const headers = {
-    ...(options.headers || {}),
-    Authorization: `Bearer ${token}`
+  try {
+    const token = await getAmadeusToken()
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+    const resp = await fetch(`${AMADEUS_HOST}${path}`, {
+      ...options,
+      headers,
+      signal: options.signal || AbortSignal.timeout(AMADEUS_TIMEOUT_MS)
+    })
+
+    if (!resp.ok) {
+      const errorText = await resp.text()
+      throw new Error(`Amadeus API error: ${resp.status} - ${errorText}`)
+    }
+
+    const text = await resp.text()
+    const json = text ? JSON.parse(text) : {}
+    return json
+  } catch (error) {
+    console.error('❌ Amadeus API call failed:', error.message)
+    throw error
   }
-  const resp = await fetch(`${AMADEUS_HOST}${path}`, {
-    ...options,
-    headers,
-    signal: options.signal || AbortSignal.timeout(AMADEUS_TIMEOUT_MS)
-  })
-  const text = await resp.text()
-  const json = text ? JSON.parse(text) : {}
-  if (!resp.ok) {
-    const err = new Error(`Amadeus error ${resp.status}`)
-    err.response = json
-    err.status = resp.status
-    throw err
-  }
-  return json
 }
 
 const verifyAmadeusConnection = async () => {
@@ -484,14 +548,48 @@ app.get('/api/amadeus/health', async (_req, res) => {
 })
 
 // ---------------------------------------------------------------------------
+// Amadeus: Test token endpoint (debug)
+// ---------------------------------------------------------------------------
+app.get('/api/amadeus/test-token', async (_req, res) => {
+  const creds = ensureAmadeusCredentials()
+  if (!creds.ok) {
+    return res.status(400).json({
+      success: false,
+      error: creds.message,
+      host: AMADEUS_HOST
+    })
+  }
+  try {
+    const token = await getAmadeusToken()
+    console.log('🔍 Test token env:', {
+      host: AMADEUS_HOST,
+      clientId: maskValue(AMADEUS_CLIENT_ID)
+    })
+    res.json({
+      success: true,
+      message: 'Token generated successfully',
+      tokenPreview: token ? token.substring(0, 20) + '...' : null,
+      host: AMADEUS_HOST
+    })
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      error: 'Amadeus authentication failed',
+      details: error.message,
+      host: AMADEUS_HOST
+    })
+  }
+})
+
+// ---------------------------------------------------------------------------
 // Amadeus: Airport/City search (IATA autocomplete)
 // ---------------------------------------------------------------------------
 app.post('/api/amadeus/airports/search', async (req, res) => {
   const { keyword } = req.body || {}
   const trimmed = (keyword || '').trim()
 
-  if (!trimmed) {
-    return res.status(400).json({ error: 'keyword is required' })
+  if (!trimmed || trimmed.length < 2) {
+    return res.status(400).json({ error: 'Keyword must be at least 2 characters' })
   }
 
   const creds = ensureAmadeusCredentials()
@@ -502,24 +600,26 @@ app.post('/api/amadeus/airports/search', async (req, res) => {
   try {
     const params = new URLSearchParams({
       keyword: trimmed,
-      subType: 'AIRPORT,CITY'
+      subType: 'AIRPORT,CITY',
+      'page[limit]': '10'
     })
-    params.append('page[limit]', '20')
-    params.append('sort', 'analytics.travelers.score')
 
     const data = await amadeusFetch(`/v1/reference-data/locations?${params.toString()}`, { method: 'GET' })
-    const list = (data?.data || []).map((item) => ({
-      iataCode: item?.iataCode || '',
-      name: item?.name || item?.detailedName || '',
-      cityName: item?.address?.cityName || item?.address?.cityCode || '',
-      countryCode: item?.address?.countryCode || '',
-      detailedName: item?.detailedName || ''
+    const airports = (data.data || []).map((location) => ({
+      iataCode: location.iataCode,
+      name: location.name,
+      cityName: location.address?.cityName || '',
+      countryCode: location.address?.countryCode || '',
+      type: location.subType
     }))
 
-    res.json({ success: true, data: list })
+    res.json({ success: true, data: airports })
   } catch (error) {
-    console.error('❌ Amadeus airport search failed:', error)
-    res.status(500).json({ error: error.message || 'Amadeus airport search failed', details: error.response || null })
+    console.error('❌ Airport search failed:', error.message)
+    res.status(500).json({
+      error: 'Airport search failed',
+      details: error.message
+    })
   }
 })
 
@@ -741,16 +841,65 @@ app.get('/api/health', (req, res) => {
   })
 })
 
-app.listen(PORT, () => {
-  console.log(`🚀 API Server running on http://localhost:${PORT}`)
-  console.log(`📡 Endpoints:`)
-  console.log(`   POST /api/create-request`)
-  console.log(`   POST /api/create-requests`)
-  console.log(`   POST /api/amadeus/search`)
-  console.log(`   POST /api/amadeus/airports/search`)
-  console.log(`   POST /api/amadeus/hold`)
-  console.log(`   POST /api/amadeus/ticket`)
-  console.log(`   GET  /api/amadeus/health`)
-  console.log(`   GET  /api/health`)
-  verifyAmadeusConnection()
-})
+const findAvailablePort = (startPort, attempts = 5) =>
+  new Promise((resolve) => {
+    const tryListen = (port, remaining) => {
+      const tester = net.createServer()
+      tester.unref()
+      tester.on('error', () => {
+        if (remaining > 0) {
+          tryListen(port + 1, remaining - 1)
+        } else {
+          // Fall back to any free port
+          const fallback = net.createServer()
+          fallback.unref()
+          fallback.listen(0, () => {
+            const { port: assigned } = fallback.address()
+            fallback.close(() => resolve({ port: assigned, note: 'random' }))
+          })
+        }
+      })
+      tester.listen(port, () => {
+        tester.close(() => resolve({ port, note: port === startPort ? 'preferred' : 'fallback' }))
+      })
+    }
+    tryListen(startPort, attempts)
+  })
+
+const writePortFile = (port) => {
+  try {
+    fs.writeFileSync(BACKEND_PORT_FILE, String(port))
+  } catch (err) {
+    console.warn('⚠️ Could not write backend port file:', err.message)
+  }
+}
+
+const startServer = async () => {
+  const { port, note } = await findAvailablePort(PREFERRED_PORT)
+  process.env.API_PORT = String(port)
+  writePortFile(port)
+
+  const serverInstance = app.listen(port, () => {
+    console.log(`🚀 API Server running on http://localhost:${port} (${note})`)
+    console.log(`📡 Endpoints:`)
+    console.log(`   POST /api/create-request`)
+    console.log(`   POST /api/create-requests`)
+    console.log(`   POST /api/amadeus/search`)
+    console.log(`   POST /api/amadeus/airports/search`)
+    console.log(`   POST /api/amadeus/hold`)
+    console.log(`   POST /api/amadeus/ticket`)
+    console.log(`   GET  /api/amadeus/health`)
+    console.log(`   GET  /api/health`)
+    verifyAmadeusConnection()
+  })
+
+  serverInstance.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${port} is already in use. Stop other dev servers or set API_PORT to a free port.`)
+      process.exit(1)
+    }
+    throw err
+  })
+}
+
+startServer()

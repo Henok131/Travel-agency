@@ -25,7 +25,7 @@ import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
 import './RequestsList.css'
 import { SidebarWhatsApp } from '@/components/SidebarWhatsApp'
-import { amadeusTicket, amadeusSearch } from '@/lib/amadeusProxy'
+import { amadeusTicket, amadeusSearch, amadeusHold } from '@/lib/amadeusProxy'
 
 // Translation dictionaries
 const translations = {
