@@ -1,5 +1,6 @@
-import { useMemo, useState, useEffect } from 'react'
-import { X, Clock3, MapPin, ArrowRight, AlertCircle } from 'lucide-react'
+import React, { useState } from 'react'
+import { X, Clock3, ArrowRight, AlertCircle, Briefcase, RefreshCcw, Info, ChevronDown, Check, Backpack, Luggage, ShieldCheck, Ticket } from 'lucide-react'
+import { getAirlineName, getAirlineLogo, getBaggageAllowance, getFareRules } from '../lib/airlines'
 
 const formatDuration = (iso) => {
   if (!iso || typeof iso !== 'string') return ''
@@ -12,23 +13,23 @@ const formatDuration = (iso) => {
   return `${m}m`
 }
 
-const getStopsLabel = (offer) => {
-  const segments = offer?.itineraries?.[0]?.segments || []
-  const stops = Math.max(0, segments.length - 1)
-  if (stops === 0) return { label: 'Direct', tone: 'success' }
-  if (stops === 1) return { label: '1 stop', tone: 'warn' }
-  return { label: `${stops} stops`, tone: 'warn' }
-}
-
 const formatTime = (value) => {
   if (!value) return ''
-  if (value.length >= 16) return value.slice(11, 16) // 2026-02-10T08:30:00 => 08:30
+  if (value.length >= 16) return value.slice(11, 16)
   return value
 }
 
-const formatDate = (value) => {
+const formatDateTime = (value) => {
   if (!value) return ''
-  return value.slice(0, 10)
+  const date = new Date(value)
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true
+  }).format(date).replace(',', '')
 }
 
 const durationToMinutes = (iso) => {
@@ -40,157 +41,286 @@ const durationToMinutes = (iso) => {
   return h * 60 + m
 }
 
-const countStops = (offer) => {
-  const segments = offer?.itineraries?.[0]?.segments || []
-  return Math.max(0, segments.length - 1)
-}
+// --- SUB-COMPONENTS ---
 
-const bestScore = (flight, minPrice, maxPrice, maxDuration) => {
-  const price = Number(flight.price) || maxPrice || 0
-  const duration = flight.durationMinutes || maxDuration || 0
-  const stops = flight.stops ?? 0
-
-  const priceNorm = maxPrice && maxPrice !== minPrice ? (price - minPrice) / (maxPrice - minPrice) : 0
-  const durationNorm = maxDuration ? duration / maxDuration : 0
-  const stopsNorm = Math.min(stops / 2, 1) // 0 direct, 0.5 one stop, 1 multi
-
-  // Lower is better, so invert
-  const score = (priceNorm * 0.5 + durationNorm * 0.3 + stopsNorm * 0.2)
-  return score
-}
-
-const FlightCard = ({ flight, isSelected, onSelect, onHold }) => {
-  const offer = flight?.offer || {}
-  const itineraries = offer?.itineraries || []
-  const firstItin = itineraries[0]
-  const firstSeg = firstItin?.segments?.[0]
-  const lastItin = itineraries[itineraries.length - 1]
-  const lastSeg = lastItin?.segments?.[lastItin?.segments?.length - 1]
-  const departTime = formatTime(firstSeg?.departure?.at)
-  const arriveTime = formatTime(lastSeg?.arrival?.at)
-  const departAirport = firstSeg?.departure?.iataCode || ''
-  const arriveAirport = lastSeg?.arrival?.iataCode || ''
-  const duration = formatDuration(firstItin?.duration)
-  const stops = Math.max(0, (firstItin?.segments?.length || 1) - 1)
-
-  const carrierCodes = Array.from(
-    new Set(
-      itineraries.flatMap((it) => (it.segments || []).map((seg) => seg.carrierCode).filter(Boolean))
-    )
-  )
-  const stopsInfo = getStopsLabel(offer)
+const FlightDetailsExpanded = ({ flight, onSelect }) => {
+  const offer = flight.offer || flight
+  const itineraries = offer.itineraries || []
+  const rules = flight.rules
+  const totalPrice = Number(flight.price).toFixed(2)
 
   return (
-    <div
-      onClick={onSelect}
-      style={{
-        background: '#111a2c',
-        border: isSelected ? '1px solid #2563eb' : '1px solid #1f2a4d',
-        borderRadius: 14,
-        padding: '16px 18px',
-        color: '#e5e7eb',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 14,
-        cursor: 'pointer',
-        boxShadow: isSelected ? '0 16px 32px rgba(37,99,235,0.25)' : '0 12px 28px rgba(0,0,0,0.25)',
-        transition: 'border 0.2s ease, transform 0.2s ease',
-        transform: isSelected ? 'translateY(-2px)' : 'none'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = '#2563eb'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = isSelected ? '#2563eb' : '#1f2a4d'
-      }}
-    >
-      {/* Header: price + actions */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-          {carrierCodes.map((code) => (
-            <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: '#0f172a', borderRadius: 8, border: '1px solid #1f2a4d' }}>
-              <img
-                src={`https://content.airhex.com/content/logos/airlines_${code}_200_200_s.png?proportions=keep`}
-                alt={code}
-                style={{ width: 28, height: 28, objectFit: 'contain' }}
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                }}
-              />
-              <span style={{ color: '#d1d5db', fontSize: '0.9rem', fontWeight: 600 }}>{code}</span>
+    <div style={{ marginTop: 0, padding: 24, borderTop: '1px solid #e7e7e7', background: '#fafafa' }}>
+
+      {itineraries.map((itin, itinIdx) => {
+        const lastSeg = itin.segments[itin.segments.length - 1]
+        const stops = itin.segments.length - 1
+        return (
+          <div key={itinIdx} style={{ marginBottom: 32 }}>
+            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>
+              Flight to {lastSeg.arrival.iataCode}
             </div>
-          ))}
+            <div style={{ fontSize: '0.85rem', color: '#595959', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>{stops === 0 ? 'Direct' : `${stops} stop${stops > 1 ? 's' : ''}`}</span>
+              <span>·</span>
+              <span>{formatDuration(itin.duration)}</span>
+            </div>
+
+            <div style={{ position: 'relative', paddingLeft: 12 }}>
+              {/* Continuous Vertical Line */}
+              <div style={{ position: 'absolute', left: 17, top: 8, bottom: 20, width: 2, background: '#e0e0e0' }} />
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {itin.segments.map((seg, segIdx) => {
+                  const nextSeg = itin.segments[segIdx + 1]
+                  const isLast = segIdx === itin.segments.length - 1
+                  const layoverTime = nextSeg ? durationToMinutes(nextSeg.departure.at) - durationToMinutes(seg.arrival.at) : 0
+                  const airlineLogo = getAirlineLogo(seg.carrierCode)
+
+                  return (
+                    <div key={seg.id} style={{ position: 'relative' }}>
+
+                      {/* Segment: Departure */}
+                      <div style={{ marginBottom: 20, position: 'relative', display: 'flex', gap: 20 }}>
+                        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#fff', border: '2px solid #595959', position: 'absolute', left: 0, top: 4, zIndex: 2 }} />
+                        <div style={{ minWidth: 20 }} />
+
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+                          {/* Time & Place */}
+                          <div>
+                            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1a1a1a', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                              <span>{formatTime(seg.departure.at)}</span>
+                              <span style={{ fontWeight: 400, color: '#595959' }}>·</span>
+                              <span>{seg.departure.iataCode}</span>
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: '#595959', marginTop: 2 }}>{formatDateTime(seg.departure.at)}</div>
+                            <div style={{ fontSize: '0.85rem', color: '#595959' }}>{getAirlineName(seg.carrierCode)} Airport</div>
+                          </div>
+
+                          {/* Airline Info */}
+                          {(segIdx === 0 || nextSeg?.carrierCode !== seg.carrierCode) && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                              <div style={{ width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <img
+                                  src={airlineLogo}
+                                  alt={seg.carrierCode}
+                                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                  onError={(e) => { e.target.style.display = 'none' }}
+                                />
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.8rem', color: '#595959' }}>Flight {seg.number} · Economy</div>
+                                <div style={{ fontSize: '0.8rem', color: '#595959' }}>Flight time {formatDuration(seg.duration)}</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Segment: Arrival */}
+                      <div style={{ marginBottom: isLast ? 0 : 20, position: 'relative', display: 'flex', gap: 20 }}>
+                        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#fff', border: '2px solid #595959', position: 'absolute', left: 0, top: 4, zIndex: 2 }} />
+                        <div style={{ minWidth: 20 }} />
+
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1a1a1a', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                            <span>{formatTime(seg.arrival.at)}</span>
+                            <span style={{ fontWeight: 400, color: '#595959' }}>·</span>
+                            <span>{seg.arrival.iataCode}</span>
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: '#595959', marginTop: 2 }}>{formatDateTime(seg.arrival.at)}</div>
+                          <div style={{ fontSize: '0.85rem', color: '#595959' }}>{getAirlineName(seg.carrierCode)} Airport</div>
+                        </div>
+                      </div>
+
+                      {/* Layover Separation */}
+                      {!isLast && (
+                        <div style={{ margin: '16px 0 24px 44px', padding: '6px 12px', background: '#eef3f9', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <Clock3 size={14} color="#595959" />
+                          <span style={{ fontSize: '0.85rem', color: '#595959', fontWeight: 500 }}>{Math.floor(layoverTime / 60)}h {layoverTime % 60}m layover</span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Footer Details */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1.5fr) 1fr', gap: 40, borderTop: '1px solid #e7e7e7', paddingTop: 24, marginTop: 24 }}>
+        {/* Baggage */}
+        <div>
+          <h4 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 12, color: '#1a1a1a' }}>Baggage</h4>
+          <div style={{ fontSize: '0.85rem', color: '#595959', marginBottom: 16 }}>The total baggage included in the price</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <Backpack size={20} color="#444" strokeWidth={1.5} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1a1a1a' }}>1 personal item</div>
+                  <div style={{ fontSize: '0.8rem', color: '#595959' }}>Fits under the seat in front of you</div>
+                </div>
+              </div>
+              <span style={{ color: '#008009', fontWeight: 700, fontSize: '0.85rem' }}>Included</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <Luggage size={20} color="#444" strokeWidth={1.5} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1a1a1a' }}>1 carry-on bag</div>
+                  <div style={{ fontSize: '0.8rem', color: '#595959' }}>Max weight 8 kg</div>
+                </div>
+              </div>
+              <span style={{ color: '#008009', fontWeight: 700, fontSize: '0.85rem' }}>Included</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <Briefcase size={20} color="#444" strokeWidth={1.5} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1a1a1a' }}>{flight.tickets?.[0]?.baggage?.quantity || 1} checked bag</div>
+                  <div style={{ fontSize: '0.8rem', color: '#595959' }}>Max weight 23 kg</div>
+                </div>
+              </div>
+              <span style={{ color: '#008009', fontWeight: 700, fontSize: '0.85rem' }}>Included</span>
+            </div>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+
+        {/* Fare & Extras */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>
-              {flight?.currency || 'EUR'} {parseFloat(flight?.price || 0).toFixed(0)}
+            <h4 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 12, color: '#1a1a1a' }}>Fare rules</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: '0.85rem', color: '#444' }}>
+                <Ticket size={16} strokeWidth={1.5} /> <span>Change possible for a fee</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: '0.85rem', color: '#444' }}>
+                <Ticket size={16} strokeWidth={1.5} /> <span>Cancel for a fee</span>
+              </div>
             </div>
-            <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>per person</div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onSelect()
-              }}
-              className="button button-primary"
-              style={{ whiteSpace: 'nowrap' }}
-            >
-              Select Flight
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onHold()
-              }}
-              className="button button-secondary"
-              style={{ whiteSpace: 'nowrap' }}
-            >
-              Hold / Reserve
-            </button>
+          <div>
+            <h4 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 12, color: '#1a1a1a' }}>Extras you might like</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9rem' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}><RefreshCcw size={18} strokeWidth={1.5} /> Flexible ticket</div>
+              <span style={{ fontSize: '0.8rem', color: '#595959' }}>See next steps</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Route row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ fontWeight: 800, fontSize: '1.4rem' }}>{departAirport || '---'}</div>
-          <div style={{ fontSize: '0.95rem', color: '#9ca3af' }}>{departTime || '--:--'}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 32, paddingTop: 16, borderTop: '1px solid #e7e7e7' }}>
+        <div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a1a' }}>€{totalPrice}</div>
+          <div style={{ fontSize: '0.8rem', color: '#595959' }}>Total per person</div>
         </div>
-        <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.9rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
-            <span style={{ height: 1, flex: 1, background: '#24335c' }} />
-            {stops === 0 ? (
-              <span style={{ padding: '4px 10px', borderRadius: 20, background: 'rgba(16,185,129,0.15)', color: '#10b981', fontWeight: 700 }}>Direct</span>
-            ) : (
-              <span style={{ padding: '4px 10px', borderRadius: 20, background: 'rgba(251,191,36,0.15)', color: '#fbbf24', fontWeight: 700 }}>
-                {stops} stop{stops > 1 ? 's' : ''}
-              </span>
-            )}
-            <span style={{ height: 1, flex: 1, background: '#24335c' }} />
-          </div>
-          <div style={{ marginTop: 6 }}>
-            <Clock3 size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-            <span>{duration || '—'}</span>
-          </div>
+        <button onClick={onSelect} style={{ background: '#006ce4', color: 'white', border: 'none', padding: '12px 32px', borderRadius: 4, fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>
+          Select
+        </button>
+      </div>
+
+    </div>
+  )
+}
+
+const FlightCard = ({ flight, isSelected, onSelect, onToggle, isExpanded }) => {
+  const offer = flight.offer || flight
+  const itineraries = offer.itineraries || []
+  const price = Number(flight.price).toFixed(2)
+  const isCheapest = flight.cheapest
+  const isFlexible = true
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e7e7e7', borderRadius: 8, marginBottom: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+      {/* Body */}
+      <div style={{ padding: 16 }}>
+
+        {/* Badges - Inline above rows */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+          {isCheapest && <span style={{ background: '#008009', color: 'white', fontSize: '0.75rem', fontWeight: 700, padding: '2px 6px', borderRadius: 2 }}>Cheapest</span>}
+          {isFlexible && <span style={{ fontSize: '0.75rem', color: '#008009', fontWeight: 600 }}>Flexible ticket upgrade available</span>}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-          <div style={{ fontWeight: 800, fontSize: '1.4rem' }}>{arriveAirport || '---'}</div>
-          <div style={{ fontSize: '0.95rem', color: '#9ca3af' }}>{arriveTime || '--:--'}</div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          {/* Flight Rows */}
+          <div style={{ flex: 1 }}>
+            {itineraries.map((itin, idx) => {
+              const segments = itin.segments
+              const stops = segments.length - 1
+              const duration = formatDuration(itin.duration)
+              const logoUrl = getAirlineLogo(segments[0].carrierCode)
+
+              return (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: idx !== itineraries.length - 1 ? 24 : 0 }}>
+                  <img src={logoUrl} alt="" style={{ width: 40, height: 40, objectFit: 'contain', marginRight: 16 }} onError={(e) => e.target.style.display = 'none'} />
+
+                  <div style={{ display: 'flex', flexDirection: 'column', width: 220 }}>
+                    <div style={{ flexDirection: 'row', display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                      <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1a1a1a' }}>{formatTime(segments[0].departure.at)}</span>
+                      <span style={{ color: '#595959', fontSize: '0.9rem' }}>—</span>
+                      <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1a1a1a' }}>{formatTime(segments[segments.length - 1].arrival.at)}</span>
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#595959' }}>
+                      {segments[0].departure.iataCode}
+                    </div>
+                  </div>
+
+                  {/* Duration & Stops - The "O----O" line */}
+                  <div style={{ display: 'flex', alignItems: 'center', width: 140, flexDirection: 'column' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#595959', marginBottom: 2 }}>{duration}</div>
+                    <div style={{ position: 'relative', width: '100%', height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ position: 'absolute', width: '100%', height: 1, background: '#a2a2a2' }}></div>
+                      <div style={{ position: 'absolute', left: 0, width: 6, height: 6, borderRadius: '50%', border: '1px solid #595959', background: '#fff' }}></div>
+                      <div style={{ position: 'absolute', right: 0, width: 6, height: 6, borderRadius: '50%', border: '1px solid #595959', background: '#fff' }}></div>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#595959', marginTop: 2 }}>
+                      {stops === 0 ? 'Direct' : `${stops} stop${stops > 1 ? 's' : ''}`}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Right Side: Price & Actions */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', marginLeft: 24, minWidth: 140 }}>
+
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16, alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#1a1a1a' }}>Restricted</span>
+              <Backpack size={16} color="#444" />
+              <Luggage size={16} color="#444" />
+              <div style={{ width: 16, height: 16, border: '1px dashed #ccc', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '10px', color: '#ccc' }}>+</span>
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#1a1a1a', lineHeight: 1, marginBottom: 4 }}>€{price}</div>
+              <div style={{ fontSize: '0.8rem', color: '#595959', marginBottom: 8 }}>Total price</div>
+              <button
+                onClick={() => onToggle(flight.id)}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #006ce4',
+                  color: '#006ce4',
+                  padding: '8px 16px',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  fontSize: '0.9rem'
+                }}
+              >
+                {isExpanded ? 'Hide details' : 'View details'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Date + metadata */}
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', color: '#9ca3af', fontSize: '0.9rem' }}>
-        <div>{formatDate(firstSeg?.departure?.at) || formatDate(flight?.date)}</div>
-        {offer?.price?.grandTotal && (
-          <div>Offer total: {flight?.currency || offer?.price?.currency || 'EUR'} {offer?.price?.grandTotal}</div>
-        )}
-      </div>
+      {isExpanded && <FlightDetailsExpanded flight={flight} onSelect={onSelect} />}
     </div>
   )
 }
@@ -201,316 +331,257 @@ export default function FlightSearchModal({
   results = [],
   loading,
   error,
-  onRetry,
   onSelectFlight,
   searchFrom,
   searchTo,
   searchDate,
-  searchReturnDate,
-  onHold
+  searchReturnDate
 }) {
-  const [selectedId, setSelectedId] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
+
+  // -- Sorting/Filtering State --
   const [sortKey, setSortKey] = useState('best')
-  const [stopsFilter, setStopsFilter] = useState('any') // any | direct | onestop
-  const [airlineFilter, setAirlineFilter] = useState([])
-  const [priceRange, setPriceRange] = useState([0, 0])
-  const [durationLimit, setDurationLimit] = useState(null)
-
-  const headerLabel = useMemo(() => {
-    const datePart = searchReturnDate ? `${searchDate} → ${searchReturnDate}` : searchDate
-    return `${searchFrom || ''} → ${searchTo || ''} • ${datePart || ''}`
-  }, [searchFrom, searchTo, searchDate, searchReturnDate])
-
-  const enrichedResults = useMemo(() => {
-    return (results || []).map((flight) => {
-      const offer = flight.offer || {}
-      const durationMinutes = flight.durationMinutes || durationToMinutes(offer?.itineraries?.[0]?.duration)
-      const stops = flight.stops ?? countStops(offer)
-      const price = Number(flight.price) || Number(offer?.price?.total) || 0
-      const airline = flight.airline || offer?.itineraries?.[0]?.segments?.[0]?.carrierCode || 'Unknown'
-      return { ...flight, durationMinutes, stops, price, airline }
-    })
-  }, [results])
-
-  const minPrice = useMemo(() => enrichedResults.reduce((min, f) => f.price < min ? f.price : min, Number.POSITIVE_INFINITY), [enrichedResults]) || 0
-  const maxPrice = useMemo(() => enrichedResults.reduce((max, f) => f.price > max ? f.price : max, 0), [enrichedResults]) || 0
-  const maxDuration = useMemo(() => enrichedResults.reduce((max, f) => f.durationMinutes && f.durationMinutes > max ? f.durationMinutes : max, 0), [enrichedResults]) || 0
-  const airlines = useMemo(() => Array.from(new Set(enrichedResults.map(f => f.airline || 'Unknown'))).sort(), [enrichedResults])
-
-  useEffect(() => {
-    // initialize ranges when results change
-    if (enrichedResults.length > 0) {
-      setPriceRange([minPrice || 0, maxPrice || 0])
-      setDurationLimit(maxDuration || null)
-    }
-  }, [enrichedResults, minPrice, maxPrice, maxDuration])
-
-  const filteredSorted = useMemo(() => {
-    let list = enrichedResults
-
-    // stops filter
-    if (stopsFilter === 'direct') list = list.filter((f) => (f.stops ?? 0) === 0)
-    if (stopsFilter === 'onestop') list = list.filter((f) => (f.stops ?? 0) <= 1)
-
-    // airline filter
-    if (airlineFilter.length > 0) {
-      const set = new Set(airlineFilter)
-      list = list.filter((f) => set.has(f.airline))
-    }
-
-    // price filter
-    const [minP, maxP] = priceRange
-    list = list.filter((f) => (f.price ?? 0) >= (minP ?? 0) && (f.price ?? 0) <= (maxP ?? Number.POSITIVE_INFINITY))
-
-    // duration filter
-    if (durationLimit) {
-      list = list.filter((f) => !f.durationMinutes || f.durationMinutes <= durationLimit)
-    }
-
-    // sort
-    if (sortKey === 'cheapest') {
-      list = [...list].sort((a, b) => (a.price || 0) - (b.price || 0))
-    } else if (sortKey === 'fastest') {
-      list = [...list].sort((a, b) => (a.durationMinutes || Number.MAX_VALUE) - (b.durationMinutes || Number.MAX_VALUE))
-    } else {
-      // best
-      list = [...list].sort((a, b) => bestScore(a, minPrice, maxPrice, maxDuration) - bestScore(b, minPrice, maxPrice, maxDuration))
-    }
-
-    return list
-  }, [enrichedResults, sortKey, stopsFilter, airlineFilter, priceRange, durationLimit, minPrice, maxPrice, maxDuration])
-
-  const toggleAirline = (code) => {
-    setAirlineFilter((prev) => prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code])
-  }
-
-  const handlePriceChange = (which, value) => {
-    setPriceRange((prev) => {
-      const next = [...prev]
-      next[which === 'min' ? 0 : 1] = Number(value)
-      return next
-    })
-  }
-
-  const handleDurationChange = (value) => {
-    setDurationLimit(Number(value))
-  }
+  const [stopsFilter, setStopsFilter] = useState('any') // 'any', 'direct', 'onestop'
+  const [selectedAirlines, setSelectedAirlines] = useState([]) // Empty = all
 
   if (!open) return null
 
+  // 1. Normalize Results
+  const normalizedResults = (results || []).map((flight, idx) => ({
+    ...flight,
+    // Ensure we have a consistent price number
+    priceNum: Number(flight.price),
+    // Resolve offer vs flat structure
+    offer: flight.offer || flight
+  }))
+
+  // 2. Calculate Stats (before filtering, to show counts)
+  // Stops Stats
+  let stopsStats = {
+    any: { count: 0, minPrice: Infinity },
+    direct: { count: 0, minPrice: Infinity },
+    onestop: { count: 0, minPrice: Infinity }
+  }
+
+  // Airlines Stats
+  let airlineStats = {}
+
+  normalizedResults.forEach(flight => {
+    const price = flight.priceNum
+    const segments = flight.offer.itineraries[0].segments
+    const stopCount = segments.length - 1
+    const carrier = segments[0].carrierCode
+    const carrierName = getAirlineName(carrier)
+
+    // Stops logic
+    stopsStats.any.count++
+    stopsStats.any.minPrice = Math.min(stopsStats.any.minPrice, price)
+
+    if (stopCount === 0) {
+      stopsStats.direct.count++
+      stopsStats.direct.minPrice = Math.min(stopsStats.direct.minPrice, price)
+    }
+    if (stopCount <= 1) {
+      stopsStats.onestop.count++
+      stopsStats.onestop.minPrice = Math.min(stopsStats.onestop.minPrice, price)
+    }
+
+    // Airline logic
+    if (!airlineStats[carrier]) {
+      airlineStats[carrier] = { name: carrierName, code: carrier, count: 0, minPrice: Infinity }
+    }
+    airlineStats[carrier].count++
+    airlineStats[carrier].minPrice = Math.min(airlineStats[carrier].minPrice, price)
+  })
+
+  // Convert airlineStats to array
+  const airlineList = Object.values(airlineStats).sort((a, b) => b.count - a.count)
+
+
+  // 3. Apply Filters
+  const filteredResults = normalizedResults.filter(flight => {
+    const segments = flight.offer.itineraries[0].segments
+    const stopCount = segments.length - 1
+    const carrier = segments[0].carrierCode
+
+    // Stops
+    if (stopsFilter === 'direct' && stopCount > 0) return false
+    if (stopsFilter === 'onestop' && stopCount > 1) return false
+
+    // Airlines
+    if (selectedAirlines.length > 0 && !selectedAirlines.includes(carrier)) return false
+
+    return true
+  })
+
+  // 4. Sort (basic mock sort implementation)
+  const finalResults = [...filteredResults].sort((a, b) => {
+    if (sortKey === 'cheapest') return a.priceNum - b.priceNum
+    if (sortKey === 'fastest') {
+      const durA = durationToMinutes(a.offer.itineraries[0].duration) || 0
+      const durB = durationToMinutes(b.offer.itineraries[0].duration) || 0
+      return durA - durB
+    }
+    return 0 // 'best' - default
+  })
+
+  // Tag "cheapest" for UI badge on the filtered view
+  const displayResults = finalResults.map((f, i) => ({
+    ...f,
+    cheapest: i === 0 && sortKey === 'cheapest'
+  }))
+
+
+  // Handlers
+  const toggleAirline = (code) => {
+    setSelectedAirlines(prev => {
+      if (prev.includes(code)) return prev.filter(c => c !== code)
+      return [...prev, code]
+    })
+  }
+
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 999
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: 'min(1200px, 95vw)',
-          maxHeight: '85vh',
-          background: '#1a1a2e',
-          border: '1px solid #1f2a4d',
-          borderRadius: 14,
-          boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          style={{
-            padding: '14px 16px',
-            borderBottom: '1px solid #1f2a4d',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            color: '#e5e7eb'
-          }}
-        >
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex', justifyContent: 'center', alignItems: 'start',
+      paddingTop: 40, paddingBottom: 40,
+      overflowY: 'auto',
+      backdropFilter: 'blur(2px)'
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 1000,
+        background: '#f2f2f2',
+        borderRadius: 8,
+        boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
+        minHeight: '80vh',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+      }}>
+
+        {/* Header */}
+        <div style={{ background: '#003b95', color: 'white', padding: '16px 24px', borderTopLeftRadius: 8, borderTopRightRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: '1rem' }}>Flight offers</div>
-            <div style={{ fontSize: '0.9rem', color: '#9ca3af' }}>{headerLabel}</div>
+            <h2 style={{ fontSize: '1.2rem', margin: 0, fontWeight: 700 }}>Select your flight</h2>
+            <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: 4 }}>
+              {searchFrom} to {searchTo} · {searchDate} {searchReturnDate ? ` - ${searchReturnDate}` : ''}
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
-            aria-label="Close"
-          >
-            <X size={20} />
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}>
+            <X size={24} />
           </button>
         </div>
 
-        <div style={{ padding: '14px', overflowY: 'auto', flex: 1, background: '#0f172a' }}>
-          {/* Top filter bar */}
-          {!loading && !error && enrichedResults.length > 0 && (
-            <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              {['best', 'cheapest', 'fastest'].map((key) => {
-                const labels = { best: 'Best', cheapest: 'Cheapest', fastest: 'Fastest' }
-                const active = sortKey === key
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setSortKey(key)}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: 8,
-                      border: active ? '1px solid #2563eb' : '1px solid #1f2a4d',
-                      background: active ? 'rgba(37,99,235,0.15)' : '#111827',
-                      color: '#e5e7eb',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {labels[key]}
-                  </button>
-                )
-              })}
+        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+
+          {/* Sidebar Filters */}
+          <div style={{ width: 260, padding: 24, borderRight: '1px solid #e7e7e7', background: 'white', minHeight: '80vh' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 16 }}>Filters</h3>
+            <div style={{ fontSize: '0.85rem', color: '#595959', marginBottom: 24 }}>Showing {finalResults.length} results</div>
+
+            {/* Stops Filter */}
+            <div style={{ marginBottom: 24, borderBottom: '1px solid #e7e7e7', paddingBottom: 24 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 12 }}>Stops</div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Any */}
+                <label style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', opacity: stopsStats.any.count === 0 ? 0.5 : 1 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <input type="radio" name="stops" checked={stopsFilter === 'any'} onChange={() => setStopsFilter('any')} style={{ marginTop: 3 }} />
+                    <div>
+                      <div style={{ fontSize: '0.9rem', color: '#1a1a1a' }}>Any</div>
+                      <div style={{ fontSize: '0.8rem', color: '#595959', marginTop: 2 }}>From €{stopsStats.any.minPrice !== Infinity ? stopsStats.any.minPrice.toFixed(2) : '--'}</div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#595959' }}>{stopsStats.any.count}</div>
+                </label>
+
+                {/* Direct */}
+                <label style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', opacity: stopsStats.direct.count === 0 ? 0.5 : 1 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <input type="radio" name="stops" checked={stopsFilter === 'direct'} onChange={() => setStopsFilter('direct')} disabled={stopsStats.direct.count === 0} style={{ marginTop: 3 }} />
+                    <div>
+                      <div style={{ fontSize: '0.9rem', color: '#1a1a1a' }}>Direct only</div>
+                      {stopsStats.direct.count > 0 && <div style={{ fontSize: '0.8rem', color: '#595959', marginTop: 2 }}>From €{stopsStats.direct.minPrice.toFixed(2)}</div>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#595959' }}>{stopsStats.direct.count}</div>
+                </label>
+
+                {/* 1 Stop Max */}
+                <label style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', opacity: stopsStats.onestop.count === 0 ? 0.5 : 1 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <input type="radio" name="stops" checked={stopsFilter === 'onestop'} onChange={() => setStopsFilter('onestop')} disabled={stopsStats.onestop.count === 0} style={{ marginTop: 3 }} />
+                    <div>
+                      <div style={{ fontSize: '0.9rem', color: '#1a1a1a' }}>1 stop max</div>
+                      {stopsStats.onestop.count > 0 && <div style={{ fontSize: '0.8rem', color: '#595959', marginTop: 2 }}>From €{stopsStats.onestop.minPrice.toFixed(2)}</div>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#595959' }}>{stopsStats.onestop.count}</div>
+                </label>
+              </div>
             </div>
-          )}
 
-          {loading && (
-            <div style={{ textAlign: 'center', color: '#e5e7eb', padding: '30px 0' }}>
-              <div className="spinner" style={{ marginBottom: 12 }} />
-              Searching flights...
-            </div>
-          )}
-
-          {!loading && error && (
-            <div
-              style={{
-                background: 'rgba(239,68,68,0.12)',
-                border: '1px solid rgba(239,68,68,0.35)',
-                color: '#fecdd3',
-                borderRadius: 10,
-                padding: 12,
-                marginBottom: 12,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8
-              }}
-            >
-              <AlertCircle size={18} />
-              <span style={{ flex: 1 }}>Search failed: {error}</span>
-              {onRetry && (
-                <button type="button" className="button button-secondary" onClick={onRetry}>
-                  Retry
-                </button>
-              )}
-            </div>
-          )}
-
-          {!loading && !error && (!results || results.length === 0) && (
-            <div style={{ textAlign: 'center', color: '#9ca3af', padding: '30px 0' }}>No flights found</div>
-          )}
-
-          {!loading && !error && enrichedResults.length > 0 && (
-            <div style={{ display: 'flex', gap: 16 }}>
-              {/* Side filters */}
-              <div style={{ width: 240, minWidth: 200, background: '#111827', border: '1px solid #1f2a4d', borderRadius: 10, padding: 10, color: '#e5e7eb' }}>
-                <div style={{ fontWeight: 700, marginBottom: 8 }}>Filters</div>
-
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Stops</div>
-                  {[
-                    { key: 'any', label: 'Any' },
-                    { key: 'direct', label: 'Direct only' },
-                    { key: 'onestop', label: '1 stop max' }
-                  ].map((opt) => (
-                    <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="stops"
-                        value={opt.key}
-                        checked={stopsFilter === opt.key}
-                        onChange={() => setStopsFilter(opt.key)}
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Airlines</div>
-                  {airlines.map((air) => (
-                    <label key={air} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, cursor: 'pointer' }}>
+            {/* Airlines Filter */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 12 }}>Airlines</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {airlineList.map(item => (
+                  <label key={item.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <input
                         type="checkbox"
-                        checked={airlineFilter.includes(air)}
-                        onChange={() => toggleAirline(air)}
+                        checked={selectedAirlines.length === 0 || selectedAirlines.includes(item.code)}
+                        onChange={() => toggleAirline(item.code)}
                       />
-                      {air}
-                    </label>
-                  ))}
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Price range</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      type="number"
-                      value={priceRange[0] ?? 0}
-                      onChange={(e) => handlePriceChange('min', e.target.value)}
-                      style={{ flex: 1, background: '#0f172a', color: '#e5e7eb', border: '1px solid #1f2a4d', borderRadius: 6, padding: 6 }}
-                    />
-                    <input
-                      type="number"
-                      value={priceRange[1] ?? 0}
-                      onChange={(e) => handlePriceChange('max', e.target.value)}
-                      style={{ flex: 1, background: '#0f172a', color: '#e5e7eb', border: '1px solid #1f2a4d', borderRadius: 6, padding: 6 }}
-                    />
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: 4 }}>
-                    Min: {minPrice || 0} · Max: {maxPrice || 0}
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Duration (max minutes)</div>
-                  <input
-                    type="number"
-                    value={durationLimit || ''}
-                    placeholder={maxDuration ? String(maxDuration) : ''}
-                    onChange={(e) => handleDurationChange(e.target.value || maxDuration)}
-                    style={{ width: '100%', background: '#0f172a', color: '#e5e7eb', border: '1px solid #1f2a4d', borderRadius: 6, padding: 6 }}
-                  />
-                  <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: 4 }}>
-                    Current max: {durationLimit || maxDuration || '—'} min
-                  </div>
-                </div>
-              </div>
-
-              {/* Results list */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {filteredSorted.map((flight) => (
-                  <FlightCard
-                    key={flight.id || flight.offer?.id}
-                    flight={flight}
-                    isSelected={selectedId === (flight.id || flight.offer?.id)}
-                    onSelect={() => {
-                      setSelectedId(flight.id || flight.offer?.id || null)
-                      onSelectFlight?.(flight)
-                    }}
-                    onHold={() => {
-                      setSelectedId(flight.id || flight.offer?.id || null)
-                      onHold?.(flight)
-                    }}
-                  />
+                      <span style={{ fontSize: '0.9rem', color: '#1a1a1a' }}>{item.name}</span>
+                    </div>
+                    <span style={{ fontSize: '0.9rem', color: '#595959' }}>{item.count}</span>
+                  </label>
                 ))}
-                {filteredSorted.length === 0 && (
-                  <div style={{ color: '#9ca3af', textAlign: 'center', padding: 20 }}>No flights match the selected filters.</div>
-                )}
               </div>
             </div>
-          )}
+          </div>
+
+          {/* Main Content */}
+          <div style={{ flex: 1, padding: 24 }}>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', background: 'white', border: '1px solid #e7e7e7', borderRadius: 4, marginBottom: 24 }}>
+              {['Best', 'Cheapest', 'Fastest'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setSortKey(tab.toLowerCase())}
+                  style={{
+                    flex: 1, padding: '12px', background: 'transparent', border: 'none',
+                    borderBottom: sortKey === tab.toLowerCase() ? '3px solid #006ce4' : '3px solid transparent',
+                    color: sortKey === tab.toLowerCase() ? '#006ce4' : '#1a1a1a',
+                    fontWeight: sortKey === tab.toLowerCase() ? 700 : 400,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {loading && <div style={{ padding: 40, textAlign: 'center' }}>Searching flights...</div>}
+
+            {!loading && displayResults.map((flight) => (
+              <FlightCard
+                key={flight.id || flight.offer?.id}
+                flight={flight}
+                isExpanded={expandedId === (flight.id || flight.offer?.id)}
+                onToggle={(id) => setExpandedId(prev => prev === id ? null : id)}
+                onSelect={() => onSelectFlight?.(flight)}
+              />
+            ))}
+
+            {!loading && displayResults.length === 0 && (
+              <div style={{ padding: 40, textAlign: 'center', color: '#595959' }}>
+                No flights found matching your filters.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

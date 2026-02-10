@@ -16,7 +16,7 @@ import { saveToRecyclingBin, getItemDisplayName } from '../lib/recyclingBin'
 import generateBankTransferInvoicePdf from '../utils/generateBankTransferInvoicePdf'
 import generateGroupInvoicePdf from '../utils/generateGroupInvoicePdf'
 import AirlinesAutocomplete from '../components/AirlinesAutocomplete'
-import { loadAirlines, formatAirlineCompact } from '../lib/airlines'
+import { loadAirlines, formatAirlineCompact, getAirlineName, getBaggageAllowance, getFareRules } from '../lib/airlines'
 import AirportAutocomplete from '../components/AirportAutocomplete'
 import FlightSearchForm from '../components/FlightSearchForm'
 import FlightSearchModal from '../components/FlightSearchModal'
@@ -46,30 +46,30 @@ const translations = {
       dark: 'Dark',
       light: 'Light'
     },
-      table: {
-        title: 'Main Table',
-        loading: 'Loading bookings...',
-        noRequests: 'No bookings found.',
-        error: 'Error loading requests',
-        refresh: 'Refresh',
-        createNew: 'Create New Request',
-        delete: 'Delete',
-        deleteConfirm: 'Are you sure you want to delete this request?',
-        deleteSuccess: 'Request deleted successfully',
-        deleteError: 'Failed to delete request',
-        search: {
-          placeholder: 'Search by name, passport, or airport...'
-        },
-        pagination: {
-          previous: 'Previous',
-          next: 'Next',
-          page: 'Page',
-          of: 'of',
-          showing: 'Showing',
-          to: 'to',
-          ofTotal: 'of'
-        },
-        columns: {
+    table: {
+      title: 'Main Table',
+      loading: 'Loading bookings...',
+      noRequests: 'No bookings found.',
+      error: 'Error loading requests',
+      refresh: 'Refresh',
+      createNew: 'Create New Request',
+      delete: 'Delete',
+      deleteConfirm: 'Are you sure you want to delete this request?',
+      deleteSuccess: 'Request deleted successfully',
+      deleteError: 'Failed to delete request',
+      search: {
+        placeholder: 'Search by name, passport, or airport...'
+      },
+      pagination: {
+        previous: 'Previous',
+        next: 'Next',
+        page: 'Page',
+        of: 'of',
+        showing: 'Showing',
+        to: 'to',
+        ofTotal: 'of'
+      },
+      columns: {
         id: 'ID',
         bookingRef: 'Booking Ref',
         bookingStatus: 'Booking Status',
@@ -149,29 +149,29 @@ const translations = {
       dark: 'Dunkel',
       light: 'Hell'
     },
-      table: {
-        title: 'Haupttabelle',
-        loading: 'Buchungen werden geladen...',
-        noRequests: 'Keine Buchungen gefunden.',
-        error: 'Fehler beim Laden der Anfragen',
-        refresh: 'Aktualisieren',
-        createNew: 'Neue Anfrage erstellen',
-        delete: 'Löschen',
-        deleteConfirm: 'Sind Sie sicher, dass Sie diese Anfrage löschen möchten?',
-        deleteSuccess: 'Anfrage erfolgreich gelöscht',
-        deleteError: 'Fehler beim Löschen der Anfrage',
-        search: {
-          placeholder: 'Suche nach Name, Passnummer oder Flughafen...'
-        },
-        pagination: {
-          previous: 'Zurück',
-          next: 'Weiter',
-          page: 'Seite',
-          of: 'von',
-          showing: 'Zeige',
-          to: 'bis',
-          ofTotal: 'von'
-        },
+    table: {
+      title: 'Haupttabelle',
+      loading: 'Buchungen werden geladen...',
+      noRequests: 'Keine Buchungen gefunden.',
+      error: 'Fehler beim Laden der Anfragen',
+      refresh: 'Aktualisieren',
+      createNew: 'Neue Anfrage erstellen',
+      delete: 'Löschen',
+      deleteConfirm: 'Sind Sie sicher, dass Sie diese Anfrage löschen möchten?',
+      deleteSuccess: 'Anfrage erfolgreich gelöscht',
+      deleteError: 'Fehler beim Löschen der Anfrage',
+      search: {
+        placeholder: 'Suche nach Name, Passnummer oder Flughafen...'
+      },
+      pagination: {
+        previous: 'Zurück',
+        next: 'Weiter',
+        page: 'Seite',
+        of: 'von',
+        showing: 'Zeige',
+        to: 'bis',
+        ofTotal: 'von'
+      },
       columns: {
         id: 'ID',
         bookingRef: 'Buchungsreferenz',
@@ -240,13 +240,13 @@ function RequestsList() {
   const { store } = useStore()
   const [language, setLanguage] = useState(DEFAULT_LANGUAGE)
   const t = translations[language]
-  
+
   const [theme, setTheme] = useState(DEFAULT_THEME)
   const [requests, setRequests] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  
+
   // Flight search state (sandbox mock)
   const [searchFrom, setSearchFrom] = useState('MUC')
   const [searchTo, setSearchTo] = useState('IST')
@@ -261,20 +261,20 @@ function RequestsList() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize] = useState(50) // Fixed page size
   const [totalCount, setTotalCount] = useState(0)
-  
+
   // Search state
   const [searchTerm, setSearchTerm] = useState('')
-  
+
   // Date filter state (default to 'thisMonth')
   const [dateFilter, setDateFilter] = useState('thisMonth') // 'today' | 'thisWeek' | 'thisMonth' | 'thisYear' | 'year_YYYY' | null
-  
+
   // Month/Year filter state (for conditional filtering)
   const [selectedMonth, setSelectedMonth] = useState(null) // 0-11 (January = 0) or null for "All Months"
   const [selectedYear, setSelectedYear] = useState(null) // year number or null for "All Years"
-  
+
   // Grouping state (which months are expanded)
   const [expandedGroups, setExpandedGroups] = useState(new Set())
-  
+
   // Excel-like editing state
   const [editingCell, setEditingCell] = useState(null) // { rowId, field }
   const [editValue, setEditValue] = useState('')
@@ -282,7 +282,7 @@ function RequestsList() {
   const editInputRef = useRef(null)
   const tableRef = useRef(null)
   const [airlineDisplayMap, setAirlineDisplayMap] = useState({})
-  
+
   // Column resizing state
   const [columnWidths, setColumnWidths] = useState({
     select: 48,
@@ -479,54 +479,54 @@ function RequestsList() {
   const handleResizeStart = (field, e) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     const startX = e.clientX || (e.touches && e.touches[0]?.clientX) || 0
     const startWidth = columnWidths[field] || 120
-    
+
     resizingRef.current = {
       isResizing: true,
       column: field,
       startX: startX,
       startWidth: startWidth
     }
-    
+
     // Prevent text selection and change cursor
     document.body.style.userSelect = 'none'
     document.body.style.cursor = 'col-resize'
-    
+
     const handleMouseMove = (moveEvent) => {
       if (!resizingRef.current || !resizingRef.current.isResizing) return
-      
+
       const currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0]?.clientX) || 0
       if (!currentX) return
-      
+
       moveEvent.preventDefault()
       moveEvent.stopPropagation()
-      
+
       const diff = currentX - resizingRef.current.startX
       const newWidth = Math.max(30, resizingRef.current.startWidth + diff)
-      
+
       // Update width immediately
       setColumnWidths(prev => ({
         ...prev,
         [resizingRef.current.column]: newWidth
       }))
     }
-    
+
     const handleMouseUp = () => {
       if (resizingRef.current) {
         resizingRef.current.isResizing = false
       }
-      
+
       document.body.style.userSelect = ''
       document.body.style.cursor = ''
-      
+
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
       document.removeEventListener('touchmove', handleMouseMove)
       document.removeEventListener('touchend', handleMouseUp)
     }
-    
+
     // Add event listeners with capture to ensure we catch all events
     document.addEventListener('mousemove', handleMouseMove, true)
     document.addEventListener('mouseup', handleMouseUp, true)
@@ -538,10 +538,10 @@ function RequestsList() {
   const handleResizeDoubleClick = (field, e) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     // Find the widest content in this column
     let maxWidth = 100 // minimum width
-    
+
     const flatRequests = groupedRequests.flatMap(group => group.requests)
     flatRequests.forEach(request => {
       const value = getCellValue(request, field)
@@ -560,7 +560,7 @@ function RequestsList() {
         document.body.removeChild(temp)
       }
     })
-    
+
     // Also check header width
     const headerLabel = getColumnLabel(field)
     const temp = document.createElement('span')
@@ -574,7 +574,7 @@ function RequestsList() {
     const headerWidth = temp.offsetWidth + 32
     maxWidth = Math.max(maxWidth, headerWidth)
     document.body.removeChild(temp)
-    
+
     // Set the new width
     setColumnWidths(prev => ({
       ...prev,
@@ -587,21 +587,21 @@ function RequestsList() {
     try {
       setLoading(true)
       setError(null)
-      
+
       // Calculate offset
       const offset = (page - 1) * pageSize
-      
+
       // Fetch total count
       const { count, error: countError } = await supabase
         .from('main_table')
         .select('*', { count: 'exact', head: true })
-      
+
       if (countError) {
         throw countError
       }
-      
+
       setTotalCount(count || 0)
-      
+
       // Fetch paginated data
       const { data, error: fetchError } = await supabase
         .from('main_table')
@@ -623,7 +623,7 @@ function RequestsList() {
         const bankTransfer = parseFloat(request.bank_transfer) || 0
         const commission = parseFloat(request.commission_from_airlines) || 0
         const loanFee = parseFloat(request.lst_loan_fee) || 0
-        
+
         return {
           ...request,
           total_ticket_price: request.total_ticket_price || (airlinesPrice + serviceFee),
@@ -726,7 +726,7 @@ function RequestsList() {
   // Handle generate invoice (Supabase-enabled)
   const handleGenerateInvoice = async (request, e, mode = 'preview') => {
     e.stopPropagation()
-    
+
     try {
       // Fetch invoice settings using fixed APP_ID for single-tenant app
       let settingsData = {}
@@ -740,10 +740,10 @@ function RequestsList() {
       } catch (err) {
         console.warn('Invoice settings fetch failed:', err.message)
       }
-      
+
       // Prioritize logo_url from invoice_settings, fallback to storage lookup
       let logoUrl = settingsData?.logo_url || null
-      
+
       // Only try storage if invoice_settings doesn't have a logo_url
       if (!logoUrl && supabase?.storage) {
         // Try to find logo in storage using APP_ID path
@@ -764,14 +764,14 @@ function RequestsList() {
           // ignore storage errors
         }
       }
-      
+
       // Ensure logo_url is passed to PDF generator (use invoice_settings value if available)
       const settings = {
         ...settingsData,
         include_qr: settingsData?.include_qr ?? false,
         logo_url: settingsData?.logo_url || logoUrl || ''  // Prioritize invoice_settings.logo_url
       }
-      
+
       console.log('Invoice settings passed to PDF generator:', {
         hasSettingsData: !!settingsData,
         logoUrlFromSettings: settingsData?.logo_url,
@@ -838,7 +838,7 @@ function RequestsList() {
 
       // Prioritize logo_url from invoice_settings, fallback to storage lookup
       let logoUrl = settingsData?.logo_url || null
-      
+
       // Only try storage if invoice_settings doesn't have a logo_url
       if (!logoUrl && supabase?.storage) {
         // Try to find logo in storage using APP_ID path
@@ -866,7 +866,7 @@ function RequestsList() {
         include_qr: settingsData?.include_qr ?? false,
         logo_url: settingsData?.logo_url || logoUrl || ''  // Prioritize invoice_settings.logo_url
       }
-      
+
       console.log('Group invoice settings passed to PDF generator:', {
         hasSettingsData: !!settingsData,
         logoUrlFromSettings: settingsData?.logo_url,
@@ -971,9 +971,9 @@ function RequestsList() {
         throw new Error('Missing Amadeus offer for draft')
       }
 
-    // Prevent duplicates: first reuse by request_id, then by offer id
+      // Prevent duplicates: first reuse by request_id, then by offer id
       let existingId = null
-    if (draftPayload.request_id) {
+      if (draftPayload.request_id) {
         const { data: existingByRequest, error: existingReqErr } = await supabase
           .from('main_table')
           .select('id')
@@ -992,7 +992,7 @@ function RequestsList() {
         existingId = existing?.id || null
       }
 
-    let upsertResult = null
+      let upsertResult = null
       if (existingId) {
         const { data, error } = await supabase
           .from('main_table')
@@ -1124,21 +1124,19 @@ function RequestsList() {
         prev.map((r) =>
           r.id === booking.id
             ? {
-                ...r,
-                amadeus_pnr: updatedPnr,
-                amadeus_order_id: updatedOrder,
-                hold_expires_at: updatedExpiry,
-                booking_status: 'pending'
-              }
+              ...r,
+              amadeus_pnr: updatedPnr,
+              amadeus_order_id: updatedOrder,
+              hold_expires_at: updatedExpiry,
+              booking_status: 'pending'
+            }
             : r
         )
       )
 
       alert(
-        `✅ Hold created.\n\nPNR: ${updatedPnr || 'N/A'}\nOrder ID: ${
-          updatedOrder || 'N/A'
-        }\nAmount: €${price || booking.total_ticket_price || 'N/A'}\nStatus: pending\nExpires: ${
-          updatedExpiry || 'N/A'
+        `✅ Hold created.\n\nPNR: ${updatedPnr || 'N/A'}\nOrder ID: ${updatedOrder || 'N/A'
+        }\nAmount: €${price || booking.total_ticket_price || 'N/A'}\nStatus: pending\nExpires: ${updatedExpiry || 'N/A'
         }`
       )
       fetchRequests(currentPage)
@@ -1206,7 +1204,7 @@ function RequestsList() {
   // Handle delete request
   const handleDeleteRequest = async (requestId, e) => {
     e.stopPropagation()
-    
+
     // Confirm deletion
     if (!window.confirm(t.table.deleteConfirm)) {
       return
@@ -1239,7 +1237,7 @@ function RequestsList() {
 
       // Show success message
       alert(t.table.deleteSuccess)
-      
+
       // Refresh the current page
       fetchRequests(currentPage)
     } catch (err) {
@@ -1300,19 +1298,19 @@ function RequestsList() {
   // Date filter functions - calculate ranges dynamically
   const getDateFilterRange = (filterType, month = null, year = null) => {
     if (!filterType) return null
-    
+
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     today.setHours(0, 0, 0, 0)
-    
+
     let startDate = null
     let endDate = new Date(now) // Now (inclusive)
-    
+
     switch (filterType) {
       case 'today':
         startDate = new Date(today)
         break
-      
+
       case 'thisWeek':
         // Start of week (Monday)
         const dayOfWeek = now.getDay()
@@ -1320,13 +1318,13 @@ function RequestsList() {
         startDate = new Date(today)
         startDate.setDate(today.getDate() - daysToMonday)
         break
-      
+
       case 'thisMonth':
         // First day of current month
         startDate = new Date(now.getFullYear(), now.getMonth(), 1)
         startDate.setHours(0, 0, 0, 0)
         break
-      
+
       case 'thisYear':
         if (month !== null) {
           // Specific month in current year
@@ -1341,7 +1339,7 @@ function RequestsList() {
           startDate.setHours(0, 0, 0, 0)
         }
         break
-      
+
       default:
         // Check if filterType is a year (format: 'year_YYYY')
         if (filterType && filterType.startsWith('year_')) {
@@ -1365,14 +1363,14 @@ function RequestsList() {
         }
         return null
     }
-    
+
     return { startDate, endDate }
   }
 
   // Filter requests by date range
   const filterByDate = (requests, filterType) => {
     if (!filterType) return requests
-    
+
     // Extract year from filterType if it's in 'year_YYYY' format
     let year = selectedYear
     if (filterType && filterType.startsWith('year_')) {
@@ -1381,23 +1379,23 @@ function RequestsList() {
         year = extractedYear
       }
     }
-    
+
     const range = getDateFilterRange(filterType, selectedMonth, year)
     if (!range) return requests
-    
+
     return requests.filter(request => {
       if (!request.created_at) return false
-      
+
       const requestDate = new Date(request.created_at)
       requestDate.setHours(0, 0, 0, 0)
-      
+
       if (range.startDate && requestDate < range.startDate) return false
       if (range.endDate) {
         const endDate = new Date(range.endDate)
         endDate.setHours(23, 59, 59, 999)
         if (requestDate > endDate) return false
       }
-      
+
       return true
     })
   }
@@ -1415,7 +1413,7 @@ function RequestsList() {
     const now = new Date()
     const currentYear = now.getFullYear()
     const years = []
-    
+
     // Get unique years from requests that are before current year
     const yearSet = new Set()
     requests.forEach(request => {
@@ -1427,7 +1425,7 @@ function RequestsList() {
         }
       }
     })
-    
+
     // Convert to array and sort descending (latest first)
     return Array.from(yearSet).sort((a, b) => b - a)
   }
@@ -1437,31 +1435,31 @@ function RequestsList() {
     const now = new Date()
     const currentYear = now.getFullYear()
     const years = []
-    
+
     // Generate years from current year - 1 going back to a reasonable limit (e.g., 2020)
     // This shows previous years based on the current date, not just data
     const startYear = currentYear - 1 // Last year
     const endYear = 2020 // Reasonable limit (adjust if needed)
-    
+
     for (let year = startYear; year >= endYear; year--) {
       years.push(year)
     }
-    
+
     return years
   }
 
   // Group requests by month and year
   const groupByMonth = (requests) => {
     const groups = {}
-    
+
     requests.forEach(request => {
       if (!request.created_at) return
-      
+
       const date = new Date(request.created_at)
       const month = date.getMonth()
       const year = date.getFullYear()
       const key = `${year}-${String(month + 1).padStart(2, '0')}`
-      
+
       if (!groups[key]) {
         groups[key] = {
           key,
@@ -1471,10 +1469,10 @@ function RequestsList() {
           requests: []
         }
       }
-      
+
       groups[key].requests.push(request)
     })
-    
+
     // Sort groups by date (newest first)
     return Object.values(groups).sort((a, b) => {
       if (b.year !== a.year) return b.year - a.year
@@ -1522,23 +1520,48 @@ function RequestsList() {
     if (field === 'row_number') {
       return rowIndex !== null ? String(rowIndex + 1) : ''
     }
-    
+
     // Handle computed/calculated fields
     if (field === 'travel_date' || field === 'return_date') {
       if (!request[field]) return ''
       return formatDateForDisplay(request[field])
     }
-    
+
     if (field === 'airlines') {
       const raw = (request.airlines || request.airline_name || '').trim()
-      return formatAirlineDisplay(raw)
+      // Use helper to get nice name: "Lufthansa (LH)"
+      const name = getAirlineName(raw)
+      let display = name ? `${name} (${raw})` : raw
+
+      // Try to append baggage info and rules if available in pricing_json
+      try {
+        if (request.pricing_json) {
+          const offer = typeof request.pricing_json === 'string'
+            ? JSON.parse(request.pricing_json)
+            : request.pricing_json
+
+          const bag = getBaggageAllowance(offer)
+          if (bag) {
+            display += ` • ${bag}`
+          }
+
+          const rules = getFareRules(offer)
+          if (rules && rules.summary) {
+            display += ` • ${rules.summary}`
+          }
+        }
+      } catch (e) {
+        // ignore parsing errors
+      }
+
+      return display
     }
 
     if (field === 'departure_airport' || field === 'destination_airport') {
       const raw = request[field]
       return formatAirportDisplay(raw)
     }
-    
+
     // Financial calculations
     if (field === 'total_ticket_price') {
       const stored = parseFloat(request.total_ticket_price)
@@ -1550,7 +1573,7 @@ function RequestsList() {
       const total = airlinesPrice + serviceFee
       return total > 0 ? formatCurrency(total) : ''
     }
-    
+
     if (field === 'tot_visa_fees') {
       const stored = parseFloat(request.tot_visa_fees)
       if (!isNaN(stored)) {
@@ -1561,14 +1584,14 @@ function RequestsList() {
       const total = visaPrice + serviceVisa
       return total > 0 ? formatCurrency(total) : ''
     }
-    
+
     if (field === 'total_customer_payment') {
       const cashPaid = parseFloat(request.cash_paid) || 0
       const bankTransfer = parseFloat(request.bank_transfer) || 0
       const total = cashPaid + bankTransfer
       return total > 0 ? formatCurrency(total) : ''
     }
-    
+
     if (field === 'total_amount_due') {
       const stored = parseFloat(request.total_amount_due)
       if (!isNaN(stored)) {
@@ -1583,17 +1606,17 @@ function RequestsList() {
       const total = ticketPrice + visaFees
       return total > 0 ? formatCurrency(total) : ''
     }
-    
+
     if (field === 'payment_balance') {
-      const customerPayment = parseFloat(request.total_customer_payment) || 
+      const customerPayment = parseFloat(request.total_customer_payment) ||
         (parseFloat(request.cash_paid) || 0) + (parseFloat(request.bank_transfer) || 0)
-      const amountDue = parseFloat(request.total_amount_due) || 
+      const amountDue = parseFloat(request.total_amount_due) ||
         ((parseFloat(request.airlines_price) || 0) + (parseFloat(request.service_fee) || 0)) +
         ((parseFloat(request.visa_price) || 0) + (parseFloat(request.service_visa) || 0))
       const balance = customerPayment - amountDue
       return formatCurrency(balance)
     }
-    
+
     if (field === 'lst_profit') {
       const serviceFee = parseFloat(request.service_fee) || 0
       const serviceVisa = parseFloat(request.service_visa) || 0
@@ -1602,7 +1625,7 @@ function RequestsList() {
       const profit = serviceFee + serviceVisa + commission - loanFee
       return profit !== 0 ? formatCurrency(profit) : ''
     }
-    
+
     switch (field) {
       case 'date_of_birth':
       case 'travel_date':
@@ -1614,10 +1637,10 @@ function RequestsList() {
         return request[field] ? (t.table.gender[request[field]] || request[field]) : ''
       case 'status':
         return request[field] ? (t.table.status[request[field]] || request[field]) : ''
-    case 'booking_status': {
-      const val = request.booking_status || request.status
-      return val ? getStatusLabel(val, language) : ''
-    }
+      case 'booking_status': {
+        const val = request.booking_status || request.status
+        return val ? getStatusLabel(val, language) : ''
+      }
       case 'print_invoice':
         return request[field] ? 'Yes' : 'No'
       case 'request_types':
@@ -1690,17 +1713,17 @@ function RequestsList() {
     setEditingCell({ rowId, field })
     setEditValue(rawValue)
     setOriginalValue(rawValue)
-    
+
     // Focus input after state update (skip for checkbox)
     if (field !== 'print_invoice') {
-    setTimeout(() => {
-      if (editInputRef.current) {
-        editInputRef.current.focus()
+      setTimeout(() => {
+        if (editInputRef.current) {
+          editInputRef.current.focus()
           if (editInputRef.current.select) {
-        editInputRef.current.select()
+            editInputRef.current.select()
+          }
         }
-      }
-    }, 0)
+      }, 0)
     }
   }
 
@@ -1717,7 +1740,7 @@ function RequestsList() {
     if (!request) return
 
     let dbValue = value.trim()
-    
+
     // Convert dates to ISO format
     if (field === 'date_of_birth' || field === 'travel_date' || field === 'return_date') {
       dbValue = convertDateToISO(dbValue)
@@ -1782,7 +1805,7 @@ function RequestsList() {
         } else {
           updated[field] = dbValue === '' ? null : dbValue
         }
-        
+
         // Calculate financial fields (allow manual overrides for totals)
         const airlinesPrice = parseFloat(updated.airlines_price) || 0
         const serviceFee = parseFloat(updated.service_fee) || 0
@@ -1829,7 +1852,7 @@ function RequestsList() {
         if (recalcProfit) {
           updated.lst_profit = serviceFee + serviceVisa + commission - loanFee
         }
-        
+
         return updated
       }
       return r
@@ -1845,7 +1868,7 @@ function RequestsList() {
 
       const updateData = {}
       updateData[field] = dbValue
-      
+
       // Get the updated request to calculate financial fields
       const updatedRequest = updatedRequests.find(r => r.id === rowId)
       if (updatedRequest) {
@@ -1870,12 +1893,12 @@ function RequestsList() {
       // Auto-ticket when payment captured to keep dashboard in sync (no UI change)
       const updatedBookingStatus = String(updatedRequest?.booking_status || updatedRequest?.status || '').toLowerCase()
       const paymentCaptured = (parseFloat(updatedRequest?.cash_paid) || 0) + (parseFloat(updatedRequest?.bank_transfer) || 0)
-    if ((field === 'cash_paid' || field === 'bank_transfer') && paymentCaptured > 0 && updatedBookingStatus === 'pending') {
+      if ((field === 'cash_paid' || field === 'bank_transfer') && paymentCaptured > 0 && updatedBookingStatus === 'pending') {
         try {
-        // Guard: require Amadeus order before ticketing
-        if (!updatedRequest?.amadeus_order_id) {
-          throw new Error('Missing Amadeus order; issue hold before ticketing')
-        }
+          // Guard: require Amadeus order before ticketing
+          if (!updatedRequest?.amadeus_order_id) {
+            throw new Error('Missing Amadeus order; issue hold before ticketing')
+          }
           const ticketResult = await amadeusTicket({
             bookingId: rowId,
             paymentAmount: paymentCaptured,
@@ -1892,12 +1915,12 @@ function RequestsList() {
             prev.map((req) =>
               req.id === rowId
                 ? {
-                    ...req,
-                    booking_status: 'confirmed',
-                    payment_status: 'paid',
-                    amadeus_ticket_number: ticketNumber,
-                    payment_amount: paymentCaptured
-                  }
+                  ...req,
+                  booking_status: 'confirmed',
+                  payment_status: 'paid',
+                  amadeus_ticket_number: ticketNumber,
+                  payment_amount: paymentCaptured
+                }
                 : req
             )
           )
@@ -1940,24 +1963,24 @@ function RequestsList() {
   // Handle key down in input
   const handleInputKeyDown = (e, rowId, field) => {
     if (e.key === 'Enter') {
-        e.preventDefault()
+      e.preventDefault()
       saveCell(rowId, field, editValue)
-      } else if (e.key === 'Escape') {
-        e.preventDefault()
-        cancelEditing()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelEditing()
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Tab') {
       // Save current cell first
       e.preventDefault()
       saveCell(rowId, field, editValue)
-      
+
       // Find current cell position - use all editable columns
       const currentRowIndex = requests.findIndex(r => r.id === rowId)
       const columns = columnOrder.filter(col => isEditable(col) && col !== 'delete' && col !== 'invoice_action')
       const currentColIndex = columns.indexOf(field)
-      
+
       let newRowIndex = currentRowIndex
       let newColIndex = currentColIndex
-      
+
       if (e.key === 'ArrowUp') {
         newRowIndex = Math.max(0, currentRowIndex - 1)
       } else if (e.key === 'ArrowDown') {
@@ -1972,7 +1995,7 @@ function RequestsList() {
           newColIndex = 0
         }
       }
-      
+
       // Move to new cell
       if (newRowIndex >= 0 && newRowIndex < requests.length && newColIndex >= 0 && newColIndex < columns.length) {
         const newRowId = requests[newRowIndex].id
@@ -2009,15 +2032,15 @@ function RequestsList() {
       )
     }
 
-      if (field === 'amadeus_pnr') {
-        const statusLower = (request.booking_status || '').toLowerCase()
-        const value = statusLower === 'pending' || statusLower === 'confirmed' ? request.amadeus_pnr || '' : ''
-        return (
-          <div className="excel-cell">
-            <span>{value}</span>
-          </div>
-        )
-      }
+    if (field === 'amadeus_pnr') {
+      const statusLower = (request.booking_status || '').toLowerCase()
+      const value = statusLower === 'pending' || statusLower === 'confirmed' ? request.amadeus_pnr || '' : ''
+      return (
+        <div className="excel-cell">
+          <span>{value}</span>
+        </div>
+      )
+    }
 
     if (field === 'select') {
       return (
@@ -2067,16 +2090,16 @@ function RequestsList() {
             aria-label={t.table.delete}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-              <line x1="10" y1="11" x2="10" y2="17"/>
-              <line x1="14" y1="11" x2="14" y2="17"/>
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
             </svg>
           </button>
         </div>
       )
     }
-    
+
     // Row number is read-only
     if (field === 'row_number') {
       return (
@@ -2085,7 +2108,7 @@ function RequestsList() {
         </div>
       )
     }
-    
+
     if (editingCell && editingCell.rowId === request.id && editingCell.field === field) {
       // Render input for editing
       if (field === 'gender') {
@@ -2213,8 +2236,8 @@ function RequestsList() {
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 e.preventDefault()
-                  cancelEditing()
-                }
+                cancelEditing()
+              }
               // Allow Enter for newlines in textarea
             }}
             onClick={(e) => e.stopPropagation()}
@@ -2253,7 +2276,7 @@ function RequestsList() {
     } else {
       // Render display value
       const value = getCellValue(request, field, rowIndex)
-      
+
       // Special handling for booking_status with color coding
       if (field === 'booking_status') {
         const status = request.booking_status || request.status || STATUS.DRAFT
@@ -2280,7 +2303,7 @@ function RequestsList() {
           </div>
         )
       }
-      
+
       // Special handling for print_invoice checkbox display
       if (field === 'print_invoice') {
         return (
@@ -2302,7 +2325,7 @@ function RequestsList() {
           </div>
         )
       }
-      
+
       // Special handling for total_amount_due with highlighting (single layer)
       if (field === 'total_amount_due') {
         return (
@@ -2317,7 +2340,7 @@ function RequestsList() {
           </div>
         )
       }
-      
+
       // Special handling for payment_balance with label + color
       if (field === 'payment_balance') {
         const customerPayment = parseFloat(request.total_customer_payment || 0)
@@ -2349,7 +2372,7 @@ function RequestsList() {
           </div>
         )
       }
-      
+
       // Special handling for notice field (multiline)
       if (field === 'notice') {
         return (
@@ -2363,7 +2386,7 @@ function RequestsList() {
           </div>
         )
       }
-      
+
       // Default rendering
       return (
         <div
@@ -2424,7 +2447,7 @@ function RequestsList() {
       row_number: '#',
       booking_ref: t.table.columns.bookingRef,
       booking_status: t.table.columns.bookingStatus,
-    amadeus_ticket_number: 'Ticket #',
+      amadeus_ticket_number: 'Ticket #',
       invoice_action: t.table.columns.invoiceAction,
       print_invoice: t.table.columns.printInvoice,
       first_name: t.table.columns.firstName,
@@ -2462,24 +2485,24 @@ function RequestsList() {
 
   // Apply date filter first, then search filter
   const dateFilteredRequests = filterByDate(requests, dateFilter)
-  
+
   // Filter requests based on search term (client-side only, on date-filtered data)
-  const filteredRequests = searchTerm.trim() === '' 
-    ? dateFilteredRequests 
+  const filteredRequests = searchTerm.trim() === ''
+    ? dateFilteredRequests
     : dateFilteredRequests.filter(request => {
-        const searchLower = searchTerm.toLowerCase()
-        const searchableFields = [
-          request.first_name || '',
-          request.middle_name || '',
-          request.last_name || '',
-          request.passport_number || '',
-          request.departure_airport || '',
-          request.destination_airport || ''
-        ]
-        return searchableFields.some(field => 
-          field.toLowerCase().includes(searchLower)
-        )
-      })
+      const searchLower = searchTerm.toLowerCase()
+      const searchableFields = [
+        request.first_name || '',
+        request.middle_name || '',
+        request.last_name || '',
+        request.passport_number || '',
+        request.departure_airport || '',
+        request.destination_airport || ''
+      ]
+      return searchableFields.some(field =>
+        field.toLowerCase().includes(searchLower)
+      )
+    })
 
   // Group filtered requests by month
   const groupedRequests = groupByMonth(filteredRequests)
@@ -2492,214 +2515,214 @@ function RequestsList() {
 
   return (
     <>
-    <div className="page-layout">
-      {/* Sidebar - Same as CreateRequest */}
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <div className="sidebar-logo">
-            <img src={logo} alt="LST Travel Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
-          </div>
-          <div className="sidebar-brand-text">LST Travel</div>
-        </div>
-
-        <div className="sidebar-language">
-          <button 
-            className={`lang-button ${language === 'de' ? 'active' : ''}`} 
-            type="button" 
-            title="Deutsch"
-            onClick={() => updateLanguage('de')}
-          >
-            DE
-          </button>
-          <button 
-            className={`lang-button ${language === 'en' ? 'active' : ''}`} 
-            type="button" 
-            title="English"
-            onClick={() => updateLanguage('en')}
-          >
-            EN
-          </button>
-        </div>
-
-        <div className="sidebar-theme">
-          <button 
-            className={`theme-button ${theme === 'dark' ? 'active' : ''}`} 
-            type="button" 
-            title={theme === 'dark' ? t.theme.dark : t.theme.light}
-            onClick={handleThemeChange}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              {theme === 'dark' ? (
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-              ) : (
-                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
-              )}
-            </svg>
-            {theme === 'dark' ? t.theme.dark : t.theme.light}
-          </button>
-        </div>
-
-        <nav className="sidebar-nav">
-          <NavLink to="/main" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7" rx="1"/>
-              <rect x="14" y="3" width="7" height="7" rx="1"/>
-              <rect x="3" y="14" width="7" height="7" rx="1"/>
-              <rect x="14" y="14" width="7" height="7" rx="1"/>
-            </svg>
-            <span>{t.sidebar.mainTable}</span>
-          </NavLink>
-          <NavLink to="/dashboard" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="20" x2="18" y2="10"/>
-              <line x1="12" y1="20" x2="12" y2="4"/>
-              <line x1="6" y1="20" x2="6" y2="14"/>
-            </svg>
-            <span>{t.sidebar.dashboard}</span>
-          </NavLink>
-          <NavLink to="/requests" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <polyline points="10 9 9 9 8 9"/>
-            </svg>
-            <span>{t.sidebar.requests}</span>
-          </NavLink>
-          <NavLink to="/bookings" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            <span>{t.sidebar.bookings}</span>
-          </NavLink>
-          <NavLink to="/invoices" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <polyline points="10 9 9 9 8 9"/>
-              <path d="M9 9h1v6h-1"/>
-            </svg>
-            <span>{t.sidebar.invoices}</span>
-          </NavLink>
-          <NavLink to="/expenses" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23"/>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
-            <span>{t.sidebar.expenses}</span>
-          </NavLink>
-          <NavLink to="/customers" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-            <span>{t.sidebar.customers}</span>
-          </NavLink>
-          <NavLink to="/bank" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="6" width="20" height="12" rx="2"/>
-              <path d="M2 10h20"/>
-              <path d="M7 14h.01"/>
-              <path d="M11 14h.01"/>
-            </svg>
-            <span>{t.sidebar.bank}</span>
-          </NavLink>
-          <NavLink to="/tax" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <img src={taxLogo} alt="TAX" width="24" height="24" />
-            <span>{t.sidebar.tax}</span>
-          </NavLink>
-          <NavLink to="/settings" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <img src={settingLogo} alt="Settings" width="24" height="24" />
-            <span>{t.sidebar.settings || 'Settings'}</span>
-          </NavLink>
-        </nav>
-
-        <div className="sidebar-footer">
-          <SidebarWhatsApp currentPath="/main" />
-          <div className="sidebar-footer-text">{t.sidebar.footer}</div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="main-content">
-        <div className="requests-list-page">
-          {/* Page Header */}
-          <div className="requests-header" style={{ gap: '1rem', flexDirection: 'column' }}>
-            <h1 className="requests-title">{t.table.title}</h1>
-            <FlightSearchForm onSearch={handleSearchFlights} />
+      <div className="page-layout">
+        {/* Sidebar - Same as CreateRequest */}
+        <aside className="sidebar">
+          <div className="sidebar-brand">
+            <div className="sidebar-logo">
+              <img src={logo} alt="LST Travel Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+            </div>
+            <div className="sidebar-brand-text">LST Travel</div>
           </div>
 
-          {loading && (
-            <div className="requests-loading">
-              {t.table.loading}
-            </div>
-          )}
+          <div className="sidebar-language">
+            <button
+              className={`lang-button ${language === 'de' ? 'active' : ''}`}
+              type="button"
+              title="Deutsch"
+              onClick={() => updateLanguage('de')}
+            >
+              DE
+            </button>
+            <button
+              className={`lang-button ${language === 'en' ? 'active' : ''}`}
+              type="button"
+              title="English"
+              onClick={() => updateLanguage('en')}
+            >
+              EN
+            </button>
+          </div>
 
-          {error && (
-            <div className="requests-error">
-              {error}
-            </div>
-          )}
+          <div className="sidebar-theme">
+            <button
+              className={`theme-button ${theme === 'dark' ? 'active' : ''}`}
+              type="button"
+              title={theme === 'dark' ? t.theme.dark : t.theme.light}
+              onClick={handleThemeChange}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                {theme === 'dark' ? (
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                ) : (
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                )}
+              </svg>
+              {theme === 'dark' ? t.theme.dark : t.theme.light}
+            </button>
+          </div>
 
-          {/* Empty States */}
-          {!loading && !error && requests.length === 0 && (
-            <div className="requests-empty-state">
-              <div className="empty-state-content">
-                <p className="empty-state-title">No requests yet</p>
-                <p className="empty-state-description">Get started by creating your first request</p>
-                <Link to="/requests/new" className="button button-primary">
-                  + Create first request
-                </Link>
+          <nav className="sidebar-nav">
+            <NavLink to="/main" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+              <span>{t.sidebar.mainTable}</span>
+            </NavLink>
+            <NavLink to="/dashboard" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+              <span>{t.sidebar.dashboard}</span>
+            </NavLink>
+            <NavLink to="/requests" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              <span>{t.sidebar.requests}</span>
+            </NavLink>
+            <NavLink to="/bookings" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              <span>{t.sidebar.bookings}</span>
+            </NavLink>
+            <NavLink to="/invoices" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+                <path d="M9 9h1v6h-1" />
+              </svg>
+              <span>{t.sidebar.invoices}</span>
+            </NavLink>
+            <NavLink to="/expenses" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+              <span>{t.sidebar.expenses}</span>
+            </NavLink>
+            <NavLink to="/customers" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <span>{t.sidebar.customers}</span>
+            </NavLink>
+            <NavLink to="/bank" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="6" width="20" height="12" rx="2" />
+                <path d="M2 10h20" />
+                <path d="M7 14h.01" />
+                <path d="M11 14h.01" />
+              </svg>
+              <span>{t.sidebar.bank}</span>
+            </NavLink>
+            <NavLink to="/tax" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+              <img src={taxLogo} alt="TAX" width="24" height="24" />
+              <span>{t.sidebar.tax}</span>
+            </NavLink>
+            <NavLink to="/settings" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+              <img src={settingLogo} alt="Settings" width="24" height="24" />
+              <span>{t.sidebar.settings || 'Settings'}</span>
+            </NavLink>
+          </nav>
+
+          <div className="sidebar-footer">
+            <SidebarWhatsApp currentPath="/main" />
+            <div className="sidebar-footer-text">{t.sidebar.footer}</div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="main-content">
+          <div className="requests-list-page">
+            {/* Page Header */}
+            <div className="requests-header" style={{ gap: '1rem', flexDirection: 'column' }}>
+              <h1 className="requests-title">{t.table.title}</h1>
+              <FlightSearchForm onSearch={handleSearchFlights} />
+            </div>
+
+            {loading && (
+              <div className="requests-loading">
+                {t.table.loading}
               </div>
-            </div>
-          )}
+            )}
 
-          {!loading && !error && requests.length > 0 && (
-            <div className="excel-table-container" ref={tableRef}>
-              <table className="excel-table">
-                <tbody>
-                  {/* Query Bar - First (Top) - Always visible when requests exist */}
-                  <tr className="query-bar-row">
-                    <td colSpan={columnOrder.length} className="query-bar-cell">
-                      <div className="query-bar">
-                        <div className="query-bar-left">
-                          <input
-                            type="text"
-                            className="query-search-input"
-                            placeholder="Search name, passport, or airport…"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                          />
-                          <div className="group-invoice-actions">
-                            <button
-                              type="button"
-                              className="button button-primary"
-                              onClick={() => handleGenerateGroupInvoice('preview')}
-                              disabled={selectedCount === 0}
-                            >
-                              Group invoice ({selectedCount})
-                            </button>
-                            {selectedCount > 0 && (
+            {error && (
+              <div className="requests-error">
+                {error}
+              </div>
+            )}
+
+            {/* Empty States */}
+            {!loading && !error && requests.length === 0 && (
+              <div className="requests-empty-state">
+                <div className="empty-state-content">
+                  <p className="empty-state-title">No requests yet</p>
+                  <p className="empty-state-description">Get started by creating your first request</p>
+                  <Link to="/requests/new" className="button button-primary">
+                    + Create first request
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {!loading && !error && requests.length > 0 && (
+              <div className="excel-table-container" ref={tableRef}>
+                <table className="excel-table">
+                  <tbody>
+                    {/* Query Bar - First (Top) - Always visible when requests exist */}
+                    <tr className="query-bar-row">
+                      <td colSpan={columnOrder.length} className="query-bar-cell">
+                        <div className="query-bar">
+                          <div className="query-bar-left">
+                            <input
+                              type="text"
+                              className="query-search-input"
+                              placeholder="Search name, passport, or airport…"
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            <div className="group-invoice-actions">
                               <button
                                 type="button"
-                                className="button button-secondary"
-                                onClick={() => setSelectedIds([])}
+                                className="button button-primary"
+                                onClick={() => handleGenerateGroupInvoice('preview')}
+                                disabled={selectedCount === 0}
                               >
-                                Clear selection
+                                Group invoice ({selectedCount})
                               </button>
-                            )}
+                              {selectedCount > 0 && (
+                                <button
+                                  type="button"
+                                  className="button button-secondary"
+                                  onClick={() => setSelectedIds([])}
+                                >
+                                  Clear selection
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="query-bar-right">
-                          <label className="query-label">Time:</label>
+                          <div className="query-bar-right">
+                            <label className="query-label">Time:</label>
                             <select
                               className="query-time-select"
                               value={dateFilter || 'allTime'}
@@ -2714,7 +2737,7 @@ function RequestsList() {
                                 <option key={year} value={`year_${year}`}>{year}</option>
                               ))}
                             </select>
-                            
+
                             {/* Month dropdown - shown when Time = "This Year" */}
                             {dateFilter === 'thisYear' && (
                               <>
@@ -2736,7 +2759,7 @@ function RequestsList() {
                                 </select>
                               </>
                             )}
-                            
+
                             {/* Month dropdown - shown when a previous year is selected */}
                             {dateFilter && dateFilter.startsWith('year_') && (
                               <>
@@ -2758,145 +2781,145 @@ function RequestsList() {
                                 </select>
                               </>
                             )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                  {/* Current Month Header - Always visible below Query Bar */}
-                  <tr className="excel-group-header">
-                    <td colSpan={columnOrder.length}>
-                      <div className="excel-group-header-content">
-                        <span className="excel-group-label">
-                          {(() => {
-                            const now = new Date()
-                            return now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
-                          })()}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                  {/* Table Column Headers - Always visible below Month Header */}
-                  <tr className="excel-column-headers-row">
-                    {columnOrder.map((field) => {
-                      const width = columnWidths[field] || 120
-                      return (
-                        <th
-                          key={field}
-                          style={{ 
-                            width: `${width}px`,
-                            minWidth: `${width}px`,
-                            position: 'relative'
-                          }}
-                          className="excel-header-cell"
-                        >
-                        {field === 'select' ? (
-                          <label className="excel-header-select">
-                            <input
-                              type="checkbox"
-                              checked={allVisibleSelected}
-                              ref={(el) => {
-                                if (el) {
-                                  el.indeterminate = someVisibleSelected
-                                }
-                              }}
-                              onChange={() => handleSelectAllVisible(visibleIds, !allVisibleSelected)}
-                              aria-label="Select all visible passengers"
-                            />
-                          </label>
-                        ) : (
-                          <>
-                            <span className="excel-header-label">{getColumnLabel(field)}</span>
-                            <div
-                              className="excel-resize-handle"
-                              onMouseDown={(e) => handleResizeStart(field, e)}
-                              onDoubleClick={(e) => handleResizeDoubleClick(field, e)}
-                              title="Drag to resize, double-click to auto-fit"
-                            />
-                          </>
-                        )}
-                        </th>
-                      )
-                    })}
-                  </tr>
-                  {groupedRequests.length === 0 ? (
-                    <tr>
-                      <td colSpan={columnOrder.length} style={{ textAlign: 'center', padding: '2rem' }}>
-                        {dateFilter || searchTerm.trim() ? 'No matching records found.' : t.table.noRequests}
                       </td>
                     </tr>
-                  ) : (
-                    <>
-                      {(() => {
-                        // Flatten grouped requests to calculate row numbers
-                        const flatRequests = groupedRequests.flatMap(group => group.requests)
-                        return flatRequests.map((request, index) => (
-                          <tr key={request.id}>
-                            {columnOrder.map((field) => {
-                              const width = columnWidths[field] || 120
-                              return (
-                                <td
-                                  key={field}
-                                  style={{ 
-                                    width: `${width}px`,
-                                    minWidth: `${width}px`
+                    {/* Current Month Header - Always visible below Query Bar */}
+                    <tr className="excel-group-header">
+                      <td colSpan={columnOrder.length}>
+                        <div className="excel-group-header-content">
+                          <span className="excel-group-label">
+                            {(() => {
+                              const now = new Date()
+                              return now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+                            })()}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    {/* Table Column Headers - Always visible below Month Header */}
+                    <tr className="excel-column-headers-row">
+                      {columnOrder.map((field) => {
+                        const width = columnWidths[field] || 120
+                        return (
+                          <th
+                            key={field}
+                            style={{
+                              width: `${width}px`,
+                              minWidth: `${width}px`,
+                              position: 'relative'
+                            }}
+                            className="excel-header-cell"
+                          >
+                            {field === 'select' ? (
+                              <label className="excel-header-select">
+                                <input
+                                  type="checkbox"
+                                  checked={allVisibleSelected}
+                                  ref={(el) => {
+                                    if (el) {
+                                      el.indeterminate = someVisibleSelected
+                                    }
                                   }}
-                                >
-                                  {renderCell(request, field, index)}
-                                </td>
-                              )
-                            })}
-                          </tr>
-                        ))
-                      })()}
-                    </>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Pagination Controls */}
-          {!loading && !error && requests.length > 0 && groupedRequests.length > 0 && (
-            <div className="pagination-controls">
-              <div className="pagination-info">
-                Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+                                  onChange={() => handleSelectAllVisible(visibleIds, !allVisibleSelected)}
+                                  aria-label="Select all visible passengers"
+                                />
+                              </label>
+                            ) : (
+                              <>
+                                <span className="excel-header-label">{getColumnLabel(field)}</span>
+                                <div
+                                  className="excel-resize-handle"
+                                  onMouseDown={(e) => handleResizeStart(field, e)}
+                                  onDoubleClick={(e) => handleResizeDoubleClick(field, e)}
+                                  title="Drag to resize, double-click to auto-fit"
+                                />
+                              </>
+                            )}
+                          </th>
+                        )
+                      })}
+                    </tr>
+                    {groupedRequests.length === 0 ? (
+                      <tr>
+                        <td colSpan={columnOrder.length} style={{ textAlign: 'center', padding: '2rem' }}>
+                          {dateFilter || searchTerm.trim() ? 'No matching records found.' : t.table.noRequests}
+                        </td>
+                      </tr>
+                    ) : (
+                      <>
+                        {(() => {
+                          // Flatten grouped requests to calculate row numbers
+                          const flatRequests = groupedRequests.flatMap(group => group.requests)
+                          return flatRequests.map((request, index) => (
+                            <tr key={request.id}>
+                              {columnOrder.map((field) => {
+                                const width = columnWidths[field] || 120
+                                return (
+                                  <td
+                                    key={field}
+                                    style={{
+                                      width: `${width}px`,
+                                      minWidth: `${width}px`
+                                    }}
+                                  >
+                                    {renderCell(request, field, index)}
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))
+                        })()}
+                      </>
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div className="pagination-buttons">
-                <button
-                  className="pagination-button"
-                  onClick={handlePreviousPage}
-                  disabled={currentPage === 1 || loading}
-                >
-                  ◀ Previous
-                </button>
-                <button
-                  className="pagination-button"
-                  onClick={handleNextPage}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize) || loading}
-                >
-                  Next ▶
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
+            )}
 
-    <FlightSearchModal
-      open={searchModalOpen}
-      onClose={() => setSearchModalOpen(false)}
-      results={searchResults}
-      loading={searchLoading}
-      error={searchError}
-      onRetry={handleRetrySearch}
-      onSelectFlight={(flight) => handleFlightSelection(flight)}
-      onHold={(flight) => handleHold(flight)}
-      searchFrom={searchFrom}
-      searchTo={searchTo}
-      searchDate={searchDate}
-      searchReturnDate={searchReturnDate}
-    />
+            {/* Pagination Controls */}
+            {!loading && !error && requests.length > 0 && groupedRequests.length > 0 && (
+              <div className="pagination-controls">
+                <div className="pagination-info">
+                  Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+                </div>
+                <div className="pagination-buttons">
+                  <button
+                    className="pagination-button"
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1 || loading}
+                  >
+                    ◀ Previous
+                  </button>
+                  <button
+                    className="pagination-button"
+                    onClick={handleNextPage}
+                    disabled={currentPage >= Math.ceil(totalCount / pageSize) || loading}
+                  >
+                    Next ▶
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+
+      <FlightSearchModal
+        open={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        results={searchResults}
+        loading={searchLoading}
+        error={searchError}
+        onRetry={handleRetrySearch}
+        onSelectFlight={(flight) => handleFlightSelection(flight)}
+        onHold={(flight) => handleHold(flight)}
+        searchFrom={searchFrom}
+        searchTo={searchTo}
+        searchDate={searchDate}
+        searchReturnDate={searchReturnDate}
+      />
     </>
   )
 }
