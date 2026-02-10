@@ -674,9 +674,10 @@ function RequestsList() {
 
   // Handle Amadeus search and open modal
   const handleSearchFlights = async (options = {}) => {
+    const normalizeIata = (code) => (code || '').trim().toUpperCase()
     const payload = {
-      originLocationCode: options.originLocationCode || searchFrom,
-      destinationLocationCode: options.destinationLocationCode || searchTo,
+      originLocationCode: normalizeIata(options.originLocationCode || searchFrom),
+      destinationLocationCode: normalizeIata(options.destinationLocationCode || searchTo),
       departureDate: options.departureDate || searchDate,
       returnDate: options.returnDate || searchReturnDate || undefined,
       adults: options.adults ?? 1,
@@ -685,6 +686,12 @@ function RequestsList() {
       currencyCode: options.currencyCode || 'EUR',
       travelClass: options.travelClass || 'ECONOMY',
       nonStop: options.nonStop ?? false
+    }
+
+    const isIata = (code) => /^[A-Z]{3}$/.test(code)
+    if (!isIata(payload.originLocationCode) || !isIata(payload.destinationLocationCode)) {
+      setSearchError('Please use 3-letter airport codes (e.g., MUC, IST).')
+      return
     }
 
     // keep UI state in sync for modal header
@@ -875,53 +882,270 @@ function RequestsList() {
     }
   }
 
-  const handleFlightSelection = async (flightData) => {
+  const getActiveRequest = () => {
+    if (selectedIds.length === 0) return null
+    const target = normalizeId(selectedIds[0])
+    return requests.find((r) => normalizeId(r.id) === target) || null
+  }
+
+  const buildPassengerSnapshot = (req) => ({
+    firstName: req?.first_name || 'TBD',
+    middleName: req?.middle_name || null,
+    lastName: req?.last_name || 'TBD',
+    dateOfBirth: req?.date_of_birth || null,
+    gender: req?.gender || null,
+    passportNumber: req?.passport_number || null,
+    email: req?.email || null,
+    phone: req?.phone || null,
+    requestId: req?.id || null
+  })
+
+  const ensureRequestContext = async () => {
+    const existing = getActiveRequest()
+    if (existing) {
+      return { request: existing, snapshot: buildPassengerSnapshot(existing) }
+    }
+    // No selected request; return empty snapshot placeholders without DB writes
+    const emptySnapshot = buildPassengerSnapshot({})
+    return { request: null, snapshot: emptySnapshot }
+  }
+
+  // Flight selection -> draft only (no Amadeus calls)
+  const handleFlightSelection = async (flightData, { silent = false } = {}) => {
     const { offer, price, currency, airline, flightNumber, from, to, date, depart, arrive, duration } = flightData || {}
-    const passenger = {
-      firstName: 'Philipp',
-      lastName: 'Petros',
-      dateOfBirth: '1994-08-31',
-      passportNumber: 'K0622909',
-      gender: 'Male',
-      email: 'philipp@example.com',
-      phone: '+491234567890'
+
+    // Build draft booking payload (no Amadeus hold yet)
+    const firstSeg = offer?.itineraries?.[0]?.segments?.[0]
+    const lastItin = offer?.itineraries?.[offer?.itineraries?.length - 1]
+    const lastSeg = lastItin?.segments?.[lastItin?.segments?.length - 1]
+    const departureCode = from || firstSeg?.departure?.iataCode || searchFrom
+    const arrivalCode = to || lastSeg?.arrival?.iataCode || searchTo
+    const departureDate = date || firstSeg?.departure?.at?.slice(0, 10) || searchDate
+    const returnDate = searchReturnDate || null
+
+    // Pick active request (require a selected request)
+    let currentRequest, passengerSnapshot
+    try {
+      const ctx = await ensureRequestContext()
+      currentRequest = ctx.request
+      passengerSnapshot = ctx.snapshot
+    } catch (err) {
+      alert(err.message || 'Unable to prepare booking draft')
+      return
+    }
+    // Guard: require passenger data for NOT NULL columns
+    if (!passengerSnapshot?.firstName || !passengerSnapshot?.lastName) {
+      alert('❌ Booking failed: request is missing required passenger name fields')
+      return
+    }
+
+    const draftPayload = {
+      amadeus_offer_id: offer?.id || null,
+      booking_ref: flightNumber || offer?.id || `BK-${Date.now().toString().slice(-6)}`,
+      booking_status: 'draft',
+      status: 'draft',
+      request_types: ['flight'],
+      first_name: passengerSnapshot?.firstName || null,
+      middle_name: passengerSnapshot?.middleName || null,
+      last_name: passengerSnapshot?.lastName || null,
+      date_of_birth: passengerSnapshot?.dateOfBirth || null,
+      gender: passengerSnapshot?.gender || null,
+      passport_number: passengerSnapshot?.passportNumber || null,
+      airlines: airline || firstSeg?.carrierCode || '',
+      airlines_price: price || null,
+      total_ticket_price: price || null,
+      total_amount_due: price || null,
+      payment_status: 'unpaid',
+      payment_amount: null,
+      departure_airport: departureCode || null,
+      destination_airport: arrivalCode || null,
+      travel_date: departureDate || null,
+      return_date: returnDate,
+      pricing_json: flightData || null,
+      passenger_json: passengerSnapshot,
+      request_id: currentRequest?.request_id || currentRequest?.id || null
     }
 
     try {
-      const holdResult = await amadeusHold({
-        offer,
-        passengers: [passenger],
-        itinerary: {
-          origin: from,
-          destination: to,
-          travelDate: date,
-          departureTime: depart,
-          arrivalTime: arrive,
-          duration
-        },
-        pricing: {
-          total: price,
-          currency: currency || 'EUR'
-        },
-        bookingRef: `LH${Date.now().toString().slice(-6)}`,
-        holdExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      if (!offer) {
+        throw new Error('Missing Amadeus offer for draft')
+      }
+
+    // Prevent duplicates: first reuse by request_id, then by offer id
+      let existingId = null
+    if (draftPayload.request_id) {
+        const { data: existingByRequest, error: existingReqErr } = await supabase
+          .from('main_table')
+          .select('id')
+          .eq('request_id', draftPayload.request_id)
+          .maybeSingle()
+        if (existingReqErr) throw existingReqErr
+        existingId = existingByRequest?.id || null
+      }
+      if (!existingId && draftPayload.amadeus_offer_id) {
+        const { data: existing, error: existingError } = await supabase
+          .from('main_table')
+          .select('id')
+          .eq('amadeus_offer_id', draftPayload.amadeus_offer_id)
+          .maybeSingle()
+        if (existingError) throw existingError
+        existingId = existing?.id || null
+      }
+
+    let upsertResult = null
+      if (existingId) {
+        const { data, error } = await supabase
+          .from('main_table')
+          .update(draftPayload)
+          .eq('id', existingId)
+          .select()
+          .maybeSingle()
+        if (error) throw error
+        upsertResult = data
+      } else {
+        const { data, error } = await supabase
+          .from('main_table')
+          .insert([draftPayload])
+          .select()
+          .maybeSingle()
+        if (error) throw error
+        upsertResult = data
+      }
+
+      if (!upsertResult?.id) {
+        throw new Error('Draft booking not saved')
+      }
+
+      console.log('🟡 Draft booking saved', {
+        id: upsertResult?.id,
+        booking_ref: upsertResult?.booking_ref,
+        request_id: upsertResult?.request_id
       })
-
-      console.log('🟡 Booking created:', {
-        id: holdResult?.data?.id,
-        pnr: holdResult?.data?.amadeus_pnr,
-        orderId: holdResult?.data?.amadeus_order_id,
-        expires: holdResult?.data?.hold_expires_at
-      })
-
-      alert(
-        `✅ Booking Created!\n\nPNR: ${holdResult?.data?.amadeus_pnr || 'N/A'}\nOrder ID: ${holdResult?.data?.amadeus_order_id || 'N/A'}\nAmount: €${price}\n\nStatus: PENDING\nExpires in 24 hours`
-      )
-
+      if (!silent) {
+        alert(
+          `✅ Draft booking saved.\n\nRef: ${upsertResult?.booking_ref || 'N/A'}\nStatus: draft\nAmount: €${price || 'N/A'}`
+        )
+      }
       fetchRequests(currentPage)
+      return upsertResult
     } catch (error) {
       console.error('Booking failed', error)
-      alert('❌ Booking failed: ' + (error.message || 'Unknown error'))
+      const message = error?.message || 'Unknown error'
+      if (!silent) {
+        alert(`❌ Booking failed: ${message}`)
+      }
+      return null
+    }
+  }
+
+  // Explicit hold action from draft
+  const handleHold = async (flightData) => {
+    const { offer, price, currency, from, to, date, depart, arrive, duration } = flightData || {}
+    if (!offer) {
+      alert('❌ Hold failed: missing offer')
+      return
+    }
+    // Look up existing draft by offer id
+    let booking = null
+    try {
+      const { data, error } = await supabase
+        .from('main_table')
+        .select('*')
+        .eq('amadeus_offer_id', offer.id)
+        .maybeSingle()
+      if (error) throw error
+      booking = data
+    } catch (err) {
+      console.error('Hold lookup failed', err)
+      booking = null
+    }
+
+    if (!booking?.id) {
+      // Attempt silent draft creation then retry lookup to avoid duplicate inserts
+      const created = await handleFlightSelection(flightData, { silent: true })
+      if (created?.id) {
+        booking = created
+      }
+    }
+
+    if (!booking?.id) {
+      alert('❌ Hold failed: draft booking not found. Please select the flight first.')
+      return
+    }
+    if (booking.booking_status && booking.booking_status !== 'draft') {
+      alert('❌ Hold allowed only from draft bookings')
+      return
+    }
+    if (!booking.passenger_json) {
+      alert('❌ Hold failed: missing passenger data on booking')
+      return
+    }
+
+    const departureCode = from || booking.departure_airport || searchFrom
+    const arrivalCode = to || booking.destination_airport || searchTo
+    const departureDate = date || booking.travel_date || searchDate
+    const returnDate = booking.return_date || searchReturnDate || null
+
+    const holdPayload = {
+      bookingId: booking.id,
+      bookingRef: booking.booking_ref,
+      offer,
+      passengers: [booking.passenger_json],
+      itinerary: {
+        origin: departureCode,
+        destination: arrivalCode,
+        travelDate: departureDate,
+        returnDate,
+        departureTime: depart || null,
+        arrivalTime: arrive || null,
+        duration: duration || null
+      },
+      pricing: {
+        total: price ?? booking.total_ticket_price,
+        currency: currency || 'EUR'
+      }
+    }
+
+    try {
+      const holdResult = await amadeusHold(holdPayload)
+      const updatedPnr = holdResult?.data?.amadeus_pnr || ''
+      const updatedOrder = holdResult?.data?.amadeus_order_id || ''
+      const updatedExpiry = holdResult?.data?.hold_expires_at || ''
+
+      console.log('🟡 Hold created:', {
+        id: holdResult?.data?.id || booking.id,
+        pnr: updatedPnr,
+        orderId: updatedOrder,
+        expires: updatedExpiry
+      })
+
+      // Optimistic refresh of the booking row
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === booking.id
+            ? {
+                ...r,
+                amadeus_pnr: updatedPnr,
+                amadeus_order_id: updatedOrder,
+                hold_expires_at: updatedExpiry,
+                booking_status: 'pending'
+              }
+            : r
+        )
+      )
+
+      alert(
+        `✅ Hold created.\n\nPNR: ${updatedPnr || 'N/A'}\nOrder ID: ${
+          updatedOrder || 'N/A'
+        }\nAmount: €${price || booking.total_ticket_price || 'N/A'}\nStatus: pending\nExpires: ${
+          updatedExpiry || 'N/A'
+        }`
+      )
+      fetchRequests(currentPage)
+    } catch (error) {
+      console.error('Hold failed', error)
+      const message = error?.message || 'Unknown error'
+      alert(`❌ Hold failed: ${message}`)
     }
   }
 
@@ -1413,6 +1637,7 @@ function RequestsList() {
       case 'notice':
         return request[field] || ''
       default:
+        if (request[field] === 'TBD') return ''
         return request[field] || ''
     }
   }
@@ -1645,8 +1870,12 @@ function RequestsList() {
       // Auto-ticket when payment captured to keep dashboard in sync (no UI change)
       const updatedBookingStatus = String(updatedRequest?.booking_status || updatedRequest?.status || '').toLowerCase()
       const paymentCaptured = (parseFloat(updatedRequest?.cash_paid) || 0) + (parseFloat(updatedRequest?.bank_transfer) || 0)
-      if ((field === 'cash_paid' || field === 'bank_transfer') && paymentCaptured > 0 && updatedBookingStatus === 'pending') {
+    if ((field === 'cash_paid' || field === 'bank_transfer') && paymentCaptured > 0 && updatedBookingStatus === 'pending') {
         try {
+        // Guard: require Amadeus order before ticketing
+        if (!updatedRequest?.amadeus_order_id) {
+          throw new Error('Missing Amadeus order; issue hold before ticketing')
+        }
           const ticketResult = await amadeusTicket({
             bookingId: rowId,
             paymentAmount: paymentCaptured,
@@ -1771,6 +2000,25 @@ function RequestsList() {
 
   // Render cell content
   const renderCell = (request, field, rowIndex = null) => {
+    if (field === 'booking_ref') {
+      const ref = request.booking_ref || ''
+      return (
+        <div className="excel-cell">
+          <span>{ref}</span>
+        </div>
+      )
+    }
+
+      if (field === 'amadeus_pnr') {
+        const statusLower = (request.booking_status || '').toLowerCase()
+        const value = statusLower === 'pending' || statusLower === 'confirmed' ? request.amadeus_pnr || '' : ''
+        return (
+          <div className="excel-cell">
+            <span>{value}</span>
+          </div>
+        )
+      }
+
     if (field === 'select') {
       return (
         <div className="excel-cell excel-cell-select">
@@ -2024,63 +2272,11 @@ function RequestsList() {
       }
 
       if (field === 'amadeus_ticket_number') {
-        const value = request.amadeus_ticket_number || '-'
-        const canRetry = (request.booking_status || '').toLowerCase() !== 'confirmed'
+        const statusLower = (request.booking_status || '').toLowerCase()
+        const value = statusLower === 'confirmed' ? request.amadeus_ticket_number || '' : ''
         return (
           <div className="excel-cell">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>{value}</span>
-              {value && value !== '-' && (
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  style={{ padding: '2px 6px', fontSize: '0.75rem' }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    navigator.clipboard?.writeText(value).catch(() => {})
-                  }}
-                >
-                  Copy
-                </button>
-              )}
-              {canRetry && (
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  style={{ padding: '2px 6px', fontSize: '0.75rem' }}
-                  onClick={async (e) => {
-                    e.stopPropagation()
-                    try {
-                      const paymentCaptured =
-                        (parseFloat(request?.cash_paid) || 0) + (parseFloat(request?.bank_transfer) || 0)
-                      const ticketResult = await amadeusTicket({
-                        bookingId: request.id,
-                        paymentAmount: paymentCaptured,
-                        paymentCurrency: 'EUR'
-                      })
-                      const ticketNumber =
-                        ticketResult?.ticketNumber ||
-                        ticketResult?.data?.amadeus_ticket_number ||
-                        ticketResult?.data?.ticketNumber ||
-                        'TICKET'
-                      setRequests((prev) =>
-                        prev.map((r) =>
-                          r.id === request.id
-                            ? { ...r, amadeus_ticket_number: ticketNumber, booking_status: 'confirmed', payment_status: 'paid' }
-                            : r
-                        )
-                      )
-                      alert(`🟢 Ticket issued\nTicket #: ${ticketNumber}`)
-                    } catch (err) {
-                      console.warn('Ticket retry failed', err)
-                      alert(`❌ Ticketing failed: ${err.message || 'Unknown error'}`)
-                    }
-                  }}
-                >
-                  Retry
-                </button>
-              )}
-            </div>
+            <span>{value}</span>
           </div>
         )
       }
@@ -2695,6 +2891,7 @@ function RequestsList() {
       error={searchError}
       onRetry={handleRetrySearch}
       onSelectFlight={(flight) => handleFlightSelection(flight)}
+      onHold={(flight) => handleHold(flight)}
       searchFrom={searchFrom}
       searchTo={searchTo}
       searchDate={searchDate}

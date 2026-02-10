@@ -1,3 +1,7 @@
+- Schema note: add request linkage column when missing
+  ```sql
+  ALTER TABLE main_table ADD COLUMN IF NOT EXISTS request_id uuid;
+  ```
 # LST Travel - Backoffice System
 
 Travel request management system with manual-first workflow and optional OCR.

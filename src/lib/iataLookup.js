@@ -51,10 +51,11 @@ export const formatAirportLabel = (airport) => {
   const code = airport.iataCode || airport.iata || ''
   const name = airport.name || airport.detailedName || ''
   const city = airport.cityName || airport.city || ''
-  const country = airport.countryCode || airport.country || ''
-  const location = [city, country].filter(Boolean).join(', ')
-  const main = name && code ? `${name} (${code})` : (name || code)
-  return location ? `${main} - ${location}` : main
+
+  if (city && name && code) return `${city} – ${name} (${code})`
+  if (name && code) return `${name} (${code})`
+  if (city && code) return `${city} (${code})`
+  return code || name || ''
 }
 
 export const searchAirports = async (keyword) => {

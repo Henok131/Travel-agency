@@ -630,63 +630,69 @@ app.post('/api/amadeus/hold', async (req, res) => {
   try {
     const { bookingId, offer, passengers = [], pricing = {}, itinerary = {}, bookingRef, holdExpiresAt } = req.body || {}
 
+    if (!bookingId) {
+      return res.status(400).json({ error: 'bookingId is required for hold' })
+    }
+
+    if (!offer) {
+      return res.status(400).json({ error: 'Missing offer for hold' })
+    }
+    if (!Array.isArray(passengers) || passengers.length === 0) {
+      return res.status(400).json({ error: 'Missing passengers for hold' })
+    }
+
+    // Build travelers and call Amadeus OrderCreate (required for PNR)
+    const normalizeTraveler = (traveler, idx) => {
+      const phoneRaw = traveler?.phone || traveler?.phoneNumber || ''
+      const cleanPhone = phoneRaw.replace(/[^\d+]/g, '')
+      const countryCallingCode = cleanPhone.startsWith('+') ? cleanPhone.slice(1, 3) : ''
+      const number = cleanPhone.startsWith('+') ? cleanPhone.slice(3) : cleanPhone
+
+      return {
+        id: String(idx + 1),
+        dateOfBirth: traveler?.dateOfBirth || traveler?.date_of_birth || null,
+        name: {
+          firstName: (traveler?.firstName || traveler?.first_name || '').toUpperCase(),
+          lastName: (traveler?.lastName || traveler?.last_name || '').toUpperCase()
+        },
+        gender: (traveler?.gender || '').toUpperCase(),
+        contact: traveler?.email || phoneRaw ? {
+          emailAddress: traveler?.email || traveler?.emailAddress || null,
+          phones: phoneRaw ? [{
+            deviceType: 'MOBILE',
+            countryCallingCode: countryCallingCode || undefined,
+            number: number || undefined
+          }] : undefined
+        } : undefined,
+        documents: traveler?.passportNumber ? [{
+          documentType: 'PASSPORT',
+          number: traveler.passportNumber,
+          holder: true
+        }] : undefined
+      }
+    }
+
+    const travelers = passengers.map(normalizeTraveler)
+    const orderPayload = {
+      data: {
+        type: 'flight-order',
+        flightOffers: [offer],
+        travelers
+      }
+    }
+
     let amadeusOrderId = null
     let amadeusPnr = null
     let holdExpiry = holdExpiresAt || null
 
-    // Optional: attempt to create Amadeus flight-order when offer is provided
-    try {
-      if (offer) {
-        const normalizeTraveler = (traveler, idx) => {
-          const phoneRaw = traveler?.phone || traveler?.phoneNumber || ''
-          const cleanPhone = phoneRaw.replace(/[^\d+]/g, '')
-          const countryCallingCode = cleanPhone.startsWith('+') ? cleanPhone.slice(1, 3) : ''
-          const number = cleanPhone.startsWith('+') ? cleanPhone.slice(3) : cleanPhone
-
-          return {
-            id: String(idx + 1),
-            dateOfBirth: traveler?.dateOfBirth || traveler?.date_of_birth || null,
-            name: {
-              firstName: (traveler?.firstName || traveler?.first_name || '').toUpperCase(),
-              lastName: (traveler?.lastName || traveler?.last_name || '').toUpperCase()
-            },
-            gender: (traveler?.gender || '').toUpperCase(),
-            contact: traveler?.email || phoneRaw ? {
-              emailAddress: traveler?.email || traveler?.emailAddress || null,
-              phones: phoneRaw ? [{
-                deviceType: 'MOBILE',
-                countryCallingCode: countryCallingCode || undefined,
-                number: number || undefined
-              }] : undefined
-            } : undefined,
-            documents: traveler?.passportNumber ? [{
-              documentType: 'PASSPORT',
-              number: traveler.passportNumber,
-              holder: true
-            }] : undefined
-          }
-        }
-
-        const travelers = passengers.map(normalizeTraveler)
-        const payload = {
-          data: {
-            type: 'flight-order',
-            flightOffers: [offer],
-            travelers
-          }
-        }
-        const result = await amadeusFetch('/v1/shopping/flight-orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
-        amadeusOrderId = result?.data?.id || null
-        amadeusPnr = result?.data?.associatedRecords?.[0]?.reference || null
-        holdExpiry = holdExpiry || result?.data?.flightOffers?.[0]?.lastTicketingDateTime || null
-      }
-    } catch (amadeusErr) {
-      console.warn('⚠️ Amadeus hold call failed; falling back to local insert', amadeusErr.message)
-    }
+    const orderResult = await amadeusFetch('/v1/shopping/flight-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderPayload)
+    })
+    amadeusOrderId = orderResult?.data?.id || null
+    amadeusPnr = orderResult?.data?.associatedRecords?.[0]?.reference || null
+    holdExpiry = holdExpiry || orderResult?.data?.flightOffers?.[0]?.lastTicketingDateTime || null
 
     const primaryPassenger = passengers[0] || {}
     const payload = buildMainTablePayload({
@@ -699,27 +705,14 @@ app.post('/api/amadeus/hold', async (req, res) => {
       holdExpiresAt: holdExpiry
     })
 
-    let record = null
-    if (bookingId) {
-      const { data, error } = await supabase
-        .from('main_table')
-        .update(payload)
-        .eq('id', bookingId)
-        .select()
-        .maybeSingle()
+    const { data: record, error } = await supabase
+      .from('main_table')
+      .update({ ...payload, booking_status: 'pending' })
+      .eq('id', bookingId)
+      .select()
+      .maybeSingle()
 
-      if (error) throw error
-      record = data
-    } else {
-      const { data, error } = await supabase
-        .from('main_table')
-        .insert([payload])
-        .select()
-        .maybeSingle()
-
-      if (error) throw error
-      record = data
-    }
+    if (error) throw error
 
     res.json({
       success: true,

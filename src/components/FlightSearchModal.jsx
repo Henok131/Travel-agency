@@ -59,33 +59,41 @@ const bestScore = (flight, minPrice, maxPrice, maxDuration) => {
   return score
 }
 
-const FlightCard = ({ flight, isSelected, onSelect }) => {
+const FlightCard = ({ flight, isSelected, onSelect, onHold }) => {
   const offer = flight?.offer || {}
-  const firstSeg = offer?.itineraries?.[0]?.segments?.[0]
-  const lastItin = offer?.itineraries?.[offer?.itineraries?.length - 1]
+  const itineraries = offer?.itineraries || []
+  const firstItin = itineraries[0]
+  const firstSeg = firstItin?.segments?.[0]
+  const lastItin = itineraries[itineraries.length - 1]
   const lastSeg = lastItin?.segments?.[lastItin?.segments?.length - 1]
-  const departTime = flight?.depart || formatTime(firstSeg?.departure?.at)
-  const arriveTime = flight?.arrive || formatTime(lastSeg?.arrival?.at)
-  const departAirport = flight?.from || firstSeg?.departure?.iataCode
-  const arriveAirport = flight?.to || lastSeg?.arrival?.iataCode
-  const duration = flight?.duration || formatDuration(offer?.itineraries?.[0]?.duration)
+  const departTime = formatTime(firstSeg?.departure?.at)
+  const arriveTime = formatTime(lastSeg?.arrival?.at)
+  const departAirport = firstSeg?.departure?.iataCode || ''
+  const arriveAirport = lastSeg?.arrival?.iataCode || ''
+  const duration = formatDuration(firstItin?.duration)
+  const stops = Math.max(0, (firstItin?.segments?.length || 1) - 1)
+
+  const carrierCodes = Array.from(
+    new Set(
+      itineraries.flatMap((it) => (it.segments || []).map((seg) => seg.carrierCode).filter(Boolean))
+    )
+  )
   const stopsInfo = getStopsLabel(offer)
 
   return (
     <div
       onClick={onSelect}
       style={{
-        background: '#16213e',
+        background: '#111a2c',
         border: isSelected ? '1px solid #2563eb' : '1px solid #1f2a4d',
-        borderRadius: 12,
-        padding: '14px',
+        borderRadius: 14,
+        padding: '16px 18px',
         color: '#e5e7eb',
-        display: 'grid',
-        gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr',
-        gap: '12px',
-        alignItems: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
         cursor: 'pointer',
-        boxShadow: isSelected ? '0 12px 30px rgba(37,99,235,0.25)' : '0 8px 20px rgba(0,0,0,0.25)',
+        boxShadow: isSelected ? '0 16px 32px rgba(37,99,235,0.25)' : '0 12px 28px rgba(0,0,0,0.25)',
         transition: 'border 0.2s ease, transform 0.2s ease',
         transform: isSelected ? 'translateY(-2px)' : 'none'
       }}
@@ -96,79 +104,92 @@ const FlightCard = ({ flight, isSelected, onSelect }) => {
         e.currentTarget.style.borderColor = isSelected ? '#2563eb' : '#1f2a4d'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            background: '#111827',
-            display: 'grid',
-            placeItems: 'center',
-            color: '#60a5fa',
-            fontWeight: 700
-          }}
-        >
-          {(flight?.airline || '').slice(0, 2) || 'A'}
+      {/* Header: price + actions */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          {carrierCodes.map((code) => (
+            <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: '#0f172a', borderRadius: 8, border: '1px solid #1f2a4d' }}>
+              <img
+                src={`https://content.airhex.com/content/logos/airlines_${code}_200_200_s.png?proportions=keep`}
+                alt={code}
+                style={{ width: 28, height: 28, objectFit: 'contain' }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+              <span style={{ color: '#d1d5db', fontSize: '0.9rem', fontWeight: 600 }}>{code}</span>
+            </div>
+          ))}
         </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-            {flight?.airline || 'Airline'} {flight?.flightNumber || offer?.id || ''}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>
+              {flight?.currency || 'EUR'} {parseFloat(flight?.price || 0).toFixed(0)}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>per person</div>
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
-            {formatDate(firstSeg?.departure?.at) || formatDate(flight?.date)}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelect()
+              }}
+              className="button button-primary"
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              Select Flight
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onHold()
+              }}
+              className="button button-secondary"
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              Hold / Reserve
+            </button>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div>
-          <div style={{ fontWeight: 700 }}>{departTime || '--:--'}</div>
-          <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>{departAirport || '---'}</div>
+      {/* Route row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ fontWeight: 800, fontSize: '1.4rem' }}>{departAirport || '---'}</div>
+          <div style={{ fontSize: '0.95rem', color: '#9ca3af' }}>{departTime || '--:--'}</div>
         </div>
-        <ArrowRight size={16} color="#9ca3af" />
-        <div>
-          <div style={{ fontWeight: 700 }}>{arriveTime || '--:--'}</div>
-          <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>{arriveAirport || '---'}</div>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9ca3af' }}>
-        <Clock3 size={16} />
-        <span>{duration || '—'}</span>
-      </div>
-
-      <div
-        style={{
-          padding: '6px 10px',
-          borderRadius: 20,
-          fontWeight: 600,
-          color: stopsInfo.tone === 'success' ? '#10b981' : '#fbbf24',
-          background: stopsInfo.tone === 'success' ? 'rgba(16,185,129,0.12)' : 'rgba(251,191,36,0.12)',
-          justifySelf: 'flex-start'
-        }}
-      >
-        {stopsInfo.label}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
-        <div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>
-            {flight?.currency || 'EUR'} {parseFloat(flight?.price || 0).toFixed(0)}
+        <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.9rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+            <span style={{ height: 1, flex: 1, background: '#24335c' }} />
+            {stops === 0 ? (
+              <span style={{ padding: '4px 10px', borderRadius: 20, background: 'rgba(16,185,129,0.15)', color: '#10b981', fontWeight: 700 }}>Direct</span>
+            ) : (
+              <span style={{ padding: '4px 10px', borderRadius: 20, background: 'rgba(251,191,36,0.15)', color: '#fbbf24', fontWeight: 700 }}>
+                {stops} stop{stops > 1 ? 's' : ''}
+              </span>
+            )}
+            <span style={{ height: 1, flex: 1, background: '#24335c' }} />
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>per person</div>
+          <div style={{ marginTop: 6 }}>
+            <Clock3 size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+            <span>{duration || '—'}</span>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onSelect()
-          }}
-          className="button button-primary"
-          style={{ whiteSpace: 'nowrap' }}
-        >
-          Select Flight
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+          <div style={{ fontWeight: 800, fontSize: '1.4rem' }}>{arriveAirport || '---'}</div>
+          <div style={{ fontSize: '0.95rem', color: '#9ca3af' }}>{arriveTime || '--:--'}</div>
+        </div>
+      </div>
+
+      {/* Date + metadata */}
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', color: '#9ca3af', fontSize: '0.9rem' }}>
+        <div>{formatDate(firstSeg?.departure?.at) || formatDate(flight?.date)}</div>
+        {offer?.price?.grandTotal && (
+          <div>Offer total: {flight?.currency || offer?.price?.currency || 'EUR'} {offer?.price?.grandTotal}</div>
+        )}
       </div>
     </div>
   )
@@ -185,7 +206,8 @@ export default function FlightSearchModal({
   searchFrom,
   searchTo,
   searchDate,
-  searchReturnDate
+  searchReturnDate,
+  onHold
 }) {
   const [selectedId, setSelectedId] = useState(null)
   const [sortKey, setSortKey] = useState('best')
@@ -476,6 +498,10 @@ export default function FlightSearchModal({
                     onSelect={() => {
                       setSelectedId(flight.id || flight.offer?.id || null)
                       onSelectFlight?.(flight)
+                    }}
+                    onHold={() => {
+                      setSelectedId(flight.id || flight.offer?.id || null)
+                      onHold?.(flight)
                     }}
                   />
                 ))}

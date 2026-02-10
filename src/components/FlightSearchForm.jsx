@@ -62,6 +62,16 @@ export default function FlightSearchForm({ onSearch }) {
     }))
   }
 
+  const setIataRoute = (partial) => {
+    const normalized = {}
+    if (partial.from !== undefined) normalized.from = (partial.from || '').toUpperCase()
+    if (partial.to !== undefined) normalized.to = (partial.to || '').toUpperCase()
+    setRoute((prev) => ({
+      ...prev,
+      ...normalized
+    }))
+  }
+
   const updateLegField = (index, field, value) => {
     setLegs((prev) => prev.map((leg, i) => (i === index ? { ...leg, [field]: value } : leg)))
   }
@@ -90,13 +100,25 @@ export default function FlightSearchForm({ onSearch }) {
     return Object.keys(nextErrors).length === 0
   }
 
+  const isIata = (code) => /^[A-Z]{3}$/.test(code || '')
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!validate()) return
 
+    const originCode = (route.from || '').trim().toUpperCase()
+    const destCode = (route.to || '').trim().toUpperCase()
+    const nextErrors = {}
+    if (!isIata(originCode)) nextErrors.from = 'Use a 3-letter airport code (e.g., MUC)'
+    if (!isIata(destCode)) nextErrors.to = 'Use a 3-letter airport code (e.g., IST)'
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, ...nextErrors }))
+      return
+    }
+
     const payload = {
-      originLocationCode: route.from,
-      destinationLocationCode: route.to,
+      originLocationCode: originCode,
+      destinationLocationCode: destCode,
       departureDate: route.departureDate,
       returnDate: tripType === 'roundtrip' ? route.returnDate : undefined,
       travelClass,
@@ -265,8 +287,9 @@ export default function FlightSearchForm({ onSearch }) {
               <label style={labelStyle}>Leaving from</label>
               <AirportAutocomplete
                 value={route.from}
-                onChange={(val) => setRoute((prev) => ({ ...prev, from: val }))}
+                onChange={(val) => setIataRoute({ from: val })}
                 placeholder="City or airport"
+                forceIata
               />
               {errors.from && <div style={{ color: '#f87171', fontSize: '0.75rem', marginTop: 4 }}>{errors.from}</div>}
             </div>
@@ -286,8 +309,9 @@ export default function FlightSearchForm({ onSearch }) {
               <label style={labelStyle}>Going to</label>
               <AirportAutocomplete
                 value={route.to}
-                onChange={(val) => setRoute((prev) => ({ ...prev, to: val }))}
+                onChange={(val) => setIataRoute({ to: val })}
                 placeholder="City or airport"
+                forceIata
               />
               {errors.to && <div style={{ color: '#f87171', fontSize: '0.75rem', marginTop: 4 }}>{errors.to}</div>}
             </div>
@@ -451,11 +475,11 @@ export default function FlightSearchForm({ onSearch }) {
             <div key={idx} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, alignItems: 'end', marginBottom: 8 }}>
               <div>
                 <label style={labelStyle}>From</label>
-                <AirportAutocomplete value={leg.from} onChange={(val) => updateLegField(idx, 'from', val)} placeholder="City or airport" />
+                <AirportAutocomplete value={leg.from} onChange={(val) => updateLegField(idx, 'from', val)} placeholder="City or airport" forceIata />
               </div>
               <div>
                 <label style={labelStyle}>To</label>
-                <AirportAutocomplete value={leg.to} onChange={(val) => updateLegField(idx, 'to', val)} placeholder="City or airport" />
+                <AirportAutocomplete value={leg.to} onChange={(val) => updateLegField(idx, 'to', val)} placeholder="City or airport" forceIata />
               </div>
               <div>
                 <label style={labelStyle}>Date</label>

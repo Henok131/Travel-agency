@@ -9,7 +9,8 @@ export default function AirportAutocomplete({
   placeholder,
   id,
   name,
-  disabled = false
+  disabled = false,
+  forceIata = false
 }) {
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState([])
@@ -39,6 +40,10 @@ export default function AirportAutocomplete({
         if (active) setInputValue('')
         return
       }
+      if (forceIata) {
+        if (active) setInputValue((value || '').toUpperCase())
+        return
+      }
       try {
         const label = await getAirportName(value)
         if (active) setInputValue(label || value)
@@ -50,7 +55,7 @@ export default function AirportAutocomplete({
     return () => {
       active = false
     }
-  }, [value])
+  }, [value, forceIata])
 
   // Debounced search to Amadeus
   useEffect(() => {
@@ -87,16 +92,17 @@ export default function AirportAutocomplete({
   }, [inputValue])
 
   const handleInputChange = (e) => {
-    const newValue = e.target.value
+    const newValueRaw = e.target.value
+    const newValue = forceIata ? newValueRaw.toUpperCase() : newValueRaw
     setInputValue(newValue)
-    onChange?.(newValue) // manual fallback: store whatever user typed
+    onChange?.(newValue) // store typed value (IATA uppercased when forced)
     setError(null)
   }
 
   const handleSelect = (airport) => {
     const label = formatAirportLabel(airport)
     const code = airport?.iataCode || airport?.iata || label
-    setInputValue(label)
+    setInputValue(forceIata ? code : label)
     onChange?.(code) // store IATA code in state
     setIsOpen(false)
     setError(null)
