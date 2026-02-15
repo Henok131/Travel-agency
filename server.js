@@ -46,20 +46,9 @@ console.log('🔎 Amadeus env check:')
 console.log('   Client ID (masked):', maskValue(process.env.AMADEUS_CLIENT_ID || ''))
 console.log('   Secret present:', !!process.env.AMADEUS_CLIENT_SECRET)
 console.log('   Host:', process.env.AMADEUS_HOST)
-
-console.log('✅ Amadeus credentials loaded')
-console.log('   Client ID:', maskValue(process.env.AMADEUS_CLIENT_ID || ''))
-console.log('   Host:', process.env.AMADEUS_HOST)
-console.log('\n🔍 Amadeus Configuration:')
-console.log('Environment: TEST (sandbox)')
-console.log('Host:', process.env.AMADEUS_HOST)
-console.log('Client ID:', (process.env.AMADEUS_CLIENT_ID || '').substring(0, 10) + '...')
-if (!String(process.env.AMADEUS_HOST || '').includes('test.api.amadeus.com')) {
-  console.warn('⚠️  WARNING: Not using test environment!')
-  console.warn('   Expected: https://test.api.amadeus.com')
-  console.warn('   Got:', process.env.AMADEUS_HOST)
-}
-
+// -----------------------------------------------------------------------------
+// Amadeus Configuration & Express Setup
+// -----------------------------------------------------------------------------
 const app = express()
 const PREFERRED_PORT = Number(process.env.API_PORT || 3001)
 const AMADEUS_HOST = (process.env.AMADEUS_HOST || '').trim()
@@ -72,77 +61,46 @@ const BACKEND_PORT_FILE = path.resolve(process.cwd(), '.backend-port')
 app.use(cors())
 app.use(express.json())
 
-// Initialize Supabase client with service role key (bypasses RLS)
+// Global Request Logger
+app.use((req, res, next) => {
+  console.log(`📥 [${new Date().toISOString()}] ${req.method} ${req.url}`)
+  if (Object.keys(req.body).length > 0) {
+    console.log('   Body:', JSON.stringify(req.body).substring(0, 200) + (JSON.stringify(req.body).length > 200 ? '...' : ''))
+  }
+  next()
+})
+
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), amadeus_host: AMADEUS_HOST })
+})
+
+// Initialize Supabase client
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const devOrganizationId = process.env.DEV_ORGANIZATION_ID || 'e17ed5ec-a533-4803-9568-e317ad1f9b3f'
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('❌ Missing required environment variables:')
-  console.error('   - VITE_SUPABASE_URL:', supabaseUrl ? '✅' : '❌')
-  console.error('   - SUPABASE_SERVICE_ROLE_KEY:', supabaseServiceKey ? '✅' : '❌')
+  console.error('❌ Missing required environment variables')
   process.exit(1)
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
+  auth: { autoRefreshToken: false, persistSession: false }
 })
 
-console.log('✅ Supabase service role client initialized')
-console.log('✅ Dev Organization ID:', devOrganizationId)
-console.log('✅ Amadeus host:', AMADEUS_HOST)
-console.log('✅ Amadeus client_id:', maskValue(AMADEUS_CLIENT_ID))
-console.log('✅ Amadeus client_secret:', AMADEUS_CLIENT_SECRET ? '*** set ***' : '❌ missing')
-
 // -----------------------------------------------------------------------------
-// Amadeus helpers (token cache + guarded fetch)
+// Amadeus Token Management
 // -----------------------------------------------------------------------------
-
-let amadeusTokenCache = {
-  token: null,
-  expiresAt: 0
-}
-
-const ensureAmadeusCredentials = () => {
-  const missing = []
-  if (!AMADEUS_CLIENT_ID) missing.push('AMADEUS_CLIENT_ID')
-  if (!AMADEUS_CLIENT_SECRET) missing.push('AMADEUS_CLIENT_SECRET')
-  if (!AMADEUS_HOST) missing.push('AMADEUS_HOST')
-
-  return {
-    ok: missing.length === 0,
-    missing,
-    message: missing.length === 0 ? 'Amadeus credentials present' : `Missing required Amadeus env vars: ${missing.join(', ')}`
-  }
-}
-
-const amadeusHeaders = () => ({
-  'Content-Type': 'application/x-www-form-urlencoded'
-})
+let amadeusTokenCache = { token: null, expiresAt: 0 }
 
 const getAmadeusToken = async () => {
-  if (!AMADEUS_CLIENT_ID || !AMADEUS_CLIENT_SECRET) {
-    throw new Error('Amadeus credentials missing; set AMADEUS_CLIENT_ID/AMADEUS_CLIENT_SECRET')
-  }
-
   const now = Date.now()
   if (amadeusTokenCache.token && amadeusTokenCache.expiresAt > now + 10_000) {
     return amadeusTokenCache.token
   }
 
   try {
-    // Log request config (masked) for debugging invalid_client
-    console.log('🔎 Amadeus token request:', {
-      url: `${AMADEUS_HOST}/v1/security/oauth2/token`,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      bodyKeys: ['grant_type', 'client_id', 'client_secret'],
-      clientId: maskValue(AMADEUS_CLIENT_ID),
-      secretPresent: !!AMADEUS_CLIENT_SECRET
-    })
-
     const response = await axios.post(
       `${AMADEUS_HOST}/v1/security/oauth2/token`,
       qs.stringify({
@@ -150,68 +108,64 @@ const getAmadeusToken = async () => {
         client_id: AMADEUS_CLIENT_ID,
         client_secret: AMADEUS_CLIENT_SECRET
       }),
-      {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: AMADEUS_TIMEOUT_MS
-      }
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: AMADEUS_TIMEOUT_MS }
     )
-
-    const json = response.data || {}
-    const expiresIn = json.expires_in ? Number(json.expires_in) * 1000 : 30 * 60 * 1000
+    const json = response.data
     amadeusTokenCache = {
       token: json.access_token,
-      expiresAt: Date.now() + expiresIn
+      expiresAt: Date.now() + (json.expires_in * 1000)
     }
     return json.access_token
   } catch (error) {
-    const msg = error?.response?.data ? JSON.stringify(error.response.data) : error.message
-    console.error('❌ Amadeus token error:', msg)
-    throw new Error(`Amadeus token failed: ${msg}`)
+    throw new Error(`Amadeus auth failed: ${error.message}`)
   }
 }
 
 const amadeusFetch = async (path, options = {}) => {
+  const token = await getAmadeusToken()
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(options.headers || {}) }
+
   try {
-    const token = await getAmadeusToken()
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
+    const url = `${AMADEUS_HOST}${path}`
+    const method = options.method || 'GET'
+    // Handle body: fetch expects string, axios expects object
+    let data = undefined
+    if (options.body) {
+      try { data = JSON.parse(options.body) } catch (e) { data = options.body }
     }
-    const resp = await fetch(`${AMADEUS_HOST}${path}`, {
-      ...options,
+
+    const resp = await axios({
+      method,
+      url,
       headers,
-      signal: options.signal || AbortSignal.timeout(AMADEUS_TIMEOUT_MS)
+      data,
+      timeout: AMADEUS_TIMEOUT_MS
     })
-
-    if (!resp.ok) {
-      const errorText = await resp.text()
-      throw new Error(`Amadeus API error: ${resp.status} - ${errorText}`)
+    return resp.data
+  } catch (err) {
+    console.error(`❌ Amadeus Call Failed [${path}]:`, err.message)
+    if (err.response) {
+      // Amadeus often returns detailed error JSON
+      const details = JSON.stringify(err.response.data)
+      console.error(`   Details: ${details}`)
+      throw new Error(`Amadeus API error ${err.response.status}: ${details}`)
     }
-
-    const text = await resp.text()
-    const json = text ? JSON.parse(text) : {}
-    return json
-  } catch (error) {
-    console.error('❌ Amadeus API call failed:', error.message)
-    throw error
+    throw new Error(`Amadeus API error: ${err.message}`)
   }
 }
 
 const verifyAmadeusConnection = async () => {
-  const creds = ensureAmadeusCredentials()
-  if (!creds.ok) {
-    console.error('❌ Amadeus credentials check failed:', creds.message)
-    return
-  }
   try {
     await getAmadeusToken()
-    console.log('✅ Amadeus API connected')
+    console.log('✅ Amadeus connected')
   } catch (err) {
-    console.error('❌ Amadeus API connection failed:', err.message)
+    console.error('❌ Amadeus connection failed:', err.message)
   }
 }
 
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
 const safeNumber = (value) => {
   const num = Number(value)
   return Number.isFinite(num) ? num : null
@@ -221,7 +175,6 @@ const buildMainTablePayload = ({ passenger = {}, itinerary = {}, pricing = {}, b
   const outboundDate = itinerary.departureDate || itinerary.travelDate || null
   const returnDate = itinerary.returnDate || null
   const total = safeNumber(pricing.total || pricing.grandTotal)
-
   const serviceFee = pricing.serviceFee !== undefined ? safeNumber(pricing.serviceFee) : null
   const airlinesPrice = pricing.base !== undefined ? safeNumber(pricing.base) : null
 
@@ -254,644 +207,258 @@ const buildMainTablePayload = ({ passenger = {}, itinerary = {}, pricing = {}, b
   }
 }
 
-// API Endpoint: Create Request
-app.post('/api/create-request', async (req, res) => {
-  try {
-    const requestData = req.body
+// -----------------------------------------------------------------------------
+// Endpoints
+// -----------------------------------------------------------------------------
 
-    // Validate required fields
-    if (!requestData.first_name || !requestData.last_name) {
-      return res.status(400).json({
-        error: 'Missing required fields: first_name and last_name are required'
-      })
-    }
-
-    // Ensure organization_id is set to dev organization
-    const dataToInsert = {
-      ...requestData,
-      organization_id: devOrganizationId
-    }
-
-    // Insert into requests table using service role (bypasses RLS)
-    const { data, error } = await supabase
-      .from('requests')
-      .insert([dataToInsert])
-      .select()
-
-    if (error) {
-      console.error('❌ Database error:', error)
-      return res.status(500).json({
-        error: 'Failed to create request',
-        details: error.message
-      })
-    }
-
-    // If booking_ref is provided, update main_table
-    if (requestData.booking_ref && data && data.length > 0) {
-      const { error: updateError } = await supabase
-        .from('main_table')
-        .update({ booking_ref: requestData.booking_ref })
-        .eq('id', data[0].id)
-
-      if (updateError) {
-        console.warn('⚠️ Warning: Failed to update main_table booking_ref:', updateError.message)
-        // Don't fail the request if main_table update fails
-      }
-    }
-
-    res.status(201).json({
-      success: true,
-      data: data[0]
-    })
-  } catch (error) {
-    console.error('❌ Server error:', error)
-    res.status(500).json({
-      error: 'Internal server error',
-      details: error.message
-    })
-  }
-})
-
-// API Endpoint: Create Multiple Requests (for family mode)
-app.post('/api/create-requests', async (req, res) => {
-  try {
-    const requestsData = req.body.requests
-
-    if (!Array.isArray(requestsData) || requestsData.length === 0) {
-      return res.status(400).json({
-        error: 'Invalid request: requests must be a non-empty array'
-      })
-    }
-
-    // Validate all requests have required fields
-    for (const req of requestsData) {
-      if (!req.first_name || !req.last_name) {
-        return res.status(400).json({
-          error: 'Missing required fields: all requests must have first_name and last_name'
-        })
-      }
-    }
-
-    // Ensure organization_id is set to dev organization for all requests
-    const dataToInsert = requestsData.map(req => ({
-      ...req,
-      organization_id: devOrganizationId
-    }))
-
-    // Insert all requests using service role (bypasses RLS)
-    const { data, error } = await supabase
-      .from('requests')
-      .insert(dataToInsert)
-      .select()
-
-    if (error) {
-      console.error('❌ Database error:', error)
-      return res.status(500).json({
-        error: 'Failed to create requests',
-        details: error.message
-      })
-    }
-
-    // Update main_table with booking_ref if provided
-    const bookingRef = req.body.booking_ref
-    if (bookingRef && data && data.length > 0) {
-      const ids = data.map(r => r.id)
-      const { error: updateError } = await supabase
-        .from('main_table')
-        .update({ booking_ref: bookingRef })
-        .in('id', ids)
-
-      if (updateError) {
-        console.warn('⚠️ Warning: Failed to update main_table booking_ref:', updateError.message)
-        // Don't fail the request if main_table update fails
-      }
-    }
-
-    res.status(201).json({
-      success: true,
-      data: data,
-      count: data.length
-    })
-  } catch (error) {
-    console.error('❌ Server error:', error)
-    res.status(500).json({
-      error: 'Internal server error',
-      details: error.message
-    })
-  }
-})
-
-// API Endpoint: Signup completion (service role)
-// Creates organization, user profile, and organization_members (owner) for a user
-app.post('/api/signup-complete', async (req, res) => {
-  try {
-    const { user_id, full_name, organization_name, email } = req.body
-
-    if (!user_id || !organization_name || !email) {
-      return res.status(400).json({ error: 'Missing required fields: user_id, email, organization_name' })
-    }
-
-    // Generate slug
-    const slugBase = organization_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'org'
-    const slug = `${slugBase}-${user_id.substring(0, 8)}`
-
-    // Create organization
-    const { data: org, error: orgError } = await supabase
-      .from('organizations')
-      .insert([{ name: organization_name, slug }])
-      .select()
-      .single()
-
-    if (orgError) {
-      // If unique constraint, try to fetch existing
-      if (orgError.code === '23505') {
-        const { data: existingOrg, error: fetchOrgError } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('slug', slug)
-          .single()
-        if (fetchOrgError) {
-          return res.status(500).json({ error: 'Failed to create or load organization', details: fetchOrgError.message })
-        }
-        org = existingOrg
-      } else {
-        return res.status(500).json({ error: 'Failed to create organization', details: orgError.message })
-      }
-    }
-
-    // Create user profile
-    const { error: profileError } = await supabase
-      .from('user_profiles')
-      .upsert([{
-        id: user_id,
-        email,
-        full_name
-      }], { onConflict: 'id' })
-
-    if (profileError) {
-      return res.status(500).json({ error: 'Failed to create profile', details: profileError.message })
-    }
-
-    // Create organization membership as owner
-    const { error: memberError } = await supabase
-      .from('organization_members')
-      .upsert([{
-        user_id: user_id,
-        organization_id: org.id,
-        role: 'owner'
-      }], { onConflict: 'organization_id,user_id' })
-
-    if (memberError) {
-      return res.status(500).json({ error: 'Failed to create organization membership', details: memberError.message })
-    }
-
-    return res.json({ success: true, organization: org })
-  } catch (error) {
-    console.error('❌ Signup completion error:', error)
-    return res.status(500).json({ error: 'Signup completion failed', details: error.message })
-  }
-})
-
-// ---------------------------------------------------------------------------
-// Amadeus: Search flights
-// ---------------------------------------------------------------------------
+// Search
 app.post('/api/amadeus/search', async (req, res) => {
+  console.log('🔎 Search REQ:', JSON.stringify(req.body))
   try {
-    const {
-      originLocationCode,
-      destinationLocationCode,
-      departureDate,
-      returnDate,
-      adults = 1,
-      children = 0,
-      infants = 0,
-      currencyCode = 'EUR',
-      travelClass,
-      nonStop
-    } = req.body || {}
+    const { originLocationCode, destinationLocationCode, departureDate, returnDate, adults = 1, currencyCode = 'EUR', nonStop } = req.body
     if (!originLocationCode || !destinationLocationCode || !departureDate) {
-      return res.status(400).json({ error: 'originLocationCode, destinationLocationCode, and departureDate are required' })
+      console.warn('⚠️ Missing search params')
+      return res.status(400).json({ error: 'Missing search params' })
     }
 
     const params = new URLSearchParams({
-      originLocationCode,
-      destinationLocationCode,
-      departureDate,
-      adults: String(adults),
-      currencyCode
+      originLocationCode, destinationLocationCode, departureDate, adults, currencyCode
     })
     if (returnDate) params.append('returnDate', returnDate)
-    if (children) params.append('children', String(children))
-    if (infants) params.append('infants', String(infants))
-    if (travelClass) params.append('travelClass', travelClass)
-    if (nonStop !== undefined) params.append('nonStop', String(!!nonStop))
+    if (nonStop) params.append('nonStop', 'true')
 
-    const data = await amadeusFetch(`/v2/shopping/flight-offers?${params.toString()}`, { method: 'GET' })
+    const url = `/v2/shopping/flight-offers?${params.toString()}`
+    console.log(`✈️ Amadeus Request: ${url}`)
 
+    const data = await amadeusFetch(url, { method: 'GET' })
+    const count = data?.data?.length || 0
+    console.log(`✅ Amadeus Response: ${count} offers found`)
+
+    // Map to simplified frontend model
     const offers = (data?.data || []).map((offer) => {
-      const itineraries = offer?.itineraries || []
-      const firstItinerary = itineraries[0] || {}
-      const lastItinerary = itineraries[itineraries.length - 1] || firstItinerary
-      const firstSeg = firstItinerary?.segments?.[0]
-      const lastSeg = lastItinerary?.segments?.[lastItinerary?.segments?.length - 1]
-
-      const departAt = firstSeg?.departure?.at || ''
-      const arriveAt = lastSeg?.arrival?.at || ''
-
-      const departTime = departAt ? departAt.slice(11, 16) : ''
-      const arriveTime = arriveAt ? arriveAt.slice(11, 16) : ''
-
+      const itins = offer.itineraries || []
+      const segs = itins[0]?.segments || []
       return {
-        id: offer?.id,
-        price: Number(offer?.price?.total) || null,
-        currency: offer?.price?.currency || currencyCode || 'EUR',
-        airline: firstSeg?.carrierCode || '',
-        flightNumber: firstSeg?.number || '',
-        depart: departTime,
-        arrive: arriveTime,
-        duration: firstItinerary?.duration || '',
-        from: firstSeg?.departure?.iataCode || originLocationCode,
-        to: lastSeg?.arrival?.iataCode || destinationLocationCode,
-        date: departAt ? departAt.slice(0, 10) : departureDate,
-        offer
+        id: offer.id,
+        price: Number(offer.price?.total),
+        currency: offer.price?.currency,
+        airline: segs[0]?.carrierCode,
+        offer // keep raw for booking
       }
     })
 
     res.json({ success: true, data: { offers, raw: data } })
-  } catch (error) {
-    console.error('❌ Amadeus search failed:', error)
-    res.status(500).json({ error: error.message || 'Amadeus search failed', details: error.response || null })
+  } catch (err) {
+    console.error('❌ Search Error:', err.message)
+    if (err.response) {
+      const details = err.response.data
+      console.error('❌ Amadeus Error Details:', JSON.stringify(details))
+
+      // Extract a user-friendly message if possible (e.g. "INVALID DATE: Date/Time is in the past")
+      const firstError = details.errors?.[0]
+      const cleanMsg = firstError ? `${firstError.title}: ${firstError.detail}` : (err.message || 'Amadeus API Error')
+
+      return res.status(err.response.status).json({ error: cleanMsg, details })
+    }
+    res.status(500).json({ error: err.message })
   }
 })
 
-// ---------------------------------------------------------------------------
-// Amadeus: Health check (token validation)
-// ---------------------------------------------------------------------------
-app.get('/api/amadeus/health', async (_req, res) => {
-  const creds = ensureAmadeusCredentials()
-  if (!creds.ok) {
-    return res.status(400).json({ status: 'error', error: creds.message })
-  }
-
+// NEW: Price Confirmation
+app.post('/api/amadeus/price', async (req, res) => {
   try {
-    await getAmadeusToken()
-    res.json({
-      status: 'ok',
-      host: AMADEUS_HOST,
-      tokenCached: !!amadeusTokenCache.token,
-      tokenExpiresAt: amadeusTokenCache.expiresAt ? new Date(amadeusTokenCache.expiresAt).toISOString() : null
+    const { offer } = req.body
+    if (!offer) return res.status(400).json({ error: 'Missing offer' })
+
+    const pricing = await amadeusFetch('/v1/shopping/flight-offers/pricing', {
+      method: 'POST',
+      body: JSON.stringify({ data: { type: 'flight-offers-pricing', flightOffers: [offer] } })
     })
-  } catch (error) {
-    console.error('❌ Amadeus health failed:', error)
-    res.status(500).json({ status: 'error', error: error.message || 'Amadeus health failed', details: error.response || null })
+
+    const resultOffer = pricing.data?.flightOffers?.[0]
+    if (!resultOffer) throw new Error('No priced offer returned')
+
+    res.json({ success: true, data: resultOffer })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
 })
 
-// ---------------------------------------------------------------------------
-// Amadeus: Test token endpoint (debug)
-// ---------------------------------------------------------------------------
-app.get('/api/amadeus/test-token', async (_req, res) => {
-  const creds = ensureAmadeusCredentials()
-  if (!creds.ok) {
-    return res.status(400).json({
-      success: false,
-      error: creds.message,
-      host: AMADEUS_HOST
-    })
-  }
-  try {
-    const token = await getAmadeusToken()
-    console.log('🔍 Test token env:', {
-      host: AMADEUS_HOST,
-      clientId: maskValue(AMADEUS_CLIENT_ID)
-    })
-    res.json({
-      success: true,
-      message: 'Token generated successfully',
-      tokenPreview: token ? token.substring(0, 20) + '...' : null,
-      host: AMADEUS_HOST
-    })
-  } catch (error) {
-    res.status(401).json({
-      success: false,
-      error: 'Amadeus authentication failed',
-      details: error.message,
-      host: AMADEUS_HOST
-    })
-  }
-})
-
-// ---------------------------------------------------------------------------
-// Amadeus: Airport/City search (IATA autocomplete)
-// ---------------------------------------------------------------------------
-app.post('/api/amadeus/airports/search', async (req, res) => {
-  const { keyword } = req.body || {}
-  const trimmed = (keyword || '').trim()
-
-  if (!trimmed || trimmed.length < 2) {
-    return res.status(400).json({ error: 'Keyword must be at least 2 characters' })
-  }
-
-  const creds = ensureAmadeusCredentials()
-  if (!creds.ok) {
-    return res.status(400).json({ error: creds.message })
-  }
-
-  try {
-    const params = new URLSearchParams({
-      keyword: trimmed,
-      subType: 'AIRPORT,CITY',
-      'page[limit]': '10'
-    })
-
-    const data = await amadeusFetch(`/v1/reference-data/locations?${params.toString()}`, { method: 'GET' })
-    const airports = (data.data || []).map((location) => ({
-      iataCode: location.iataCode,
-      name: location.name,
-      cityName: location.address?.cityName || '',
-      countryCode: location.address?.countryCode || '',
-      type: location.subType
-    }))
-
-    res.json({ success: true, data: airports })
-  } catch (error) {
-    console.error('❌ Airport search failed:', error.message)
-    res.status(500).json({
-      error: 'Airport search failed',
-      details: error.message
-    })
-  }
-})
-
-// ---------------------------------------------------------------------------
-// Amadeus: Create hold -> write to main_table (pending)
-// ---------------------------------------------------------------------------
+// UPDATED: Create Booking (Hold)
 app.post('/api/amadeus/hold', async (req, res) => {
   try {
-    const { bookingId, offer, passengers = [], pricing = {}, itinerary = {}, bookingRef, holdExpiresAt } = req.body || {}
+    const { offer, passengers = [], pricing = {}, itinerary = {}, bookingRef, user_id, bookingId } = req.body
+    if (!offer) return res.status(400).json({ error: 'Missing offer' })
 
-    if (!bookingId) {
-      return res.status(400).json({ error: 'bookingId is required for hold' })
-    }
+    // 1. Travelers
+    const travelers = passengers.map((p, i) => ({
+      id: String(i + 1),
+      dateOfBirth: p.dateOfBirth || p.date_of_birth,
+      name: {
+        firstName: (p.firstName || p.first_name || 'TEST').toUpperCase(),
+        lastName: (p.lastName || p.last_name || 'TEST').toUpperCase()
+      },
+      gender: (p.gender || 'MALE').toUpperCase(),
+      contact: {
+        emailAddress: p.email || 'customer@example.com',
+        phones: [{ deviceType: 'MOBILE', countryCallingCode: '1', number: '1234567890' }]
+      },
+      documents: p.passportNumber ? [{
+        documentType: 'PASSPORT',
+        number: p.passportNumber,
+        expiryDate: '2030-01-01',
+        issuanceCountry: 'US',
+        nationality: 'US',
+        holder: true
+      }] : undefined
+    }))
 
-    if (!offer) {
-      return res.status(400).json({ error: 'Missing offer for hold' })
-    }
-    if (!Array.isArray(passengers) || passengers.length === 0) {
-      return res.status(400).json({ error: 'Missing passengers for hold' })
-    }
-
-    // Build travelers and call Amadeus OrderCreate (required for PNR)
-    const normalizeTraveler = (traveler, idx) => {
-      const phoneRaw = traveler?.phone || traveler?.phoneNumber || ''
-      const cleanPhone = phoneRaw.replace(/[^\d+]/g, '')
-      const countryCallingCode = cleanPhone.startsWith('+') ? cleanPhone.slice(1, 3) : ''
-      const number = cleanPhone.startsWith('+') ? cleanPhone.slice(3) : cleanPhone
-
-      return {
-        id: String(idx + 1),
-        dateOfBirth: traveler?.dateOfBirth || traveler?.date_of_birth || null,
-        name: {
-          firstName: (traveler?.firstName || traveler?.first_name || '').toUpperCase(),
-          lastName: (traveler?.lastName || traveler?.last_name || '').toUpperCase()
-        },
-        gender: (traveler?.gender || '').toUpperCase(),
-        contact: traveler?.email || phoneRaw ? {
-          emailAddress: traveler?.email || traveler?.emailAddress || null,
-          phones: phoneRaw ? [{
-            deviceType: 'MOBILE',
-            countryCallingCode: countryCallingCode || undefined,
-            number: number || undefined
-          }] : undefined
-        } : undefined,
-        documents: traveler?.passportNumber ? [{
-          documentType: 'PASSPORT',
-          number: traveler.passportNumber,
-          holder: true
-        }] : undefined
-      }
-    }
-
-    const travelers = passengers.map(normalizeTraveler)
-    const orderPayload = {
-      data: {
-        type: 'flight-order',
-        flightOffers: [offer],
-        travelers
-      }
-    }
-
-    let amadeusOrderId = null
-    let amadeusPnr = null
-    let holdExpiry = holdExpiresAt || null
-
-    const orderResult = await amadeusFetch('/v1/shopping/flight-orders', {
+    // 2. Create Order in Amadeus
+    console.log('✈️ Creating Order...')
+    const orderRes = await amadeusFetch('/v1/shopping/flight-orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderPayload)
-    })
-    amadeusOrderId = orderResult?.data?.id || null
-    amadeusPnr = orderResult?.data?.associatedRecords?.[0]?.reference || null
-    holdExpiry = holdExpiry || orderResult?.data?.flightOffers?.[0]?.lastTicketingDateTime || null
-
-    const primaryPassenger = passengers[0] || {}
-    const payload = buildMainTablePayload({
-      passenger: primaryPassenger,
-      itinerary,
-      pricing,
-      bookingRef,
-      amadeusOrderId,
-      amadeusPnr,
-      holdExpiresAt: holdExpiry
+      body: JSON.stringify({
+        data: { type: 'flight-order', flightOffers: [offer], travelers }
+      })
     })
 
-    const { data: record, error } = await supabase
-      .from('main_table')
-      .update({ ...payload, booking_status: 'pending' })
-      .eq('id', bookingId)
-      .select()
-      .maybeSingle()
+    const order = orderRes.data
+    const pnr = order.associatedRecords?.[0]?.reference
+    const orderId = order.id
+    const expiry = order.flightOffers?.[0]?.lastTicketingDateTime
+    const total = order.flightOffers?.[0]?.price?.total
 
-    if (error) throw error
+    console.log(`✅ PNR: ${pnr}, Order: ${orderId}`)
+
+    // 3. Save to Normalized Tables
+    const { data: booking, error: bkErr } = await supabase.from('bookings').insert([{
+      user_id: user_id || null, gds_pnr: pnr, gds_order_id: orderId, status: 'PENDING_PAYMENT',
+      total_price: total, currency: pricing.currency || 'EUR', ticket_time_limit: expiry
+    }]).select().single()
+    if (bkErr) throw bkErr
+
+    await supabase.from('booking_offers').insert([{ booking_id: booking.id, offer_json: offer }])
+
+    // Save Passengers
+    const paxInserts = passengers.map((p, i) => ({
+      booking_id: booking.id, first_name: travelers[i].name.firstName, last_name: travelers[i].name.lastName,
+      amadeus_traveler_id: String(i + 1)
+    }))
+    await supabase.from('booking_passengers').insert(paxInserts)
+
+    // Save Flights
+    const flightInserts = offer.itineraries.flatMap((itin, idx) =>
+      itin.segments.map((seg, sIdx) => ({
+        booking_id: booking.id, carrier_code: seg.carrierCode, flight_number: seg.number,
+        departure_iata: seg.departure.iataCode, arrival_iata: seg.arrival.iataCode,
+        departure_at: seg.departure.at, arrival_at: seg.arrival.at, duration: seg.duration,
+        segment_order: (idx * 100) + sIdx
+      }))
+    )
+    await supabase.from('booking_flights').insert(flightInserts)
+
+    // 4. Update/Insert Legacy Main Table (Frontend Compatibility)
+    const mainPayload = buildMainTablePayload({
+      passenger: passengers[0], itinerary, pricing: { ...pricing, total }, bookingRef,
+      amadeusOrderId: orderId, amadeusPnr: pnr, holdExpiresAt: expiry
+    })
+
+    let legacyData
+    if (bookingId) {
+      // Update existing draft
+      const { data } = await supabase.from('main_table')
+        .update({ ...mainPayload, booking_status: 'pending' })
+        .eq('id', bookingId).select().single()
+      legacyData = data
+    } else {
+      // Create new
+      const { data } = await supabase.from('main_table')
+        .insert([{ ...mainPayload, booking_status: 'pending' }])
+        .select().single()
+      legacyData = data
+    }
 
     res.json({
       success: true,
       data: {
-        ...record,
-        amadeus_order_id: amadeusOrderId || record?.amadeus_order_id || null,
-        amadeus_pnr: amadeusPnr || record?.amadeus_pnr || null
+        ...legacyData,
+        amadeus_pnr: pnr,
+        amadeus_order_id: orderId,
+        hold_expires_at: expiry
       }
     })
-  } catch (error) {
-    console.error('❌ Amadeus hold failed:', error)
-    res.status(500).json({ error: error.message || 'Amadeus hold failed', details: error.response || null })
+
+  } catch (err) {
+    console.error('Hold failed:', err)
+    res.status(500).json({ error: err.message, details: err.response || null })
   }
 })
 
-// ---------------------------------------------------------------------------
-// Amadeus: Ticket issuance -> update main_table (confirmed)
-// ---------------------------------------------------------------------------
+// Ticket
 app.post('/api/amadeus/ticket', async (req, res) => {
   try {
-    const {
-      bookingId,
-      paymentAmount,
-      paymentCurrency = 'EUR',
-      eticketUrl
-    } = req.body || {}
+    const { bookingId, paymentAmount } = req.body
+    if (!bookingId) return res.status(400).json({ error: 'Missing bookingId' })
 
-    if (!bookingId) {
-      return res.status(400).json({ error: 'bookingId is required to update ticketing' })
-    }
-
-    // Fetch booking to get order id
-    const { data: booking, error: bookingError } = await supabase
-      .from('main_table')
-      .select('*')
-      .eq('id', bookingId)
-      .maybeSingle()
-
-    if (bookingError) throw bookingError
-
-    if (!booking?.amadeus_order_id) {
-      return res.status(400).json({ error: 'No Amadeus order found' })
-    }
-
-    const baseUpdate = {
-      booking_status: 'confirmed',
-      payment_status: 'paid',
-      payment_amount: safeNumber(paymentAmount),
-      payment_currency: paymentCurrency || 'EUR',
-      bank_transfer: paymentAmount ? true : booking?.bank_transfer,
-      eticket_url: eticketUrl || null
-    }
+    const { data: booking } = await supabase.from('main_table').select('*').eq('id', bookingId).maybeSingle()
+    if (!booking?.amadeus_order_id) return res.status(400).json({ error: 'No order found' })
 
     try {
-      const ticketResponse = await amadeusFetch(
-        `/v1/booking/flight-orders/${booking.amadeus_order_id}/ticketing`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: { ticketingMethod: 'AUTOMATIC' } })
-        }
-      )
-
-      const ticketNumber =
-        ticketResponse?.data?.ticketNumber ||
-        ticketResponse?.data?.documents?.[0]?.number ||
-        `ETKT-${booking.amadeus_order_id}`
-
-      const { data, error } = await supabase
-        .from('main_table')
-        .update({
-          ...baseUpdate,
-          amadeus_ticket_number: ticketNumber
-        })
-        .eq('id', bookingId)
-        .select()
-        .maybeSingle()
-
-      if (error) throw error
-
-      console.log('🟢 Amadeus ticketed', { bookingId, ticketNumber, order: booking.amadeus_order_id })
-
-      res.json({ success: true, ticketNumber, data })
-    } catch (autoErr) {
-      console.warn('Auto-ticketing not available:', autoErr.message)
-
-      const manualTicket = `MANUAL-${booking.amadeus_order_id}`
-      const { data, error } = await supabase
-        .from('main_table')
-        .update({
-          ...baseUpdate,
-          amadeus_ticket_number: manualTicket
-        })
-        .eq('id', bookingId)
-        .select()
-        .maybeSingle()
-
-      if (error) throw error
-
-      res.json({
-        success: true,
-        ticketNumber: manualTicket,
-        note: 'Manual ticketing required',
-        data
+      const ticketRes = await amadeusFetch(`/v1/booking/flight-orders/${booking.amadeus_order_id}/ticketing`, {
+        method: 'POST', body: JSON.stringify({ data: { ticketingMethod: 'AUTOMATIC' } })
       })
+      const ticketNum = ticketRes.data?.ticketNumber || 'TICKET-123'
+
+      await supabase.from('main_table').update({
+        booking_status: 'confirmed', payment_status: 'paid', amadeus_ticket_number: ticketNum, payment_amount: paymentAmount
+      }).eq('id', bookingId)
+
+      // Also update normalized table
+      await supabase.from('bookings').update({ status: 'TICKETED' }).eq('gds_order_id', booking.amadeus_order_id)
+
+      res.json({ success: true, ticketNumber: ticketNum })
+    } catch (e) {
+      console.warn('Auto-ticketing failed, manual required', e.message)
+      const manualTkt = `MANUAL-${booking.amadeus_order_id}`
+      await supabase.from('main_table').update({
+        booking_status: 'confirmed', payment_status: 'paid', amadeus_ticket_number: manualTkt, payment_amount: paymentAmount
+      }).eq('id', bookingId)
+
+      res.json({ success: true, ticketNumber: manualTkt, note: 'Manual intervention required' })
     }
-  } catch (error) {
-    console.error('❌ Amadeus ticket update failed:', error)
-    res.status(500).json({ error: error.message || 'Amadeus ticket update failed', details: error.response || null })
-  }
-})
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'LST Travel API',
-    timestamp: new Date().toISOString()
-  })
-})
-
-const findAvailablePort = (startPort, attempts = 5) =>
-  new Promise((resolve) => {
-    const tryListen = (port, remaining) => {
-      const tester = net.createServer()
-      tester.unref()
-      tester.on('error', () => {
-        if (remaining > 0) {
-          tryListen(port + 1, remaining - 1)
-        } else {
-          // Fall back to any free port
-          const fallback = net.createServer()
-          fallback.unref()
-          fallback.listen(0, () => {
-            const { port: assigned } = fallback.address()
-            fallback.close(() => resolve({ port: assigned, note: 'random' }))
-          })
-        }
-      })
-      tester.listen(port, () => {
-        tester.close(() => resolve({ port, note: port === startPort ? 'preferred' : 'fallback' }))
-      })
-    }
-    tryListen(startPort, attempts)
-  })
-
-const writePortFile = (port) => {
-  try {
-    fs.writeFileSync(BACKEND_PORT_FILE, String(port))
   } catch (err) {
-    console.warn('⚠️ Could not write backend port file:', err.message)
+    res.status(500).json({ error: err.message })
   }
-}
+})
+
+// Airports
+app.post('/api/amadeus/airports/search', async (req, res) => {
+  const { keyword } = req.body
+  if (!keyword || keyword.length < 2) return res.status(400).json({ error: 'Min 2 chars' })
+
+  try {
+    const data = await amadeusFetch(`/v1/reference-data/locations?subType=AIRPORT,CITY&keyword=${keyword}&page[limit]=10`, { method: 'GET' })
+    res.json({ success: true, data: data.data.map(l => ({ iataCode: l.iataCode, name: l.name, cityName: l.address?.cityName })) })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
 
 const startServer = async () => {
-  const { port, note } = await findAvailablePort(PREFERRED_PORT)
-  process.env.API_PORT = String(port)
-  writePortFile(port)
-
-  const serverInstance = app.listen(port, () => {
-    console.log(`🚀 API Server running on http://localhost:${port} (${note})`)
-    console.log(`📡 Endpoints:`)
-    console.log(`   POST /api/create-request`)
-    console.log(`   POST /api/create-requests`)
-    console.log(`   POST /api/amadeus/search`)
-    console.log(`   POST /api/amadeus/airports/search`)
-    console.log(`   POST /api/amadeus/hold`)
-    console.log(`   POST /api/amadeus/ticket`)
-    console.log(`   GET  /api/amadeus/health`)
-    console.log(`   GET  /api/health`)
-    verifyAmadeusConnection()
+  const { port, note } = await new Promise(resolve => {
+    const s = net.createServer()
+    s.listen(PREFERRED_PORT, () => { s.close(() => resolve({ port: PREFERRED_PORT, note: 'preferred' })) })
+    s.on('error', () => {
+      const s2 = net.createServer(); s2.listen(0, () => { const p = s2.address().port; s2.close(() => resolve({ port: p, note: 'random' })) })
+    })
   })
 
-  serverInstance.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`❌ Port ${port} is already in use. Stop other dev servers or set API_PORT to a free port.`)
-      process.exit(1)
-    }
-    throw err
+  process.env.API_PORT = String(port)
+  try { fs.writeFileSync(BACKEND_PORT_FILE, String(port)) } catch (e) { }
+
+  app.listen(port, () => {
+    console.log(`🚀 Server running on http://localhost:${port}`)
+    verifyAmadeusConnection()
   })
 }
 

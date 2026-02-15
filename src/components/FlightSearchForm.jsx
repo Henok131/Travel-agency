@@ -86,16 +86,50 @@ export default function FlightSearchForm({ onSearch }) {
 
   const validate = () => {
     const nextErrors = {}
+    const today = todayIso()
+
+    // Amadeus API constraint: max ~330 days in advance
+    const maxDate = new Date()
+    maxDate.setDate(maxDate.getDate() + 330)
+    const maxDateIso = maxDate.toISOString().slice(0, 10)
+
+    // 1. Required field validation
     if (!route.from) nextErrors.from = 'From is required'
     if (!route.to) nextErrors.to = 'To is required'
-    if (!route.departureDate) nextErrors.departureDate = 'Departure date is required'
-    if (tripType === 'roundtrip' && !route.returnDate) nextErrors.returnDate = 'Return date is required'
-    if (tripType === 'roundtrip' && route.returnDate && route.returnDate < route.departureDate) {
-      nextErrors.returnDate = 'Return must be after departure'
+    if (!route.departureDate) {
+      nextErrors.departureDate = 'Departure date is required'
     }
+
+    // 2. Departure date validation (only if provided)
+    if (route.departureDate) {
+      if (route.departureDate < today) {
+        nextErrors.departureDate = 'Departure date cannot be in the past'
+      } else if (route.departureDate > maxDateIso) {
+        nextErrors.departureDate = 'Departure date too far in future (max 330 days)'
+      }
+    }
+
+    // 3. Return date validation (round-trip only)
+    if (tripType === 'roundtrip') {
+      if (!route.returnDate) {
+        nextErrors.returnDate = 'Return date is required'
+      } else {
+        // Priority order: past date > before departure > too far future
+        if (route.returnDate < today) {
+          nextErrors.returnDate = 'Return date cannot be in the past'
+        } else if (route.departureDate && route.returnDate < route.departureDate) {
+          nextErrors.returnDate = 'Return must be after departure'
+        } else if (route.returnDate > maxDateIso) {
+          nextErrors.returnDate = 'Return date too far in future (max 330 days)'
+        }
+      }
+    }
+
+    // 4. Passenger validation
     if (passengers.infants > passengers.adults) {
       nextErrors.passengers = 'Infants cannot exceed adults'
     }
+
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }

@@ -19,6 +19,17 @@ const formatTime = (value) => {
   return value
 }
 
+// Format date (no time) for card headers
+const formatDate = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric'
+  }).format(date)
+}
+
 const formatDateTime = (value) => {
   if (!value) return ''
   const date = new Date(value)
@@ -94,13 +105,13 @@ const FlightDetailsExpanded = ({ flight, onSelect }) => {
                               <span>{seg.departure.iataCode}</span>
                             </div>
                             <div style={{ fontSize: '0.85rem', color: '#595959', marginTop: 2 }}>{formatDateTime(seg.departure.at)}</div>
-                            <div style={{ fontSize: '0.85rem', color: '#595959' }}>{getAirlineName(seg.carrierCode)} Airport</div>
+                            <div style={{ fontSize: '0.85rem', color: '#595959' }}>{seg.departure.iataCode} Airport</div>
                           </div>
 
-                          {/* Airline Info */}
+                          {/* Airline Info - LOGO ONLY + FLIGHT NUMBER */}
                           {(segIdx === 0 || nextSeg?.carrierCode !== seg.carrierCode) && (
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                              <div style={{ width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <img
                                   src={airlineLogo}
                                   alt={seg.carrierCode}
@@ -109,7 +120,7 @@ const FlightDetailsExpanded = ({ flight, onSelect }) => {
                                 />
                               </div>
                               <div>
-                                <div style={{ fontSize: '0.8rem', color: '#595959' }}>Flight {seg.number} · Economy</div>
+                                <div style={{ fontSize: '0.8rem', color: '#595959', fontWeight: 600 }}>Flight {seg.number} · Economy</div>
                                 <div style={{ fontSize: '0.8rem', color: '#595959' }}>Flight time {formatDuration(seg.duration)}</div>
                               </div>
                             </div>
@@ -129,7 +140,7 @@ const FlightDetailsExpanded = ({ flight, onSelect }) => {
                             <span>{seg.arrival.iataCode}</span>
                           </div>
                           <div style={{ fontSize: '0.85rem', color: '#595959', marginTop: 2 }}>{formatDateTime(seg.arrival.at)}</div>
-                          <div style={{ fontSize: '0.85rem', color: '#595959' }}>{getAirlineName(seg.carrierCode)} Airport</div>
+                          <div style={{ fontSize: '0.85rem', color: '#595959' }}>{seg.arrival.iataCode} Airport</div>
                         </div>
                       </div>
 
@@ -218,7 +229,7 @@ const FlightDetailsExpanded = ({ flight, onSelect }) => {
           <div style={{ fontSize: '0.8rem', color: '#595959' }}>Total per person</div>
         </div>
         <button onClick={onSelect} style={{ background: '#006ce4', color: 'white', border: 'none', padding: '12px 32px', borderRadius: 4, fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>
-          Select
+          Book Flight
         </button>
       </div>
 
@@ -232,19 +243,38 @@ const FlightCard = ({ flight, isSelected, onSelect, onToggle, isExpanded }) => {
   const price = Number(flight.price).toFixed(2)
   const isCheapest = flight.cheapest
   const isFlexible = true
+  const carrierCodes = Array.from(
+    new Set(
+      itineraries.flatMap((it) => (it.segments || []).map((seg) => seg.carrierCode).filter(Boolean))
+    )
+  )
 
   return (
-    <div style={{ background: '#fff', border: '1px solid #e7e7e7', borderRadius: 8, marginBottom: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+    <div style={{ background: '#fff', border: isSelected ? '2px solid #006ce4' : '1px solid #e7e7e7', borderRadius: 12, marginBottom: 16, overflow: 'hidden', boxShadow: '0 6px 18px rgba(0,0,0,0.08)' }}>
       {/* Body */}
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 18 }}>
 
         {/* Badges - Inline above rows */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
           {isCheapest && <span style={{ background: '#008009', color: 'white', fontSize: '0.75rem', fontWeight: 700, padding: '2px 6px', borderRadius: 2 }}>Cheapest</span>}
           {isFlexible && <span style={{ fontSize: '0.75rem', color: '#008009', fontWeight: 600 }}>Flexible ticket upgrade available</span>}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        {/* Carrier badges */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+          {carrierCodes.map((code) => (
+            <div key={code} style={{ display: 'flex', alignItems: 'center', padding: '4px 8px', border: '1px solid #e7e7e7', borderRadius: 10, background: '#f8f9fb' }}>
+              <img
+                src={`https://content.airhex.com/content/logos/airlines_${code}_200_200_s.png?proportions=keep`}
+                alt={code}
+                style={{ width: 40, height: 40, objectFit: 'contain' }}
+                onError={(e) => { e.target.style.display = 'none' }}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18 }}>
           {/* Flight Rows */}
           <div style={{ flex: 1 }}>
             {itineraries.map((itin, idx) => {
@@ -252,65 +282,67 @@ const FlightCard = ({ flight, isSelected, onSelect, onToggle, isExpanded }) => {
               const stops = segments.length - 1
               const duration = formatDuration(itin.duration)
               const logoUrl = getAirlineLogo(segments[0].carrierCode)
+              const origin = segments[0].departure.iataCode
+              const destination = segments[segments.length - 1].arrival.iataCode
+              const depTime = formatTime(segments[0].departure.at)
+              const arrTime = formatTime(segments[segments.length - 1].arrival.at)
+              const depDate = segments[0].departure.at ? formatDate(segments[0].departure.at) : ''
+              const arrDate = segments[segments.length - 1].arrival.at ? formatDate(segments[segments.length - 1].arrival.at) : ''
+              const stopsLabel = stops === 0 ? 'Direct' : `${stops} stop${stops > 1 ? 's' : ''}`
 
               return (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: idx !== itineraries.length - 1 ? 24 : 0 }}>
-                  <img src={logoUrl} alt="" style={{ width: 40, height: 40, objectFit: 'contain', marginRight: 16 }} onError={(e) => e.target.style.display = 'none'} />
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: idx !== itineraries.length - 1 ? 20 : 0 }}>
+                  <img src={logoUrl} alt="" style={{ width: 56, height: 56, objectFit: 'contain', marginRight: 16 }} onError={(e) => e.target.style.display = 'none'} />
 
-                  <div style={{ display: 'flex', flexDirection: 'column', width: 220 }}>
-                    <div style={{ flexDirection: 'row', display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                      <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1a1a1a' }}>{formatTime(segments[0].departure.at)}</span>
-                      <span style={{ color: '#595959', fontSize: '0.9rem' }}>—</span>
-                      <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1a1a1a' }}>{formatTime(segments[segments.length - 1].arrival.at)}</span>
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: '#595959' }}>
-                      {segments[0].departure.iataCode}
-                    </div>
-                  </div>
-
-                  {/* Duration & Stops - The "O----O" line */}
-                  <div style={{ display: 'flex', alignItems: 'center', width: 140, flexDirection: 'column' }}>
-                    <div style={{ fontSize: '0.8rem', color: '#595959', marginBottom: 2 }}>{duration}</div>
-                    <div style={{ position: 'relative', width: '100%', height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <div style={{ position: 'absolute', width: '100%', height: 1, background: '#a2a2a2' }}></div>
-                      <div style={{ position: 'absolute', left: 0, width: 6, height: 6, borderRadius: '50%', border: '1px solid #595959', background: '#fff' }}></div>
-                      <div style={{ position: 'absolute', right: 0, width: 6, height: 6, borderRadius: '50%', border: '1px solid #595959', background: '#fff' }}></div>
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: '#595959', marginTop: 2 }}>
-                      {stops === 0 ? 'Direct' : `${stops} stop${stops > 1 ? 's' : ''}`}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', columnGap: 12 }}>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#1a1a1a' }}>{depTime}</div>
+                        <div style={{ fontSize: '0.85rem', color: '#4b5563' }}>{origin} · {depDate}</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', color: '#1a1a1a', fontSize: '0.9rem' }}>
+                        <span style={{ height: 1, width: 60, background: '#cbd5e1' }} />
+                        <span style={{ padding: '4px 10px', borderRadius: 20, background: stops === 0 ? 'rgba(16,185,129,0.2)' : 'rgba(251,191,36,0.2)', color: stops === 0 ? '#0f9b55' : '#b45309', fontWeight: 700 }}>
+                          {stopsLabel}
+                        </span>
+                        <span style={{ fontWeight: 600 }}>{duration}</span>
+                        <span style={{ height: 1, width: 60, background: '#cbd5e1' }} />
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#1a1a1a' }}>{arrTime}</div>
+                        <div style={{ fontSize: '0.85rem', color: '#4b5563' }}>{destination} · {arrDate}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               )
             })}
+
           </div>
 
           {/* Right Side: Price & Actions */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', marginLeft: 24, minWidth: 140 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', marginLeft: 24, minWidth: 180 }}>
 
             <div style={{ display: 'flex', gap: 6, marginBottom: 16, alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#1a1a1a' }}>Restricted</span>
-              <Backpack size={16} color="#444" />
-              <Luggage size={16} color="#444" />
-              <div style={{ width: 16, height: 16, border: '1px dashed #ccc', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: '10px', color: '#ccc' }}>+</span>
-              </div>
+              <span style={{ fontSize: '0.75rem', color: '#595959', marginRight: 4 }}>Economy Saver</span>
+              <Backpack size={16} color="#444" strokeWidth={1.5} />
+              <Luggage size={16} color="#444" strokeWidth={1.5} />
             </div>
 
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#1a1a1a', lineHeight: 1, marginBottom: 4 }}>€{price}</div>
-              <div style={{ fontSize: '0.8rem', color: '#595959', marginBottom: 8 }}>Total price</div>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, marginBottom: 6 }}>€{price}</div>
+              <div style={{ fontSize: '0.85rem', color: '#595959', marginBottom: 10 }}>Total price</div>
               <button
                 onClick={() => onToggle(flight.id)}
                 style={{
                   background: 'transparent',
                   border: '1px solid #006ce4',
                   color: '#006ce4',
-                  padding: '8px 16px',
-                  borderRadius: 4,
+                  padding: '10px 16px',
+                  borderRadius: 6,
                   cursor: 'pointer',
-                  fontWeight: 500,
-                  fontSize: '0.9rem'
+                  fontWeight: 600,
+                  fontSize: '0.95rem'
                 }}
               >
                 {isExpanded ? 'Hide details' : 'View details'}
@@ -332,6 +364,7 @@ export default function FlightSearchModal({
   loading,
   error,
   onSelectFlight,
+  onHold, // Now accepting onHold
   searchFrom,
   searchTo,
   searchDate,
@@ -440,6 +473,16 @@ export default function FlightSearchModal({
     })
   }
 
+  // Choose handler: If onHold is provided, use it. Otherwise fallback to select.
+  // This allows "Book Flight" to trigger the real Amadeus booking flow in parent.
+  const handlePrimaryAction = (flight) => {
+    if (onHold) {
+      onHold(flight)
+    } else if (onSelectFlight) {
+      onSelectFlight(flight)
+    }
+  }
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000,
@@ -523,7 +566,7 @@ export default function FlightSearchModal({
 
             {/* Airlines Filter */}
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 12 }}>Airlines</div>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 12, color: '#000' }}>Airlines</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {airlineList.map(item => (
                   <label key={item.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
@@ -533,9 +576,9 @@ export default function FlightSearchModal({
                         checked={selectedAirlines.length === 0 || selectedAirlines.includes(item.code)}
                         onChange={() => toggleAirline(item.code)}
                       />
-                      <span style={{ fontSize: '0.9rem', color: '#1a1a1a' }}>{item.name}</span>
+                      <span style={{ fontSize: '0.9rem', color: '#000', fontWeight: 600 }}>{item.name}</span>
                     </div>
-                    <span style={{ fontSize: '0.9rem', color: '#595959' }}>{item.count}</span>
+                    <span style={{ fontSize: '0.9rem', color: '#000', fontWeight: 600 }}>{item.count}</span>
                   </label>
                 ))}
               </div>
@@ -572,11 +615,18 @@ export default function FlightSearchModal({
                 flight={flight}
                 isExpanded={expandedId === (flight.id || flight.offer?.id)}
                 onToggle={(id) => setExpandedId(prev => prev === id ? null : id)}
-                onSelect={() => onSelectFlight?.(flight)}
+                onSelect={() => handlePrimaryAction(flight)}
               />
             ))}
 
-            {!loading && displayResults.length === 0 && (
+            {error && (
+              <div style={{ padding: 24, textAlign: 'center', color: '#dc2626', background: '#fee2e2', borderRadius: 8, marginBottom: 24 }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>Search Error</div>
+                <div>{error}</div>
+              </div>
+            )}
+
+            {!loading && !error && displayResults.length === 0 && (
               <div style={{ padding: 40, textAlign: 'center', color: '#595959' }}>
                 No flights found matching your filters.
               </div>
