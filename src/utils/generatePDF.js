@@ -1,6 +1,7 @@
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { replaceInvoiceVariables } from './invoiceVariables'
+import { normalizeAirlineValue } from '../data/airlines'
 import InvoicePreview from '../components/Settings/InvoiceTemplates/InvoicePreview'
 
 // Translations (single language selection)
@@ -48,37 +49,7 @@ const t = (key, lang) => tr[lang]?.[key] || tr.de[key] || ''
 export async function generatePDF(template, booking, options = {}) {
   try {
     const { language = 'de', includeParagraph = false } = options
-    const formatAirlineDisplay = (raw) => {
-      if (!raw) return ''
-      const cleaned = String(raw).trim().replace(/\s+/g, ' ')
-
-      const paren = cleaned.match(/\(([A-Za-z0-9]{2,3})\)/)
-      if (paren) {
-        const code = paren[1].toUpperCase()
-        const name = cleaned.replace(/\([^)]+\)/, '').trim()
-        if (name) return `${name} (${code})`
-        return `${cleaned.replace(/\s*\([^)]+\)/, '').trim()} (${code})`
-      }
-
-      const tokens = cleaned.split(' ')
-      const codePattern = /^[A-Z0-9]{2,3}$/
-
-      if (tokens.length > 1 && codePattern.test(tokens[0])) {
-        const code = tokens[0].toUpperCase()
-        const name = tokens.slice(1).join(' ')
-        return `${name} (${code})`
-      }
-
-      if (tokens.length > 1 && codePattern.test(tokens[tokens.length - 1])) {
-        const code = tokens[tokens.length - 1].toUpperCase()
-        const name = tokens.slice(0, -1).join(' ')
-        return `${name} (${code})`
-      }
-
-      return cleaned
-    }
-
-    const airlineName = formatAirlineDisplay(booking.airline_name || booking.airlines || 'N/A')
+    const airlineName = normalizeAirlineValue(booking.airline_name || booking.airlines || 'N/A')
 
     // Create a temporary container for the invoice preview
     const container = document.createElement('div')
@@ -113,9 +84,9 @@ export async function generatePDF(template, booking, options = {}) {
           min-height: ${template.header_height || 120}px;
           background-color: ${template.header_bg_color || '#ffffff'};
           padding: ${template.header_padding_top || 20}px ${template.header_padding_right || 40}px ${template.header_padding_bottom || 20}px ${template.header_padding_left || 40}px;
-          border-bottom: ${template.header_border_bottom 
-            ? `${template.header_border_width || 1}px solid ${template.header_border_color || '#000000'}` 
-            : 'none'};
+          border-bottom: ${template.header_border_bottom
+        ? `${template.header_border_width || 1}px solid ${template.header_border_color || '#000000'}`
+        : 'none'};
           font-family: ${template.header_font_family || 'Arial, sans-serif'};
           font-size: ${template.header_font_size || 14}px;
           color: ${template.header_text_color || '#000000'};
@@ -228,9 +199,9 @@ export async function generatePDF(template, booking, options = {}) {
           min-height: ${template.footer_height || 80}px;
           background-color: ${template.footer_bg_color || '#ffffff'};
           padding: ${template.footer_padding_top || 15}px ${template.footer_padding_right || 40}px ${template.footer_padding_bottom || 15}px ${template.footer_padding_left || 40}px;
-          border-top: ${template.footer_border_top 
-            ? `${template.footer_border_width || 1}px solid ${template.footer_border_color || '#e2e8f0'}` 
-            : 'none'};
+          border-top: ${template.footer_border_top
+        ? `${template.footer_border_width || 1}px solid ${template.footer_border_color || '#e2e8f0'}`
+        : 'none'};
           font-family: ${template.footer_font_family || 'Arial, sans-serif'};
           font-size: ${template.footer_font_size || 10}px;
           color: ${template.footer_text_color || '#000000'};
@@ -263,7 +234,7 @@ export async function generatePDF(template, booking, options = {}) {
     // Create PDF
     const pdf = new jsPDF('p', 'mm', 'a4')
     const imgData = canvas.toDataURL('image/png')
-    
+
     // Calculate dimensions
     const pdfWidth = 210
     const pdfHeight = 297
@@ -272,13 +243,13 @@ export async function generatePDF(template, booking, options = {}) {
     const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
     const imgScaledWidth = imgWidth * ratio
     const imgScaledHeight = imgHeight * ratio
-    
+
     // Center the image
     const xOffset = (pdfWidth - imgScaledWidth) / 2
     const yOffset = (pdfHeight - imgScaledHeight) / 2
 
     pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgScaledWidth, imgScaledHeight)
-    
+
     // Generate filename
     const bookingId = booking.booking_id || booking.id || 'invoice'
     const date = new Date().toISOString().split('T')[0]

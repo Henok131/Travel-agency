@@ -4,18 +4,20 @@ import fs from 'node:fs'
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
 
-// Read the backend port written by the Express server (auto-fallback if 3001 busy)
 const backendPortFile = path.resolve(process.cwd(), '.backend-port')
-let backendPort = null
-if (fs.existsSync(backendPortFile)) {
-  backendPort = (fs.readFileSync(backendPortFile, 'utf8') || '').trim()
+
+// Helper: read the backend port at call-time (not just at startup)
+const getBackendTarget = () => {
+  if (process.env.VITE_API_PROXY_TARGET) return process.env.VITE_API_PROXY_TARGET
+  try {
+    const port = fs.readFileSync(backendPortFile, 'utf8').trim()
+    if (port) return `http://localhost:${port}`
+  } catch { /* file not written yet */ }
+  return 'http://localhost:3001'
 }
 
-const apiTarget =
-  process.env.VITE_API_PROXY_TARGET ||
-  (backendPort ? `http://localhost:${backendPort}` : 'http://localhost:3001')
-
-console.log(`[vite] proxy target -> ${apiTarget}`)
+// Log once at startup for debugging
+console.log(`[vite] initial proxy target -> ${getBackendTarget()}`)
 
 export default defineConfig({
   plugins: [react()],
@@ -26,14 +28,16 @@ export default defineConfig({
   },
   server: {
     port: Number(process.env.VITE_DEV_PORT || 5173),
-    host: true, // Allow access from network (for mobile QR code scanning)
+    host: true,
     strictPort: false,
     proxy: {
       '/api': {
-        target: apiTarget,
+        // Dynamic target: re-reads .backend-port on every request
+        // so even if Express restarts on a new port, the proxy still works
+        target: 'http://localhost:3001', // default fallback
         changeOrigin: true,
         secure: false,
-        // Keep the /api prefix so backend routes match 1:1
+        router: () => getBackendTarget(),
         rewrite: path => path
       }
     }

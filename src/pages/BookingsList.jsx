@@ -552,7 +552,9 @@ function BookingsList() {
       setBookings(data || [])
     } catch (err) {
       console.error('Error fetching bookings:', err)
-      setError(err.message || t.table.error)
+      const msg = err?.message || ''
+      const isNetworkError = msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')
+      setError(isNetworkError ? 'Unable to load bookings. Check your connection and Supabase configuration (VITE_SUPABASE_URL).' : (msg || t.table.error))
     } finally {
       setLoading(false)
     }

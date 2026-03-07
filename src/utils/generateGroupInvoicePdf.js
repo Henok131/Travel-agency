@@ -4,6 +4,7 @@ import QRCode from 'qrcode'
 import britishFlag from '../assets/British.png'
 import germanFlag from '../assets/Germany.png'
 import defaultInvoiceLogo from '../assets/logo.png'
+import { normalizeAirlineValue } from '../data/airlines'
 
 const DEFAULT_SETTINGS = {
   logo_url: defaultInvoiceLogo,
@@ -60,11 +61,11 @@ const normalizeSettings = (settings) => {
 // Example: "HHN, Hahn Airport, Frankfurt" → { city: "Hahn", code: "HHN" }
 const parseAirport = (airportString) => {
   if (!airportString) return { city: '', code: '' }
-  
+
   // Try to extract code (usually first part before comma)
   const parts = airportString.split(',').map(p => p.trim())
   const code = parts[0] || ''
-  
+
   // Try to extract city name (usually second or third part)
   // Look for city name in the parts
   let city = ''
@@ -80,7 +81,7 @@ const parseAirport = (airportString) => {
       city = secondPart.replace(/Airport/gi, '').trim()
     }
   }
-  
+
   // If no city found, try to extract from the string
   if (!city && airportString) {
     const match = airportString.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/)
@@ -88,7 +89,7 @@ const parseAirport = (airportString) => {
       city = match[1]
     }
   }
-  
+
   return { city: city || '', code: code || '' }
 }
 
@@ -96,11 +97,11 @@ const parseAirport = (airportString) => {
 // Example: "2026-01-22" → "22. Januar 26"
 const formatGermanDate = (dateString) => {
   if (!dateString) return ''
-  
+
   try {
     const date = new Date(dateString)
     if (isNaN(date.getTime())) return dateString
-    
+
     const day = date.getDate()
     const monthNames = [
       'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -108,7 +109,7 @@ const formatGermanDate = (dateString) => {
     ]
     const month = monthNames[date.getMonth()]
     const year = date.getFullYear().toString().slice(-2)
-    
+
     return `${day}. ${month} ${year}`
   } catch (err) {
     return dateString
@@ -157,36 +158,7 @@ const tr = {
 
 const t = (key, lang) => tr[lang]?.[key] || tr.de[key] || ''
 
-// Format airline display to "Name (CODE)" regardless of input order/format
-const formatAirlineDisplay = (raw) => {
-  if (!raw) return ''
-  const cleaned = String(raw).trim().replace(/\s+/g, ' ')
-
-  const paren = cleaned.match(/\(([A-Za-z0-9]{2,3})\)/)
-  if (paren) {
-    const code = paren[1].toUpperCase()
-    const name = cleaned.replace(/\([^)]+\)/, '').trim()
-    if (name) return `${name} (${code})`
-    return `${cleaned.replace(/\s*\([^)]+\)/, '').trim()} (${code})`
-  }
-
-  const tokens = cleaned.split(' ')
-  const codePattern = /^[A-Z0-9]{2,3}$/
-
-  if (tokens.length > 1 && codePattern.test(tokens[0])) {
-    const code = tokens[0].toUpperCase()
-    const name = tokens.slice(1).join(' ')
-    return `${name} (${code})`
-  }
-
-  if (tokens.length > 1 && codePattern.test(tokens[tokens.length - 1])) {
-    const code = tokens[tokens.length - 1].toUpperCase()
-    const name = tokens.slice(0, -1).join(' ')
-    return `${name} (${code})`
-  }
-
-  return cleaned
-}
+// Airline display is handled by the centralized normalizeAirlineValue from data/airlines
 
 // Generate QR code with logo overlay
 async function generateQRCodeWithLogo(qrData, logoUrl) {
@@ -279,25 +251,25 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
 
   const departureAirport = firstBooking.departure_airport || ''
   const arrivalAirport = firstBooking.arrival_airport || firstBooking.destination_airport || ''
-  const airlineName = formatAirlineDisplay(firstBooking.airline_name || firstBooking.airlines || '')
+  const airlineName = normalizeAirlineValue(firstBooking.airline_name || firstBooking.airlines || '')
   const pnrValue = firstBooking.pnr || firstBooking.booking_ref || 'TBD'
-  
+
   // Parse airports
   const departureParsed = parseAirport(departureAirport)
   const arrivalParsed = parseAirport(arrivalAirport)
-  
+
   // Format dates
   const travelDateFormatted = formatGermanDate(firstBooking.travel_date)
   const returnDateFormatted = formatGermanDate(firstBooking.return_date)
-  
+
   // Format airport display: "City (CODE)"
-  const departureDisplay = departureParsed.city && departureParsed.code 
+  const departureDisplay = departureParsed.city && departureParsed.code
     ? `${departureParsed.city} (${departureParsed.code})`
     : departureAirport || ''
   const arrivalDisplay = arrivalParsed.city && arrivalParsed.code
     ? `${arrivalParsed.city} (${arrivalParsed.code})`
     : arrivalAirport || ''
-  
+
   // For return flight, swap departure and arrival
   const returnDepartureDisplay = arrivalDisplay
   const returnArrivalDisplay = departureDisplay
@@ -313,7 +285,7 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
   const totalVisa = bookings.reduce((sum, b) => sum + (parseFloat(b.tot_visa_fees) || 0), 0)
   const totalHotel = bookings.reduce((sum, b) => sum + (parseFloat(b.hotel_charges) || 0), 0)
   const grandTotal = totalTicket + totalVisa + totalHotel
-  
+
   // Get notice from first booking (or check if all bookings have the same notice) and escape HTML
   const noticeText = firstBooking.notice && firstBooking.notice.trim() ? escapeHtml(firstBooking.notice.trim()) : null
 
@@ -465,14 +437,14 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
         </thead>
         <tbody>
           ${pageBookings.map(booking => {
-            const name = [booking.first_name, booking.middle_name, booking.last_name]
-              .filter(Boolean)
-              .join(' ')
-            const ticket = (parseFloat(booking.total_ticket_price) || 0).toFixed(2)
-            const visa = (parseFloat(booking.tot_visa_fees) || 0).toFixed(2)
-            const hotel = (parseFloat(booking.hotel_charges) || 0).toFixed(2)
-            
-            return `
+      const name = [booking.first_name, booking.middle_name, booking.last_name]
+        .filter(Boolean)
+        .join(' ')
+      const ticket = (parseFloat(booking.total_ticket_price) || 0).toFixed(2)
+      const visa = (parseFloat(booking.tot_visa_fees) || 0).toFixed(2)
+      const hotel = (parseFloat(booking.hotel_charges) || 0).toFixed(2)
+
+      return `
               <tr>
                 <td style="border: 1px solid #000; padding: 8px;">${name}</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${ticket}</td>
@@ -480,7 +452,7 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
                 <td style="border: 1px solid #000; padding: 8px; text-align: right;">${hotel || ''}</td>
               </tr>
             `
-          }).join('')}
+    }).join('')}
           ${isLastPage ? `
           <tr>
             <td style="border: 1px solid #000; padding: 8px; font-weight: bold;">${t('total', language)}</td>
@@ -554,7 +526,7 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
   if (includeQr && qrImage) {
     // Use exact coordinates as specified: x=150mm, y=80mm, size=40mm
     pdf.addImage(qrImage, 'PNG', 150, 80, 40, 40)
-    
+
     // Add "Scannen für Details" text below QR code
     pdf.setFontSize(9)
     pdf.setTextColor(102, 102, 102) // #666
@@ -562,7 +534,7 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
   }
 
   const fileNameId = firstBooking.booking_ref || Date.now()
-  
+
   if (mode === 'preview') {
     try {
       const pdfBlob = pdf.output('blob')
@@ -689,7 +661,7 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
     try {
       const pdfBlob = pdf.output('blob')
       const pdfUrl = URL.createObjectURL(pdfBlob)
-      
+
       // Create iframe for more reliable printing
       const iframe = document.createElement('iframe')
       iframe.style.position = 'fixed'
@@ -700,7 +672,7 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
       iframe.style.border = '0'
       iframe.src = pdfUrl
       document.body.appendChild(iframe)
-      
+
       iframe.onload = () => {
         setTimeout(() => {
           try {
@@ -722,7 +694,7 @@ export async function generateGroupInvoicePdf(bookings, settings, mode = 'downlo
           }
         }, 500)
       }
-      
+
       // Fallback timeout
       setTimeout(() => {
         if (document.body.contains(iframe)) {

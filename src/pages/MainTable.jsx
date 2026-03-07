@@ -15,17 +15,21 @@ import { STATUS, STATUS_LABELS, STATUS_ORDER, STATUS_TRANSITIONS, getStatusLabel
 import { saveToRecyclingBin, getItemDisplayName } from '../lib/recyclingBin'
 import generateBankTransferInvoicePdf from '../utils/generateBankTransferInvoicePdf'
 import generateGroupInvoicePdf from '../utils/generateGroupInvoicePdf'
-import AirlinesAutocomplete from '../components/AirlinesAutocomplete'
+import AirlineSelect from '../components/AirlineSelect'
+import { normalizeAirlineValue } from '../data/airlines'
 import { loadAirlines, formatAirlineCompact, getAirlineName, getBaggageAllowance, getFareRules } from '../lib/airlines'
-import AirportAutocomplete from '../components/AirportAutocomplete'
-import FlightSearchForm from '../components/FlightSearchForm'
-import FlightSearchModal from '../components/FlightSearchModal'
+import AirportSelect from '../components/AirportSelect'
+import { normalizeAirportValue } from '../data/airports'
+// Amadeus functionality disabled - no API keys configured
+// import FlightSearchForm from '../components/FlightSearchForm'
+// import FlightSearchModal from '../components/FlightSearchModal'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
 import settingLogo from '../assets/setting-logo.png'
 import './RequestsList.css'
 import { SidebarWhatsApp } from '@/components/SidebarWhatsApp'
-import { amadeusTicket, amadeusSearch, amadeusHold } from '@/lib/amadeusProxy'
+// Amadeus imports disabled - no API keys configured
+// import { amadeusTicket, amadeusSearch, amadeusHold } from '@/lib/amadeusProxy'
 
 // Translation dictionaries
 const translations = {
@@ -637,7 +641,9 @@ function RequestsList() {
       setRequests(dataWithCalculations)
     } catch (err) {
       console.error('Error fetching requests:', err)
-      setError(err.message || t.table.error)
+      const msg = err?.message || ''
+      const isNetworkError = msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')
+      setError(isNetworkError ? 'Unable to load data. Check your connection and Supabase configuration (VITE_SUPABASE_URL).' : (msg || t.table.error))
     } finally {
       setLoading(false)
     }
@@ -672,8 +678,12 @@ function RequestsList() {
     }
   }
 
-  // Handle Amadeus search and open modal
+  // Handle Amadeus search and open modal - DISABLED (Amadeus API keys not configured)
   const handleSearchFlights = async (options = {}) => {
+    // Amadeus functionality disabled - no API keys configured
+    console.warn('Flight search disabled - Amadeus API keys not configured')
+    return
+    /* DISABLED CODE:
     const normalizeIata = (code) => (code || '').trim().toUpperCase()
     const payload = {
       originLocationCode: normalizeIata(options.originLocationCode || searchFrom),
@@ -716,6 +726,7 @@ function RequestsList() {
     } finally {
       setSearchLoading(false)
     }
+    */
   }
 
   const handleRetrySearch = (e) => {
@@ -1072,7 +1083,11 @@ function RequestsList() {
       alert('❌ Hold failed: draft booking not found. Please select the flight first.')
       return
     }
-    if (booking.booking_status && booking.booking_status !== 'draft') {
+
+    // bookings.status is the ONLY lifecycle authority.
+    // main_table.booking_status is legacy/financial metadata only.
+    // Lifecycle status must come from backend API response, not direct frontend queries.
+    if (booking.status && booking.status.toUpperCase() !== 'DRAFT') {
       alert('❌ Hold allowed only from draft bookings')
       return
     }
@@ -1106,6 +1121,10 @@ function RequestsList() {
       }
     }
 
+    // Amadeus functionality disabled - no API keys configured
+    alert('❌ Hold functionality is disabled. Amadeus API keys are not configured.')
+    return
+    /* DISABLED CODE:
     try {
       const holdResult = await amadeusHold(holdPayload)
       const updatedPnr = holdResult?.data?.amadeus_pnr || ''
@@ -1145,6 +1164,7 @@ function RequestsList() {
       const message = error?.message || 'Unknown error'
       alert(`❌ Hold failed: ${message}`)
     }
+    */
   }
 
   // Create pending row for mock/local hold (fallback)
@@ -1529,9 +1549,8 @@ function RequestsList() {
 
     if (field === 'airlines') {
       const raw = (request.airlines || request.airline_name || '').trim()
-      // Use helper to get nice name: "Lufthansa (LH)"
-      const name = getAirlineName(raw)
-      let display = name ? `${name} (${raw})` : raw
+      // Use centralized normalizer to get canonical format: "Airline Name (IATA)"
+      let display = normalizeAirlineValue(raw)
 
       // Try to append baggage info and rules if available in pricing_json
       try {
@@ -1559,7 +1578,7 @@ function RequestsList() {
 
     if (field === 'departure_airport' || field === 'destination_airport') {
       const raw = request[field]
-      return formatAirportDisplay(raw)
+      return normalizeAirportValue(raw) || '-'
     }
 
     // Financial calculations
@@ -1894,6 +1913,10 @@ function RequestsList() {
       const updatedBookingStatus = String(updatedRequest?.booking_status || updatedRequest?.status || '').toLowerCase()
       const paymentCaptured = (parseFloat(updatedRequest?.cash_paid) || 0) + (parseFloat(updatedRequest?.bank_transfer) || 0)
       if ((field === 'cash_paid' || field === 'bank_transfer') && paymentCaptured > 0 && updatedBookingStatus === 'pending') {
+        // Amadeus ticketing disabled - no API keys configured
+        console.warn('Ticketing disabled - Amadeus API keys not configured')
+        alert('❌ Ticketing functionality is disabled. Amadeus API keys are not configured.')
+        /* DISABLED CODE:
         try {
           // Guard: require Amadeus order before ticketing
           if (!updatedRequest?.amadeus_order_id) {
@@ -1931,6 +1954,7 @@ function RequestsList() {
           console.warn('Amadeus ticket update skipped', ticketErr)
           alert(`❌ Ticketing failed: ${ticketErr.message || 'Unknown error'}`)
         }
+        */
       }
     } catch (err) {
       console.error('Error updating cell:', err)
@@ -1952,7 +1976,11 @@ function RequestsList() {
   // Handle input blur (save on click outside)
   const handleInputBlur = (rowId, field) => {
     if (field === 'airlines') {
-      const formatted = formatAirlineDisplay(editValue)
+      const formatted = normalizeAirlineValue(editValue)
+      setEditValue(formatted)
+      saveCell(rowId, field, formatted)
+    } else if (field === 'departure_airport' || field === 'destination_airport') {
+      const formatted = normalizeAirportValue(editValue)
       setEditValue(formatted)
       saveCell(rowId, field, formatted)
     } else {
@@ -2199,14 +2227,14 @@ function RequestsList() {
         )
       } else if (field === 'airlines') {
         return (
-          <AirlinesAutocomplete
+          <AirlineSelect
             value={editValue}
             onChange={(value) => {
               setEditValue(value)
             }}
             onBlur={() => handleInputBlur(request.id, field)}
             onSelect={(formattedValue) => {
-              const safe = formattedValue || formatAirlineDisplay(editValue)
+              const safe = formattedValue || normalizeAirlineValue(editValue)
               setEditValue(safe)
               saveCell(request.id, field, safe, true)
             }}
@@ -2215,13 +2243,17 @@ function RequestsList() {
         )
       } else if (field === 'departure_airport' || field === 'destination_airport') {
         return (
-          <AirportAutocomplete
+          <AirportSelect
             value={editValue}
             onChange={(value) => {
               setEditValue(value)
-              saveCell(request.id, field, value, true)
             }}
             onBlur={() => handleInputBlur(request.id, field)}
+            onSelect={(formattedValue) => {
+              const safe = formattedValue || normalizeAirportValue(editValue)
+              setEditValue(safe)
+              saveCell(request.id, field, safe, true)
+            }}
             disabled={false}
           />
         )
@@ -2657,7 +2689,8 @@ function RequestsList() {
             {/* Page Header */}
             <div className="requests-header" style={{ gap: '1rem', flexDirection: 'column' }}>
               <h1 className="requests-title">{t.table.title}</h1>
-              <FlightSearchForm onSearch={handleSearchFlights} />
+              {/* FlightSearchForm disabled - Amadeus API keys not configured */}
+              {/* <FlightSearchForm onSearch={handleSearchFlights} /> */}
             </div>
 
             {loading && (
@@ -2906,7 +2939,8 @@ function RequestsList() {
         </main>
       </div>
 
-      <FlightSearchModal
+      {/* FlightSearchModal disabled - Amadeus API keys not configured */}
+      {/* <FlightSearchModal
         open={searchModalOpen}
         onClose={() => setSearchModalOpen(false)}
         results={searchResults}
@@ -2914,12 +2948,12 @@ function RequestsList() {
         error={searchError}
         onRetry={handleRetrySearch}
         onSelectFlight={(flight) => handleFlightSelection(flight)}
-        onHold={(flight) => handleHold(flight)}
+        requestId={getActiveRequest()?.id || null}
         searchFrom={searchFrom}
         searchTo={searchTo}
         searchDate={searchDate}
         searchReturnDate={searchReturnDate}
-      />
+      /> */}
     </>
   )
 }

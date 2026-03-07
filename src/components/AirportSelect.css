@@ -1,0 +1,252 @@
+/* ============================================================================
+   AIRPORT SELECT — Global Reusable Component Styles
+   Dark-first design matching existing application theme
+   ============================================================================ */
+
+.airport-select {
+    position: relative;
+    width: 100%;
+    z-index: 1;
+}
+
+/* Ensure wrapper doesn't clip the dropdown in table contexts */
+.excel-cell:has(.airport-select) {
+    overflow: visible !important;
+    z-index: 1;
+}
+
+.excel-cell-input:has(.airport-select) {
+    overflow: visible !important;
+}
+
+/* ── Input ──────────────────────────────────────────────────────────────── */
+
+.airport-select input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-family: inherit;
+    background: var(--input-bg, #0f172a);
+    color: var(--input-color, #e5e7eb);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.airport-select input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+.airport-select input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.airport-select input::placeholder {
+    color: #6b7280;
+}
+
+/* Light theme */
+html:not(.dark):not([data-theme="dark"]) .airport-select input,
+[data-theme="light"] .airport-select input {
+    background: var(--input-bg, #ffffff);
+    color: var(--input-color, #111827);
+    border-color: #d1d5db;
+}
+
+html:not(.dark):not([data-theme="dark"]) .airport-select input:focus,
+[data-theme="light"] .airport-select input:focus {
+    border-color: #3b82f6;
+}
+
+/* ── Dropdown (Portal — fixed positioning) ─────────────────────────────── */
+
+.airport-select-dropdown {
+    /* HARD SOLID BACKGROUND — no transparency leaking */
+    position: fixed !important;
+    z-index: 2147483647 !important;
+    background: #0a0f1a !important;
+    background-image: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    mix-blend-mode: normal !important;
+
+    /* Force new paint layer */
+    isolation: isolate !important;
+    transform: translateZ(0) !important;
+    will-change: transform !important;
+
+    /* Visuals */
+    border: 1px solid #1f2937 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65) !important;
+    max-height: 340px !important;
+    overflow-y: auto !important;
+    min-width: 260px !important;
+
+    /* Scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: #374151 #0a0f1a;
+}
+
+.airport-select-dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+
+.airport-select-dropdown::-webkit-scrollbar-track {
+    background: #0a0f1a;
+    border-radius: 4px;
+}
+
+.airport-select-dropdown::-webkit-scrollbar-thumb {
+    background: #374151;
+    border-radius: 4px;
+}
+
+/* Light theme dropdown */
+html:not(.dark):not([data-theme="dark"]) .airport-select-dropdown,
+[data-theme="light"] .airport-select-dropdown {
+    background: #ffffff !important;
+    border-color: #d1d5db !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* ── Dropdown Items ────────────────────────────────────────────────────── */
+
+.airport-select-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #1a2332;
+    background: #0a0f1a !important;
+    color: #e5e7eb !important;
+    mix-blend-mode: normal !important;
+    transition: background-color 0.1s;
+}
+
+.airport-select-item:last-child {
+    border-bottom: none;
+}
+
+.airport-select-item:hover,
+.airport-select-item.highlighted {
+    background: #1e293b !important;
+}
+
+.airport-select-item.selected {
+    background: #1e3a5f !important;
+}
+
+.airport-select-item.selected:hover,
+.airport-select-item.selected.highlighted {
+    background: #1e40af !important;
+}
+
+/* Light theme items */
+html:not(.dark):not([data-theme="dark"]) .airport-select-item,
+[data-theme="light"] .airport-select-item {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border-bottom-color: #f1f5f9;
+}
+
+html:not(.dark):not([data-theme="dark"]) .airport-select-item:hover,
+html:not(.dark):not([data-theme="dark"]) .airport-select-item.highlighted,
+[data-theme="light"] .airport-select-item:hover,
+[data-theme="light"] .airport-select-item.highlighted {
+    background: #f1f5f9 !important;
+}
+
+html:not(.dark):not([data-theme="dark"]) .airport-select-item.selected,
+[data-theme="light"] .airport-select-item.selected {
+    background: #dbeafe !important;
+}
+
+/* ── Item Parts ────────────────────────────────────────────────────────── */
+
+.airport-select-name {
+    flex: 1;
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.airport-select-code {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    letter-spacing: 0.05em;
+    color: #34d399;
+    background: rgba(16, 185, 129, 0.15);
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+/* Light theme code badge */
+html:not(.dark):not([data-theme="dark"]) .airport-select-code,
+[data-theme="light"] .airport-select-code {
+    color: #059669;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.airport-select-check {
+    font-size: 0.8rem;
+    color: #3b82f6;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* ── Empty state ───────────────────────────────────────────────────────── */
+
+.airport-select-empty {
+    padding: 16px 12px;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #6b7280;
+    font-style: italic;
+}
+
+/* ── Custom entry ──────────────────────────────────────────────────────── */
+
+.airport-select-custom {
+    border-top: 1px solid #1f2937;
+    padding-top: 10px;
+    margin-top: 4px;
+}
+
+.airport-select-custom-text {
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-style: italic;
+}
+
+/* Light theme custom */
+html:not(.dark):not([data-theme="dark"]) .airport-select-custom,
+[data-theme="light"] .airport-select-custom {
+    border-top-color: #e5e7eb;
+}
+
+/* ── Prevent child bleed / text overlay ────────────────────────────────── */
+
+.airport-select-dropdown *,
+.airport-select-item * {
+    background: transparent !important;
+    mix-blend-mode: normal !important;
+}
+
+/* ── Prevent table transforms from breaking portal z-index ─────────────── */
+/* (already added in AirlineSelect.css — included as safety) */

@@ -4,6 +4,8 @@ import QRCode from 'qrcode'
 import britishFlag from '../assets/British.png'
 import germanFlag from '../assets/Germany.png'
 import defaultInvoiceLogo from '../assets/logo.png'
+import { normalizeAirlineValue } from '../data/airlines'
+import { normalizeAirportValue } from '../data/airports'
 
 const DEFAULT_SETTINGS = {
   // Provide a guaranteed fallback logo so invoices always render a brand mark
@@ -41,14 +43,14 @@ const escapeHtml = (text) => {
 
 const normalizeSettings = (settings) => {
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'generateBankTransferInvoicePdf.js:normalizeSettings',message:'normalizeSettings called',data:{inputLogoUrl:settings?.logo_url,defaultLogoUrl:DEFAULT_SETTINGS.logo_url,hasSettings:!!settings},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H5'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'generateBankTransferInvoicePdf.js:normalizeSettings', message: 'normalizeSettings called', data: { inputLogoUrl: settings?.logo_url, defaultLogoUrl: DEFAULT_SETTINGS.logo_url, hasSettings: !!settings }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H5' }) }).catch(() => { });
   // #endregion
-  
+
   const result = {
     ...DEFAULT_SETTINGS,
     ...(settings || {})
   }
-  
+
   // Preserve logo_url from settings if it exists (even if empty string - let caller decide)
   // Only use default if logo_url is null/undefined (not explicitly set)
   if (settings?.logo_url !== undefined && settings?.logo_url !== null) {
@@ -57,11 +59,11 @@ const normalizeSettings = (settings) => {
     // Only fallback to default if no logo_url was provided at all
     result.logo_url = DEFAULT_SETTINGS.logo_url
   }
-  
+
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'generateBankTransferInvoicePdf.js:normalizeSettings_result',message:'normalizeSettings result',data:{resultLogoUrl:result.logo_url,inputLogoUrl:settings?.logo_url,willOverwrite:!settings?.logo_url&&DEFAULT_SETTINGS.logo_url===''},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H5'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'generateBankTransferInvoicePdf.js:normalizeSettings_result', message: 'normalizeSettings result', data: { resultLogoUrl: result.logo_url, inputLogoUrl: settings?.logo_url, willOverwrite: !settings?.logo_url && DEFAULT_SETTINGS.logo_url === '' }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H5' }) }).catch(() => { });
   // #endregion
-  
+
   return result
 }
 
@@ -69,11 +71,11 @@ const normalizeSettings = (settings) => {
 // Example: "HHN, Hahn Airport, Frankfurt" → { city: "Hahn", code: "HHN" }
 const parseAirport = (airportString) => {
   if (!airportString) return { city: '', code: '' }
-  
+
   // Try to extract code (usually first part before comma)
   const parts = airportString.split(',').map(p => p.trim())
   const code = parts[0] || ''
-  
+
   // Try to extract city name (usually second or third part)
   // Look for city name in the parts
   let city = ''
@@ -89,7 +91,7 @@ const parseAirport = (airportString) => {
       city = secondPart.replace(/Airport/gi, '').trim()
     }
   }
-  
+
   // If no city found, try to extract from the string
   if (!city && airportString) {
     const match = airportString.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/)
@@ -97,7 +99,7 @@ const parseAirport = (airportString) => {
       city = match[1]
     }
   }
-  
+
   return { city: city || '', code: code || '' }
 }
 
@@ -116,75 +118,9 @@ const formatGermanDate = (dateString) => {
   }
 }
 
-const formatAirportDisplay = (raw) => {
-  if (!raw) return '-'
-  const cleaned = String(raw)
-    .replace(/\bairport\b/gi, '')
-    .replace(/\bintl\b/gi, '')
-    .replace(/\binternational\b/gi, '')
-    .replace(/\bair\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim()
 
-  // Extract IATA code
-  const parenCode = cleaned.match(/\(([A-Z]{3})\)/)
-  let code = parenCode?.[1] || null
-  if (!code) {
-    const tokenCode = cleaned.match(/\b([A-Z]{3})\b/)
-    if (tokenCode) code = tokenCode[1]
-  }
 
-  // Hard map EBB
-  if (code === 'EBB') {
-    return 'Entebbe/Kampala(EBB)'
-  }
-
-  const parts = cleaned.split(/[,|]/).map(p => p.trim()).filter(Boolean)
-  let city = parts[0] || ''
-  city = city.replace(/\([A-Z]{3}\)/g, '').trim()
-  if (!city && code) city = code
-  if (!code) {
-    const tokens = cleaned.split(/\s+/)
-    const maybe = tokens.reverse().find(t => /^[A-Z]{3}$/.test(t))
-    if (maybe) code = maybe
-  }
-  if (!code) return city || '-'
-  return `${city.replace(/\s+/g, '') ? city.replace(/\s+/g, '') : city}(${code})`
-}
-
-// Format airline display to "Name (CODE)" regardless of input order/format
-const formatAirlineDisplay = (raw) => {
-  if (!raw) return ''
-  const cleaned = String(raw).trim().replace(/\s+/g, ' ')
-
-  // If already has parentheses, normalize spacing/case
-  const paren = cleaned.match(/\(([A-Za-z0-9]{2,3})\)/)
-  if (paren) {
-    const code = paren[1].toUpperCase()
-    const name = cleaned.replace(/\([^)]+\)/, '').trim()
-    if (name) return `${name} (${code})`
-    return `${cleaned.replace(/\s*\([^)]+\)/, '').trim()} (${code})`
-  }
-
-  const tokens = cleaned.split(' ')
-  const codePattern = /^[A-Z0-9]{2,3}$/
-
-  // Pattern: CODE Name...
-  if (tokens.length > 1 && codePattern.test(tokens[0])) {
-    const code = tokens[0].toUpperCase()
-    const name = tokens.slice(1).join(' ')
-    return `${name} (${code})`
-  }
-
-  // Pattern: Name... CODE
-  if (tokens.length > 1 && codePattern.test(tokens[tokens.length - 1])) {
-    const code = tokens[tokens.length - 1].toUpperCase()
-    const name = tokens.slice(0, -1).join(' ')
-    return `${name} (${code})`
-  }
-
-  return cleaned
-}
+// Airline display is handled by the centralized normalizeAirlineValue from data/airlines
 
 // Translations (single language selection)
 const tr = {
@@ -301,16 +237,16 @@ async function generateQRCodeWithLogo(qrData, logoUrl) {
 
 async function generateBankTransferInvoicePdf({ booking, settings, mode = 'download', language = 'de', includeParagraph = true }) {
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'generateBankTransferInvoicePdf.js:entry',message:'Invoice generator called',data:{bookingId:booking.id,inputLogoUrl:settings?.logo_url,hasSettings:!!settings},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H5'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'generateBankTransferInvoicePdf.js:entry', message: 'Invoice generator called', data: { bookingId: booking.id, inputLogoUrl: settings?.logo_url, hasSettings: !!settings }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H5' }) }).catch(() => { });
   // #endregion
-  
+
   const safeSettings = normalizeSettings(settings)
   const includeQr = safeSettings.include_qr !== false
-  
+
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'generateBankTransferInvoicePdf.js:after_normalize',message:'After normalizeSettings',data:{inputLogoUrl:settings?.logo_url,outputLogoUrl:safeSettings.logo_url,hasLogo:!!safeSettings.logo_url,defaultLogoUrl:DEFAULT_SETTINGS.logo_url},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H5'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'generateBankTransferInvoicePdf.js:after_normalize', message: 'After normalizeSettings', data: { inputLogoUrl: settings?.logo_url, outputLogoUrl: safeSettings.logo_url, hasLogo: !!safeSettings.logo_url, defaultLogoUrl: DEFAULT_SETTINGS.logo_url }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H5' }) }).catch(() => { });
   // #endregion
-  
+
   // Debug: Log logo URL
   console.log('Invoice generator - Logo URL:', safeSettings.logo_url)
   console.log('Invoice generator - Full settings:', safeSettings)
@@ -331,21 +267,21 @@ async function generateBankTransferInvoicePdf({ booking, settings, mode = 'downl
   const departureAirport = booking.departure_airport || ''
   const arrivalAirport = booking.arrival_airport || booking.destination_airport || ''
   const airlineNameRaw = booking.airline_name || booking.airlines || ''
-  const airlineName = formatAirlineDisplay(airlineNameRaw)
+  const airlineName = normalizeAirlineValue(airlineNameRaw)
   const pnrValue = booking.pnr || booking.booking_ref || 'TBD'
-  
+
   // Parse airports
   const departureParsed = parseAirport(departureAirport)
   const arrivalParsed = parseAirport(arrivalAirport)
-  
+
   // Format dates
   const travelDateFormatted = formatGermanDate(booking.travel_date)
   const returnDateFormatted = formatGermanDate(booking.return_date)
-  
-  // Format airport display: "City (CODE)"
-  const departureDisplay = formatAirportDisplay(departureAirport)
-  const arrivalDisplay = formatAirportDisplay(arrivalAirport)
-  
+
+  // Format airport display: "CityName(IATA)"
+  const departureDisplay = normalizeAirportValue(departureAirport) || '-'
+  const arrivalDisplay = normalizeAirportValue(arrivalAirport) || '-'
+
   // For return flight, swap departure and arrival
   const returnDepartureDisplay = arrivalDisplay
   const returnArrivalDisplay = departureDisplay
@@ -355,14 +291,14 @@ async function generateBankTransferInvoicePdf({ booking, settings, mode = 'downl
   const hotelRaw = Number(booking.hotel_charges || 0)
   const hotelValue = hotelRaw > 0 ? formatAmount(hotelRaw) : ''
   const totalValue = formatAmount(booking.total_amount_due || 0)
-  
+
   // Build payment confirmation text
   let paymentText = ''
   const fullName = `${booking.first_name || ''} ${booking.middle_name || ''} ${booking.last_name || ''}`.trim()
   const passport = booking.passport_number || ''
   const paymentBalanceRaw = booking.payment_balance || ''
   const paymentBalance = String(paymentBalanceRaw).trim()
-  
+
   // Get notice from booking data and escape HTML
   const noticeText = booking.notice && booking.notice.trim() ? escapeHtml(booking.notice.trim()) : null
 
@@ -422,11 +358,11 @@ async function generateBankTransferInvoicePdf({ booking, settings, mode = 'downl
       <div style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div style="width: 45%;">
           ${(() => {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'generateBankTransferInvoicePdf.js:html_logo_check',message:'Checking logo_url in HTML template',data:{logoUrl:safeSettings.logo_url,hasLogo:!!safeSettings.logo_url,logoUrlLength:safeSettings.logo_url?.length||0,isEmptyString:safeSettings.logo_url===''},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H5'})}).catch(()=>{});
-            // #endregion
-            return safeSettings.logo_url ? `<img src="${safeSettings.logo_url}" alt="Logo" style="max-width: 140px; max-height: 60px; object-fit: contain; display: block; margin-bottom: 4px;" />` : ''
-          })()}
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'generateBankTransferInvoicePdf.js:html_logo_check', message: 'Checking logo_url in HTML template', data: { logoUrl: safeSettings.logo_url, hasLogo: !!safeSettings.logo_url, logoUrlLength: safeSettings.logo_url?.length || 0, isEmptyString: safeSettings.logo_url === '' }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H5' }) }).catch(() => { });
+      // #endregion
+      return safeSettings.logo_url ? `<img src="${safeSettings.logo_url}" alt="Logo" style="max-width: 140px; max-height: 60px; object-fit: contain; display: block; margin-bottom: 4px;" />` : ''
+    })()}
           <div style="font-size: 22px; font-weight: bold; color: #000; margin-top: 4px;">${safeSettings.company_name || 'LST Travel Agency'}</div>
         </div>
         <div style="text-align: right; font-size: 14px; line-height: 1.2;">
@@ -577,7 +513,7 @@ async function generateBankTransferInvoicePdf({ booking, settings, mode = 'downl
   if (includeQr && qrImage) {
     // Use exact coordinates as specified: x=150mm, y=80mm, size=40mm
     pdf.addImage(qrImage, 'PNG', 150, 80, 40, 40)
-    
+
     // Add "Scannen für Details" text below QR code
     pdf.setFontSize(9)
     pdf.setTextColor(102, 102, 102) // #666
@@ -586,7 +522,7 @@ async function generateBankTransferInvoicePdf({ booking, settings, mode = 'downl
 
   // Use bookingId from above, or fallback for filename
   const fileNameId = bookingId || booking.booking_ref || 'invoice'
-  
+
   if (mode === 'preview') {
     try {
       const pdfBlob = pdf.output('blob')
@@ -743,7 +679,7 @@ async function generateBankTransferInvoicePdf({ booking, settings, mode = 'downl
     try {
       const pdfBlob = pdf.output('blob')
       const pdfUrl = URL.createObjectURL(pdfBlob)
-      
+
       // Create iframe for more reliable printing
       const iframe = document.createElement('iframe')
       iframe.style.position = 'fixed'
@@ -754,7 +690,7 @@ async function generateBankTransferInvoicePdf({ booking, settings, mode = 'downl
       iframe.style.border = '0'
       iframe.src = pdfUrl
       document.body.appendChild(iframe)
-      
+
       iframe.onload = () => {
         setTimeout(() => {
           try {
@@ -776,7 +712,7 @@ async function generateBankTransferInvoicePdf({ booking, settings, mode = 'downl
           }
         }, 500)
       }
-      
+
       // Fallback timeout
       setTimeout(() => {
         if (document.body.contains(iframe)) {

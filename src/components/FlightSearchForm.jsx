@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { ArrowLeftRight, Users, CalendarRange, Search, Plane } from 'lucide-react'
-import AirportAutocomplete from './AirportAutocomplete'
+import AirportSelect from './AirportSelect'
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
 
@@ -23,7 +23,7 @@ const buildLeg = () => ({
   date: todayIso()
 })
 
-export default function FlightSearchForm({ onSearch }) {
+export default function FlightSearchForm({ onSearch, disabled = false }) {
   const [tripType, setTripType] = useState('roundtrip')
   const [travelClass, setTravelClass] = useState('ECONOMY')
   const [directOnly, setDirectOnly] = useState(false)
@@ -319,7 +319,7 @@ export default function FlightSearchForm({ onSearch }) {
           >
             <div>
               <label style={labelStyle}>Leaving from</label>
-              <AirportAutocomplete
+              <AirportSelect
                 value={route.from}
                 onChange={(val) => setIataRoute({ from: val })}
                 placeholder="City or airport"
@@ -341,7 +341,7 @@ export default function FlightSearchForm({ onSearch }) {
 
             <div>
               <label style={labelStyle}>Going to</label>
-              <AirportAutocomplete
+              <AirportSelect
                 value={route.to}
                 onChange={(val) => setIataRoute({ to: val })}
                 placeholder="City or airport"
@@ -447,7 +447,7 @@ export default function FlightSearchForm({ onSearch }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'flex-end', marginLeft: 'auto' }}>
-          <button type="submit" style={gradientButton}>
+          <button type="submit" style={gradientButton} disabled={disabled}>
             <Search size={18} />
             <span>Search</span>
           </button>
@@ -509,11 +509,11 @@ export default function FlightSearchForm({ onSearch }) {
             <div key={idx} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, alignItems: 'end', marginBottom: 8 }}>
               <div>
                 <label style={labelStyle}>From</label>
-                <AirportAutocomplete value={leg.from} onChange={(val) => updateLegField(idx, 'from', val)} placeholder="City or airport" forceIata />
+                <AirportSelect value={leg.from} onChange={(val) => updateLegField(idx, 'from', val)} placeholder="City or airport" forceIata />
               </div>
               <div>
                 <label style={labelStyle}>To</label>
-                <AirportAutocomplete value={leg.to} onChange={(val) => updateLegField(idx, 'to', val)} placeholder="City or airport" forceIata />
+                <AirportSelect value={leg.to} onChange={(val) => updateLegField(idx, 'to', val)} placeholder="City or airport" forceIata />
               </div>
               <div>
                 <label style={labelStyle}>Date</label>

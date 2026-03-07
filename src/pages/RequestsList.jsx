@@ -384,7 +384,10 @@ function RequestsList() {
         return
       }
       console.error('Error fetching requests:', err)
-      setError(err.message || t.table.error)
+      // Avoid showing raw "Failed to fetch" / network errors; show a clear message
+      const msg = err?.message || ''
+      const isNetworkError = msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')
+      setError(isNetworkError ? 'Unable to load requests. Check your connection and Supabase configuration (VITE_SUPABASE_URL).' : (msg || t.table.error))
     } finally {
       setLoading(false)
     }

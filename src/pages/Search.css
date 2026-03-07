@@ -1,0 +1,265 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Search Page — Flight offer discovery + selection
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.search-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 20px;
+    min-height: 100vh;
+}
+
+.search-page h1 {
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: #e5e7eb;
+    margin-bottom: 6px;
+}
+
+.search-page .subtitle {
+    color: #9ca3af;
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+}
+
+/* ── Results ─────────────────────────────────────────────────────────────── */
+
+.search-status {
+    text-align: center;
+    padding: 40px 20px;
+    color: #9ca3af;
+    font-size: 1rem;
+}
+
+.search-status .count {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin-bottom: 16px;
+    text-align: left;
+}
+
+.offers-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+/* ── Offer Card ──────────────────────────────────────────────────────────── */
+
+.offer-card {
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 16px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    cursor: default;
+}
+
+.offer-card:hover {
+    border-color: #0071c2;
+    box-shadow: 0 4px 20px rgba(0, 113, 194, 0.15);
+}
+
+.offer-main {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.offer-route {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.offer-airline {
+    background: #1e3a5f;
+    color: #93c5fd;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.04em;
+}
+
+.offer-airports {
+    color: #e5e7eb;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.offer-arrow {
+    color: #4b5563;
+    font-size: 0.9rem;
+}
+
+.offer-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    color: #9ca3af;
+    font-size: 0.85rem;
+}
+
+.offer-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.offer-stops {
+    color: #fbbf24;
+    font-weight: 600;
+}
+
+.offer-stops.direct {
+    color: #34d399;
+}
+
+.offer-segments {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.offer-segment {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: #6b7280;
+    padding: 4px 0;
+}
+
+.offer-segment .seg-carrier {
+    color: #93c5fd;
+    font-weight: 600;
+    min-width: 40px;
+}
+
+.offer-segment .seg-time {
+    color: #d1d5db;
+    font-weight: 500;
+}
+
+/* ── Price + Select ──────────────────────────────────────────────────────── */
+
+.offer-action {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.offer-price {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #e5e7eb;
+}
+
+.offer-price .currency {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #9ca3af;
+    margin-left: 3px;
+}
+
+.offer-price-per {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.offer-select-btn {
+    background: #0071c2;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 24px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+
+.offer-select-btn:hover {
+    background: #005b99;
+    box-shadow: 0 4px 16px rgba(0, 113, 194, 0.3);
+}
+
+.offer-select-btn:disabled {
+    background: #374151;
+    color: #6b7280;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* ── Itinerary labels ────────────────────────────────────────────────────── */
+
+.itin-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #febb02;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 6px;
+}
+
+/* ── Error banner ────────────────────────────────────────────────────────── */
+
+.search-error {
+    background: #1c1520;
+    border: 1px solid #7f1d1d;
+    color: #fca5a5;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-top: 16px;
+    font-size: 0.9rem;
+}
+
+/* ── Loading animation ───────────────────────────────────────────────────── */
+
+.search-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 20px;
+}
+
+.search-loading .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #1e293b;
+    border-top-color: #0071c2;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+    .offer-card {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .offer-action {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+}

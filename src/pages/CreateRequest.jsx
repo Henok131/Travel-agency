@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../contexts/StoreContext'
 import { supabase } from '@/lib/supabaseClient'
-import AirportAutocomplete from '../components/AirportAutocomplete'
+import AirportSelect from '../components/AirportSelect'
 import CountryAutocomplete from '../components/CountryAutocomplete'
 import { amadeusHold } from '@/lib/amadeusProxy'
 import * as pdfjsLib from 'pdfjs-dist'
@@ -226,11 +226,11 @@ const translations = {
 function CreateRequest() {
   const navigate = useNavigate()
   const { store } = useStore()
-  
+
   // Language state - default to English
   const [language, setLanguage] = useState('en')
   const t = translations[language] // Translation function
-  
+
   // Theme state - default to dark mode
   const [theme, setTheme] = useState('dark') // 'light' or 'dark'
 
@@ -254,7 +254,7 @@ function CreateRequest() {
   const fileInputRef = useRef(null)
   const viewerRef = useRef(null)
   const imageRef = useRef(null)
-  
+
   // OCR file state - independent from Choose File
   const [ocrFile, setOcrFile] = useState(null)
   const [ocrPreviewUrl, setOcrPreviewUrl] = useState(null)
@@ -265,12 +265,12 @@ function CreateRequest() {
   const [ocrImageRotation, setOcrImageRotation] = useState(0)
   const [ocrImageNaturalSize, setOcrImageNaturalSize] = useState({ width: 0, height: 0 })
   const [ocrImageDisplaySize, setOcrImageDisplaySize] = useState({ width: 0, height: 0 })
-  
+
   // Form submission state
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitMessage, setSubmitMessage] = useState(null)
   const [submitError, setSubmitError] = useState(false)
-  
+
   // OCR state
   const [isExtractingOCR, setIsExtractingOCR] = useState(false)
   const [ocrRetryCount, setOcrRetryCount] = useState(0)
@@ -284,12 +284,12 @@ function CreateRequest() {
   const [imageRotation, setImageRotation] = useState(0) // Rotation in degrees (0, 90, 180, 270)
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 }) // Natural image dimensions
   const [imageDisplaySize, setImageDisplaySize] = useState({ width: 0, height: 0 }) // Displayed size at zoom 1 (used for both images and PDFs)
-  
+
   // Trackpad pinch detection state (for preventing page zoom)
   const [isPinching, setIsPinching] = useState(false)
   const [pinchStartDistance, setPinchStartDistance] = useState(0)
   const [pinchStartZoom, setPinchStartZoom] = useState(1)
-  
+
 
   // Form state - all fields editable at all times (manual-first workflow)
   const [formData, setFormData] = useState({
@@ -300,17 +300,17 @@ function CreateRequest() {
     dateOfBirth: '',
     gender: '',
     nationality: '',
-    
+
     // Document Information
     passportNumber: '',
-    
+
     // Travel Information
     travelDate: '',
     returnDate: '',
     departureAirport: '',
     destinationAirport: '',
     bookingRef: '', // PNR/RFN field
-    
+
     // Request Types (multi-select checkboxes)
     requestTypes: {
       flight: false,
@@ -338,28 +338,28 @@ function CreateRequest() {
       console.log('Reading PDF file...')
       const arrayBuffer = await file.arrayBuffer()
       console.log('PDF file read, size:', arrayBuffer.byteLength)
-      
+
       console.log('Loading PDF document...')
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
       console.log('PDF loaded, pages:', pdf.numPages)
-      
+
       console.log('Getting first page...')
       const page = await pdf.getPage(1) // First page only
       console.log('Page loaded')
-      
+
       const viewport = page.getViewport({ scale: 2.0 }) // Higher scale for better quality
       const canvas = document.createElement('canvas')
       const context = canvas.getContext('2d')
       canvas.height = viewport.height
       canvas.width = viewport.width
-      
+
       console.log('Rendering page to canvas...')
       await page.render({
         canvasContext: context,
         viewport: viewport
       }).promise
       console.log('Page rendered')
-      
+
       const dataUrl = canvas.toDataURL('image/png')
       console.log('Canvas converted to data URL')
       return dataUrl
@@ -383,7 +383,7 @@ function CreateRequest() {
     }
 
     console.log('processPassportFile: Processing file', file.name)
-    
+
     // Clear form data when new file is uploaded to avoid mixing data from different documents
     setFormData({
       lastName: '',
@@ -404,7 +404,7 @@ function CreateRequest() {
         other: false
       }
     })
-    
+
     // Store file in component state (browser memory) - accept any file type
     setPassportFile(file)
 
@@ -486,7 +486,7 @@ function CreateRequest() {
     }
 
     console.log('processOCRFile: Processing OCR file', file.name)
-    
+
     // Clear form data when new OCR file is uploaded to avoid mixing data from different documents
     setFormData({
       lastName: '',
@@ -507,10 +507,10 @@ function CreateRequest() {
         other: false
       }
     })
-    
+
     // Store OCR file separately but display in same area
     setOcrFile(file)
-    
+
     // Reuse the same preview area - set passport preview to show OCR file
     // This way both systems share the same display
     await processPassportFile(file)
@@ -520,15 +520,15 @@ function CreateRequest() {
   const handleExtractOCR = async (isRetry = false) => {
     // Use OCR file or passport file (both can use the same display)
     const fileToProcess = ocrFile || passportFile || ocrFileInputRef.current?.files?.[0] || fileInputRef.current?.files?.[0]
-    
+
     console.log('OCR: File check - ocrFile:', !!ocrFile, 'passportFile:', !!passportFile, 'passportPreviewUrl:', !!passportPreviewUrl)
-    
+
     if (!fileToProcess) {
       console.error('OCR: No file detected')
       setIsExtractingOCR(false)
       return
     }
-    
+
     console.log('OCR: Starting extraction with file:', fileToProcess.name, fileToProcess.type)
 
     setIsExtractingOCR(true)
@@ -539,7 +539,7 @@ function CreateRequest() {
       // Get OpenAI API key from environment
       const apiKey = import.meta.env.VITE_OPENAI_API_KEY
       console.log('API Key check:', apiKey ? 'Found (length: ' + apiKey.length + ', starts with: ' + apiKey.substring(0, 7) + '...)' : 'NOT FOUND')
-      
+
       if (!apiKey || apiKey.trim() === '') {
         const errorMsg = 'OpenAI API key not found!\n\nPlease:\n1. Create a .env file in the project root\n2. Add: VITE_OPENAI_API_KEY=your_api_key_here\n3. Restart the dev server (npm run dev)'
         console.error(errorMsg)
@@ -550,7 +550,7 @@ function CreateRequest() {
 
       // Convert image to base64 - use fileToProcess instead of passportFile
       let base64Image = ''
-      
+
       if (fileToProcess.type === 'application/pdf' || fileToProcess.name.toLowerCase().endsWith('.pdf')) {
         // For PDFs, use the preview URL if available, otherwise convert
         if (passportPreviewUrl && passportPreviewUrl.includes('base64,')) {
@@ -579,7 +579,7 @@ function CreateRequest() {
           reader.readAsDataURL(fileToProcess)
         })
       }
-      
+
       console.log('OCR: Base64 image length:', base64Image.length)
 
       // Enhanced prompt for better extraction
@@ -661,22 +661,22 @@ Return format:
       try {
         // Remove markdown code blocks if present
         let jsonString = content.trim()
-        
+
         // Try to extract JSON from markdown code blocks
-        const jsonMatch = jsonString.match(/```json\s*([\s\S]*?)\s*```/) || 
-                         jsonString.match(/```\s*([\s\S]*?)\s*```/) ||
-                         jsonString.match(/\{[\s\S]*\}/)
-        
+        const jsonMatch = jsonString.match(/```json\s*([\s\S]*?)\s*```/) ||
+          jsonString.match(/```\s*([\s\S]*?)\s*```/) ||
+          jsonString.match(/\{[\s\S]*\}/)
+
         if (jsonMatch) {
           jsonString = jsonMatch[1] || jsonMatch[0]
         }
-        
+
         // Clean up the JSON string
         jsonString = jsonString.trim()
         if (jsonString.startsWith('```')) {
           jsonString = jsonString.replace(/```json?/g, '').replace(/```/g, '').trim()
         }
-        
+
         extractedData = JSON.parse(jsonString)
       } catch (parseError) {
         console.error('Failed to parse OCR response:', content)
@@ -737,11 +737,11 @@ Return format:
 
         // Update Flatpickr if date of birth was extracted
         setOcrExtractedFields(extractedFields)
-        
+
         // Check if critical fields were extracted
         const criticalFields = ['firstName', 'lastName', 'passportNumber']
         const extractedCriticalFields = criticalFields.filter(field => extractedFields.includes(field))
-        
+
         if (extractedCriticalFields.length >= 2) {
           // Success - at least 2 critical fields extracted
           setSubmitMessage(`${t.passport.ocrSuccess} Extracted: ${extractedFields.length} fields. You can edit any field if needed.`)
@@ -767,7 +767,7 @@ Return format:
 
     } catch (error) {
       console.error('OCR extraction error:', error)
-      
+
       if (ocrRetryCount < maxRetries - 1) {
         // Allow retry
         const remainingRetries = maxRetries - ocrRetryCount - 1
@@ -795,11 +795,11 @@ Return format:
   // Handle paste from clipboard (Ctrl+V)
   const handlePaste = useCallback(async (event) => {
     // Don't interfere if user is typing in a form field
-    const isInputFocused = event.target.tagName === 'INPUT' || 
-                          event.target.tagName === 'TEXTAREA' || 
-                          event.target.tagName === 'SELECT' ||
-                          event.target.isContentEditable
-    
+    const isInputFocused = event.target.tagName === 'INPUT' ||
+      event.target.tagName === 'TEXTAREA' ||
+      event.target.tagName === 'SELECT' ||
+      event.target.isContentEditable
+
     if (isInputFocused) return // Let normal paste behavior work in form fields
 
     const clipboardData = event.clipboardData || window.clipboardData
@@ -811,11 +811,11 @@ Return format:
     // Look for image or file in clipboard
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
-      
+
       // Check if it's an image
       if (item.type.indexOf('image') !== -1) {
         event.preventDefault() // Prevent default paste behavior
-        
+
         const file = item.getAsFile()
         if (file) {
           if (ocrMode) {
@@ -833,11 +833,11 @@ Return format:
           return
         }
       }
-      
+
       // Check if it's a file (PDF, etc.)
       if (item.kind === 'file') {
         event.preventDefault() // Prevent default paste behavior
-        
+
         const file = item.getAsFile()
         if (file) {
           if (ocrMode) {
@@ -867,16 +867,16 @@ Return format:
         width: img.naturalWidth,
         height: img.naturalHeight
       })
-      
+
       // Calculate displayed size (fitting in container, maintaining aspect ratio)
       const container = viewerRef.current
       const containerRect = container.getBoundingClientRect()
       const containerWidth = containerRect.width
       const containerHeight = containerRect.height
-      
+
       const naturalAspect = img.naturalWidth / img.naturalHeight
       const containerAspect = containerWidth / containerHeight
-      
+
       let displayWidth, displayHeight
       if (naturalAspect > containerAspect) {
         // Image is wider - fit to width
@@ -887,7 +887,7 @@ Return format:
         displayHeight = containerHeight
         displayWidth = containerHeight * naturalAspect
       }
-      
+
       setImageDisplaySize({
         width: displayWidth,
         height: displayHeight
@@ -900,7 +900,7 @@ Return format:
   const handleWheelZoom = (e) => {
     const isInsideViewer = viewerRef.current?.contains(e.target) || viewerRef.current === e.target
     if (!isInsideViewer) return
-    
+
     // Zoom with Ctrl+Wheel
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault()
@@ -967,7 +967,7 @@ Return format:
         touch2.clientX - touch1.clientX,
         touch2.clientY - touch1.clientY
       )
-      
+
       if (pinchStartDistance > 0) {
         const ratio = distance / pinchStartDistance
         const newZoom = Math.max(0.5, Math.min(20, pinchStartZoom * ratio))
@@ -989,28 +989,28 @@ Return format:
     const handleKeyDown = (e) => {
       // Only handle shortcuts when passport is uploaded and user is not typing in a form field
       if (!passportPreviewUrl) return
-      
-      const isInputFocused = e.target.tagName === 'INPUT' || 
-                            e.target.tagName === 'TEXTAREA' || 
-                            e.target.tagName === 'SELECT' ||
-                            e.target.isContentEditable
-      
+
+      const isInputFocused = e.target.tagName === 'INPUT' ||
+        e.target.tagName === 'TEXTAREA' ||
+        e.target.tagName === 'SELECT' ||
+        e.target.isContentEditable
+
       if (isInputFocused) return // Don't interfere with form typing
-      
+
       // Zoom in: Ctrl + + or Ctrl + =
       if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) {
         e.preventDefault()
         const newZoom = Math.min(20, imageZoom + 0.1)
         setImageZoom(newZoom)
       }
-      
+
       // Zoom out: Ctrl + -
       if ((e.ctrlKey || e.metaKey) && e.key === '-') {
         e.preventDefault()
         const newZoom = Math.max(0.5, imageZoom - 0.1)
         setImageZoom(newZoom)
       }
-      
+
       // Reset zoom: Ctrl + 0
       if ((e.ctrlKey || e.metaKey) && e.key === '0') {
         e.preventDefault()
@@ -1071,7 +1071,7 @@ Return format:
     viewer.addEventListener('wheel', handleWheelNative, { passive: false, capture: true })
     viewer.addEventListener('touchstart', handleTouchStartNative, { passive: false, capture: true })
     viewer.addEventListener('touchmove', handleTouchMoveNative, { passive: false, capture: true })
-    
+
     return () => {
       viewer.removeEventListener('wheel', handleWheelNative, { passive: false, capture: true })
       viewer.removeEventListener('touchstart', handleTouchStartNative, { passive: false, capture: true })
@@ -1094,13 +1094,13 @@ Return format:
       const [year, month, day] = value.split('-')
       value = `${day}.${month}.${year}`
     }
-    
+
     // Remove all non-numeric characters
     const digits = value.replace(/\D/g, '')
-    
+
     // Limit to 8 digits (DDMMYYYY)
     const limitedDigits = digits.slice(0, 8)
-    
+
     // Build formatted string with auto-inserted dots
     let formatted = ''
     for (let i = 0; i < limitedDigits.length; i++) {
@@ -1114,7 +1114,7 @@ Return format:
         formatted += '.'
       }
     }
-    
+
     setFormData(prev => ({
       ...prev,
       [field]: formatted
@@ -1144,11 +1144,11 @@ Return format:
     }
 
     if (typeof value !== 'string' || value === '') return null
-    
+
     // DD.MM.YYYY or DD-MM-YYYY (accept both for compatibility)
     const ddmmyyyyPattern = /^(\d{2})[.-](\d{2})[.-](\d{4})$/
     const match = value.match(ddmmyyyyPattern)
-    
+
     if (match) {
       const [, day, month, year] = match
       const dayNum = parseInt(day, 10)
@@ -1159,13 +1159,13 @@ Return format:
       }
       return `${year}-${month}-${day}`
     }
-    
+
     // YYYY-MM-DD
     const yyyymmddPattern = /^\d{4}-\d{2}-\d{2}$/
     if (value.match(yyyymmddPattern)) {
       return value
     }
-    
+
     // Fallback: keep original string (better than null so it persists)
     return value
   }
@@ -1203,7 +1203,7 @@ Return format:
     }
 
     setFamilyMembers(prev => [...prev, newMember])
-    
+
     // Clear only personal info fields (keep travel info for display)
     setFormData(prev => ({
       ...prev,
@@ -1275,7 +1275,7 @@ Return format:
       if (requestMode === 'family') {
         // Validate that at least one family member exists
         let membersToInsert = [...familyMembers]
-        
+
         // If no members saved yet, include current form as first member
         if (membersToInsert.length === 0) {
           if (!formData.firstName || !formData.lastName) {
@@ -1299,7 +1299,7 @@ Return format:
             destinationAirport: formData.destinationAirport
           }
           const bookingRef = sharedBookingRef || formData.bookingRef || null
-          
+
           // Prepare array of database records for all family members
           const familyDataArray = membersToInsert.map(member => ({
             first_name: member.firstName || null,
@@ -1320,43 +1320,43 @@ Return format:
             ocr_confidence: null
           }))
 
-        // Insert all family members into Supabase
+          // Insert all family members into Supabase
           const { data, error } = await supabase
             .from('requests')
             .insert(familyDataArray)
             .select()
-          
+
           if (error) {
             throw error
           }
 
-        // Upsert into main_table so columns stay in sync with Requests
-        if (data && data.length > 0) {
-          const mainRows = data.map(item => ({
-            id: item.id,
-            first_name: item.first_name ?? null,
-            middle_name: item.middle_name ?? null,
-            last_name: item.last_name ?? null,
-            date_of_birth: item.date_of_birth ?? null,
-            gender: item.gender ?? null,
-            nationality: item.nationality ?? null,
-            passport_number: item.passport_number ?? null,
-            departure_airport: item.departure_airport ?? travelInfo.departureAirport ?? null,
-            destination_airport: item.destination_airport ?? travelInfo.destinationAirport ?? null,
-            travel_date: item.travel_date ?? convertDateToISO(travelInfo.travelDate) ?? null,
-            return_date: item.return_date ?? convertDateToISO(travelInfo.returnDate) ?? null,
-            request_types: item.request_types ?? selectedRequestTypes ?? null,
-            status: item.status ?? 'draft',
-            booking_ref: bookingRef || null
-          }))
-          try {
-            await supabase
-              .from('main_table')
-              .upsert(mainRows, { onConflict: 'id' })
-          } catch (syncErr) {
-            console.warn('Main table sync failed (family insert)', syncErr)
+          // Upsert into main_table so columns stay in sync with Requests
+          if (data && data.length > 0) {
+            const mainRows = data.map(item => ({
+              id: item.id,
+              first_name: item.first_name ?? null,
+              middle_name: item.middle_name ?? null,
+              last_name: item.last_name ?? null,
+              date_of_birth: item.date_of_birth ?? null,
+              gender: item.gender ?? null,
+              nationality: item.nationality ?? null,
+              passport_number: item.passport_number ?? null,
+              departure_airport: item.departure_airport ?? travelInfo.departureAirport ?? null,
+              destination_airport: item.destination_airport ?? travelInfo.destinationAirport ?? null,
+              travel_date: item.travel_date ?? convertDateToISO(travelInfo.travelDate) ?? null,
+              return_date: item.return_date ?? convertDateToISO(travelInfo.returnDate) ?? null,
+              request_types: item.request_types ?? selectedRequestTypes ?? null,
+              status: item.status ?? 'draft',
+              booking_ref: bookingRef || null
+            }))
+            try {
+              await supabase
+                .from('main_table')
+                .upsert(mainRows, { onConflict: 'id' })
+            } catch (syncErr) {
+              console.warn('Main table sync failed (family insert)', syncErr)
+            }
           }
-        }
 
           // Update main_table with booking_ref if provided (main_table is synced via trigger, but we can update booking_ref)
           if (bookingRef && data && data.length > 0) {
@@ -1374,7 +1374,7 @@ Return format:
           if (!sharedTravelInfo) {
             throw new Error(language === 'de' ? 'Reiseinformationen fehlen' : 'Travel information is missing')
           }
-          
+
           // If current form has a person filled in, include them too
           if (formData.firstName && formData.lastName) {
             membersToInsert.push({
@@ -1387,116 +1387,116 @@ Return format:
               passportNumber: formData.passportNumber
             })
           }
-          
+
           // Prepare array of database records for all family members
           const familyDataArray = membersToInsert.map(member => ({
-          first_name: member.firstName || null,
-          middle_name: member.middleName || null,
-          last_name: member.lastName || null,
-          date_of_birth: convertDateToISO(member.dateOfBirth),
-          gender: member.gender || null,
-          nationality: member.nationality || null,
-          passport_number: member.passportNumber || null,
-          departure_airport: sharedTravelInfo?.departureAirport || null,
-          destination_airport: sharedTravelInfo?.destinationAirport || null,
-          travel_date: convertDateToISO(sharedTravelInfo?.travelDate),
-          return_date: convertDateToISO(sharedTravelInfo?.returnDate),
-          request_types: selectedRequestTypes, // Shared request types
-          status: 'draft',
-          is_demo: false,
-          ocr_source: null,
-          ocr_confidence: null
-        }))
-
-        // Insert all family members into Supabase
-        const bookingRef = sharedBookingRef || formData.bookingRef || null
-        const { data, error } = await supabase
-          .from('requests')
-          .insert(familyDataArray)
-          .select()
-        
-        if (error) {
-          throw error
-        }
-
-        // Upsert into main_table so columns stay in sync with Requests
-        if (data && data.length > 0) {
-          const mainRows = data.map(item => ({
-            id: item.id,
-            first_name: item.first_name ?? null,
-            middle_name: item.middle_name ?? null,
-            last_name: item.last_name ?? null,
-            date_of_birth: item.date_of_birth ?? null,
-            gender: item.gender ?? null,
-            nationality: item.nationality ?? null,
-            passport_number: item.passport_number ?? null,
-            departure_airport: item.departure_airport ?? sharedTravelInfo?.departureAirport ?? null,
-            destination_airport: item.destination_airport ?? sharedTravelInfo?.destinationAirport ?? null,
-            travel_date: item.travel_date ?? convertDateToISO(sharedTravelInfo?.travelDate) ?? null,
-            return_date: item.return_date ?? convertDateToISO(sharedTravelInfo?.returnDate) ?? null,
-            request_types: item.request_types ?? selectedRequestTypes ?? null,
-            status: item.status ?? 'draft',
-            booking_ref: bookingRef || null
+            first_name: member.firstName || null,
+            middle_name: member.middleName || null,
+            last_name: member.lastName || null,
+            date_of_birth: convertDateToISO(member.dateOfBirth),
+            gender: member.gender || null,
+            nationality: member.nationality || null,
+            passport_number: member.passportNumber || null,
+            departure_airport: sharedTravelInfo?.departureAirport || null,
+            destination_airport: sharedTravelInfo?.destinationAirport || null,
+            travel_date: convertDateToISO(sharedTravelInfo?.travelDate),
+            return_date: convertDateToISO(sharedTravelInfo?.returnDate),
+            request_types: selectedRequestTypes, // Shared request types
+            status: 'draft',
+            is_demo: false,
+            ocr_source: null,
+            ocr_confidence: null
           }))
-          try {
-            await supabase
-              .from('main_table')
-              .upsert(mainRows, { onConflict: 'id' })
-          } catch (syncErr) {
-            console.warn('Main table sync failed (family insert shared travel)', syncErr)
-          }
-        }
 
-        // Update main_table with booking_ref if provided (main_table is synced via trigger, but we can update booking_ref)
-        if (bookingRef && data && data.length > 0) {
-          for (const item of data) {
-            if (bookingRef) {
+          // Insert all family members into Supabase
+          const bookingRef = sharedBookingRef || formData.bookingRef || null
+          const { data, error } = await supabase
+            .from('requests')
+            .insert(familyDataArray)
+            .select()
+
+          if (error) {
+            throw error
+          }
+
+          // Upsert into main_table so columns stay in sync with Requests
+          if (data && data.length > 0) {
+            const mainRows = data.map(item => ({
+              id: item.id,
+              first_name: item.first_name ?? null,
+              middle_name: item.middle_name ?? null,
+              last_name: item.last_name ?? null,
+              date_of_birth: item.date_of_birth ?? null,
+              gender: item.gender ?? null,
+              nationality: item.nationality ?? null,
+              passport_number: item.passport_number ?? null,
+              departure_airport: item.departure_airport ?? sharedTravelInfo?.departureAirport ?? null,
+              destination_airport: item.destination_airport ?? sharedTravelInfo?.destinationAirport ?? null,
+              travel_date: item.travel_date ?? convertDateToISO(sharedTravelInfo?.travelDate) ?? null,
+              return_date: item.return_date ?? convertDateToISO(sharedTravelInfo?.returnDate) ?? null,
+              request_types: item.request_types ?? selectedRequestTypes ?? null,
+              status: item.status ?? 'draft',
+              booking_ref: bookingRef || null
+            }))
+            try {
               await supabase
                 .from('main_table')
-                .update({ booking_ref: bookingRef })
-                .eq('id', item.id)
+                .upsert(mainRows, { onConflict: 'id' })
+            } catch (syncErr) {
+              console.warn('Main table sync failed (family insert shared travel)', syncErr)
+            }
+          }
+
+          // Update main_table with booking_ref if provided (main_table is synced via trigger, but we can update booking_ref)
+          if (bookingRef && data && data.length > 0) {
+            for (const item of data) {
+              if (bookingRef) {
+                await supabase
+                  .from('main_table')
+                  .update({ booking_ref: bookingRef })
+                  .eq('id', item.id)
+              }
+            }
+          }
+
+          // Trigger Amadeus hold for the first passenger in family mode to show PENDING in main table
+          if (data && data.length > 0 && selectedRequestTypes.includes('flight')) {
+            const first = data[0]
+            const travelInfo = sharedTravelInfo || {
+              departureAirport: formData.departureAirport,
+              destinationAirport: formData.destinationAirport,
+              travelDate: formData.travelDate,
+              returnDate: formData.returnDate
+            }
+            try {
+              const holdResult = await amadeusHold({
+                bookingId: first.id,
+                bookingRef: bookingRef || null,
+                passengers: [
+                  {
+                    firstName: first.first_name,
+                    middleName: first.middle_name,
+                    lastName: first.last_name,
+                    dateOfBirth: first.date_of_birth,
+                    passportNumber: first.passport_number,
+                    gender: first.gender
+                  }
+                ],
+                itinerary: {
+                  origin: travelInfo.departureAirport || first.departure_airport,
+                  destination: travelInfo.destinationAirport || first.destination_airport,
+                  travelDate: convertDateToISO(travelInfo.travelDate || first.travel_date),
+                  returnDate: convertDateToISO(travelInfo.returnDate || first.return_date)
+                },
+                pricing: { currency: 'EUR' }
+              })
+              console.log('🟡 PNR created (family)', holdResult?.data?.amadeus_pnr || holdResult?.data?.amadeus_order_id || first.id)
+            } catch (holdErr) {
+              console.warn('Amadeus hold (family) skipped', holdErr)
             }
           }
         }
-
-        // Trigger Amadeus hold for the first passenger in family mode to show PENDING in main table
-        if (data && data.length > 0 && selectedRequestTypes.includes('flight')) {
-          const first = data[0]
-          const travelInfo = sharedTravelInfo || {
-            departureAirport: formData.departureAirport,
-            destinationAirport: formData.destinationAirport,
-            travelDate: formData.travelDate,
-            returnDate: formData.returnDate
-          }
-          try {
-            const holdResult = await amadeusHold({
-              bookingId: first.id,
-              bookingRef: bookingRef || null,
-              passengers: [
-                {
-                  firstName: first.first_name,
-                  middleName: first.middle_name,
-                  lastName: first.last_name,
-                  dateOfBirth: first.date_of_birth,
-                  passportNumber: first.passport_number,
-                  gender: first.gender
-                }
-              ],
-              itinerary: {
-                origin: travelInfo.departureAirport || first.departure_airport,
-                destination: travelInfo.destinationAirport || first.destination_airport,
-                travelDate: convertDateToISO(travelInfo.travelDate || first.travel_date),
-                returnDate: convertDateToISO(travelInfo.returnDate || first.return_date)
-              },
-              pricing: { currency: 'EUR' }
-            })
-            console.log('🟡 PNR created (family)', holdResult?.data?.amadeus_pnr || holdResult?.data?.amadeus_order_id || first.id)
-          } catch (holdErr) {
-            console.warn('Amadeus hold (family) skipped', holdErr)
-          }
-        }
-      }
-    } else {
+      } else {
         // Single mode - use existing logic (no changes)
         const bookingRefSingle = formData.bookingRef || null
         // Map form data to database columns exactly
@@ -1526,7 +1526,7 @@ Return format:
           .from('requests')
           .insert([dbData])
           .select()
-        
+
         if (error) {
           throw error
         }
@@ -1560,8 +1560,8 @@ Return format:
 
           // Trigger Amadeus hold to flip booking_status → pending without changing UI
           if (selectedRequestTypes.includes('flight')) {
-          try {
-            const holdResult = await amadeusHold({
+            try {
+              const holdResult = await amadeusHold({
                 bookingId: data[0].id,
                 bookingRef: bookingRefSingle,
                 passengers: [
@@ -1603,7 +1603,7 @@ Return format:
       // SUCCESS: Insert succeeded
       // Only now do we destroy the passport preview and clear form
       // This ensures user's work is preserved if insert fails
-      
+
       // Destroy passport preview object URL (only for blob URLs, not data URLs)
       // This is safe now because data is saved - file was never sent to Supabase
       if (passportPreviewUrl && passportPreviewUrl.startsWith('blob:')) {
@@ -1649,9 +1649,9 @@ Return format:
       }
 
       // Show success message briefly, then redirect to requests list
-      const successMsg = requestMode === 'family' 
-        ? (language === 'de' 
-          ? `${data.length} Familienmitglieder erfolgreich erstellt` 
+      const successMsg = requestMode === 'family'
+        ? (language === 'de'
+          ? `${data.length} Familienmitglieder erfolgreich erstellt`
           : `${data.length} family members created successfully`)
         : t.messages.requestCreated
       setSubmitMessage(successMsg)
@@ -1736,17 +1736,17 @@ Return format:
 
         {/* Language Switcher */}
         <div className="sidebar-language">
-          <button 
-            className={`lang-button ${language === 'de' ? 'active' : ''}`} 
-            type="button" 
+          <button
+            className={`lang-button ${language === 'de' ? 'active' : ''}`}
+            type="button"
             title="Deutsch"
             onClick={() => setLanguage('de')}
           >
             DE
           </button>
-          <button 
-            className={`lang-button ${language === 'en' ? 'active' : ''}`} 
-            type="button" 
+          <button
+            className={`lang-button ${language === 'en' ? 'active' : ''}`}
+            type="button"
             title="English"
             onClick={() => setLanguage('en')}
           >
@@ -1756,17 +1756,17 @@ Return format:
 
         {/* Theme Toggle */}
         <div className="sidebar-theme">
-          <button 
-            className={`theme-button ${theme === 'dark' ? 'active' : ''}`} 
-            type="button" 
+          <button
+            className={`theme-button ${theme === 'dark' ? 'active' : ''}`}
+            type="button"
             title={theme === 'dark' ? t.theme.dark : t.theme.light}
             onClick={handleThemeChange}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               {theme === 'dark' ? (
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
               ) : (
-                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
               )}
             </svg>
             {theme === 'dark' ? t.theme.dark : t.theme.light}
@@ -1777,73 +1777,73 @@ Return format:
         <nav className="sidebar-nav">
           <Link to="/main" className="nav-item">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7" rx="1"/>
-              <rect x="14" y="3" width="7" height="7" rx="1"/>
-              <rect x="3" y="14" width="7" height="7" rx="1"/>
-              <rect x="14" y="14" width="7" height="7" rx="1"/>
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
             <span>{t.sidebar.mainTable}</span>
           </Link>
           <Link to="/dashboard" className="nav-item">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="20" x2="18" y2="10"/>
-              <line x1="12" y1="20" x2="12" y2="4"/>
-              <line x1="6" y1="20" x2="6" y2="14"/>
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
             </svg>
             <span>{t.sidebar.dashboard}</span>
           </Link>
           <Link to="/requests" className="nav-item">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <polyline points="10 9 9 9 8 9"/>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
             </svg>
             <span>{t.sidebar.requests}</span>
           </Link>
           <Link to="/bookings" className="nav-item">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
             <span>{t.sidebar.bookings}</span>
           </Link>
           <Link to="/invoices" className="nav-item">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <polyline points="10 9 9 9 8 9"/>
-              <path d="M9 9h1v6h-1"/>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+              <path d="M9 9h1v6h-1" />
             </svg>
             <span>{t.sidebar.invoices}</span>
           </Link>
           <Link to="/expenses" className="nav-item">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23"/>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
             <span>{t.sidebar.expenses}</span>
           </Link>
           <Link to="/customers" className="nav-item">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
             <span>{t.sidebar.customers}</span>
           </Link>
           <Link to="/bank" className="nav-item">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="6" width="20" height="12" rx="2"/>
-              <path d="M2 10h20"/>
-              <path d="M7 14h.01"/>
-              <path d="M11 14h.01"/>
+              <rect x="2" y="6" width="20" height="12" rx="2" />
+              <path d="M2 10h20" />
+              <path d="M7 14h.01" />
+              <path d="M11 14h.01" />
             </svg>
             <span>{t.sidebar.bank}</span>
           </Link>
@@ -1865,201 +1865,306 @@ Return format:
           {/* TOP-DOWN LAYOUT: Passport (top) + Form (bottom) */}
           {/* Passport acts as reference area, form as action area */}
           {/* Optimized for fast back-office data entry */}
-          
+
           {/* TOP SECTION: Passport Preview (compact, fixed height) */}
           <section className="passport-preview-section">
-        <div className="passport-preview-container">
-          {/* Minimal Toolbar - Essential viewing controls only */}
-          {passportPreviewUrl && (
-            <div className="passport-toolbar">
-              {/* Left side: Zoom and Rotate controls */}
-              <div className="toolbar-controls-left">
-                {/* Zoom controls (works for both images and PDFs) */}
-                <>
-                  <button
-                    type="button"
-                    className="toolbar-button"
-                    onClick={handleZoomOut}
-                    title={t.passport.zoomOut}
-                    aria-label={t.passport.zoomOut}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="11" cy="11" r="8"/>
-                      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                      <line x1="8" y1="11" x2="14" y2="11"/>
-                    </svg>
-                  </button>
-                  <span className="toolbar-zoom-display">{Math.round(imageZoom * 100)}%</span>
-                  <button
-                    type="button"
-                    className="toolbar-button"
-                    onClick={handleZoomIn}
-                    title={t.passport.zoomIn}
-                    aria-label={t.passport.zoomIn}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="11" cy="11" r="8"/>
-                      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                      <line x1="11" y1="8" x2="11" y2="14"/>
-                      <line x1="8" y1="11" x2="14" y2="11"/>
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    className="toolbar-button"
-                    onClick={handleResetZoom}
-                    title={t.passport.resetZoom}
-                    aria-label={t.passport.resetZoom}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-                      <path d="M21 3v5h-5"/>
-                      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-                      <path d="M3 21v-5h5"/>
-                    </svg>
-                  </button>
-                </>
-                
-                {/* Rotate controls (images only) */}
-                {passportFile?.type?.startsWith('image/') && (
-                  <>
-                    <div className="toolbar-separator"/>
-                    <button
-                      type="button"
-                      className="toolbar-button"
-                      onClick={handleRotateLeft}
-                      title={t.passport.rotateLeft}
-                      aria-label={t.passport.rotateLeft}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
-                        <path d="M21 3v5h-5"/>
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="toolbar-button"
-                      onClick={handleRotateRight}
-                      title={t.passport.rotateRight}
-                      aria-label={t.passport.rotateRight}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 12a9 9 0 1 0 9-9c-2.52 0-4.93 1-6.74 2.74L3 8"/>
-                        <path d="M3 3v5h5"/>
-                      </svg>
-                    </button>
-                  </>
-                )}
-              </div>
+            <div className="passport-preview-container">
+              {/* Minimal Toolbar - Essential viewing controls only */}
+              {passportPreviewUrl && (
+                <div className="passport-toolbar">
+                  {/* Left side: Zoom and Rotate controls */}
+                  <div className="toolbar-controls-left">
+                    {/* Zoom controls (works for both images and PDFs) */}
+                    <>
+                      <button
+                        type="button"
+                        className="toolbar-button"
+                        onClick={handleZoomOut}
+                        title={t.passport.zoomOut}
+                        aria-label={t.passport.zoomOut}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="11" cy="11" r="8" />
+                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                          <line x1="8" y1="11" x2="14" y2="11" />
+                        </svg>
+                      </button>
+                      <span className="toolbar-zoom-display">{Math.round(imageZoom * 100)}%</span>
+                      <button
+                        type="button"
+                        className="toolbar-button"
+                        onClick={handleZoomIn}
+                        title={t.passport.zoomIn}
+                        aria-label={t.passport.zoomIn}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="11" cy="11" r="8" />
+                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                          <line x1="11" y1="8" x2="11" y2="14" />
+                          <line x1="8" y1="11" x2="14" y2="11" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="toolbar-button"
+                        onClick={handleResetZoom}
+                        title={t.passport.resetZoom}
+                        aria-label={t.passport.resetZoom}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                          <path d="M21 3v5h-5" />
+                          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                          <path d="M3 21v-5h5" />
+                        </svg>
+                      </button>
+                    </>
 
-            </div>
-          )}
+                    {/* Rotate controls (images only) */}
+                    {passportFile?.type?.startsWith('image/') && (
+                      <>
+                        <div className="toolbar-separator" />
+                        <button
+                          type="button"
+                          className="toolbar-button"
+                          onClick={handleRotateLeft}
+                          title={t.passport.rotateLeft}
+                          aria-label={t.passport.rotateLeft}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                            <path d="M21 3v5h-5" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="toolbar-button"
+                          onClick={handleRotateRight}
+                          title={t.passport.rotateRight}
+                          aria-label={t.passport.rotateRight}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 12a9 9 0 1 0 9-9c-2.52 0-4.93 1-6.74 2.74L3 8" />
+                            <path d="M3 3v5h5" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
 
-          {/* Preview Area */}
-          {passportPreviewUrl ? (
-            <div 
-              ref={viewerRef}
-              className="passport-preview-viewer"
-              onWheel={handleWheelZoom}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-            >
+                </div>
+              )}
+
+              {/* Preview Area */}
               {passportPreviewUrl ? (
-                /* Image Preview with real layout-based zoom and rotation.
-                   Uses actual width/height for zoom, transform only for rotation.
-                   Supports trackpad pinch, Ctrl+wheel, keyboard shortcuts, and touch zoom.
-                   PDFs are converted to images (first page only) to ensure identical behavior. */
-                <div 
-                  className="image-zoom-container"
-                  style={{
-                    transform: `rotate(${imageRotation}deg)`,
-                    transformOrigin: 'center center'
+                <div
+                  ref={viewerRef}
+                  className="passport-preview-viewer"
+                  onWheel={handleWheelZoom}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  {passportPreviewUrl ? (
+                    /* Image Preview with real layout-based zoom and rotation.
+                       Uses actual width/height for zoom, transform only for rotation.
+                       Supports trackpad pinch, Ctrl+wheel, keyboard shortcuts, and touch zoom.
+                       PDFs are converted to images (first page only) to ensure identical behavior. */
+                    <div
+                      className="image-zoom-container"
+                      style={{
+                        transform: `rotate(${imageRotation}deg)`,
+                        transformOrigin: 'center center'
+                      }}
+                    >
+                      <img
+                        ref={imageRef}
+                        src={passportPreviewUrl}
+                        alt="Passport preview"
+                        className="passport-preview-image"
+                        draggable={false}
+                        onLoad={handleImageLoad}
+                        style={{
+                          width: imageDisplaySize.width > 0 ? `${imageDisplaySize.width * imageZoom}px` : 'auto',
+                          height: imageDisplaySize.height > 0 ? `${imageDisplaySize.height * imageZoom}px` : 'auto',
+                          maxWidth: 'none',
+                          maxHeight: 'none'
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                // Empty State - before upload
+                <div className={`passport-preview-empty ${ocrMode && !passportPreviewUrl ? 'paste-waiting-mode' : ''}`}>
+                  <div className="empty-state-content">
+                    {ocrMode && !passportPreviewUrl ? (
+                      // Paste Waiting State - when OCR mode is enabled and waiting for paste
+                      <>
+                        <svg
+                          className="paste-icon"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                          />
+                          <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                        </svg>
+                        <h3 className="paste-waiting-title">{t.passport.pasteWaitingTitle}</h3>
+                        <p className="empty-state-text paste-waiting-text">
+                          {t.passport.pasteWaitingText}
+                        </p>
+                        <p className="paste-waiting-subtext">
+                          {t.passport.pasteWaitingSubtext}
+                        </p>
+                        <div className="upload-buttons-group">
+                          <button
+                            className="upload-button"
+                            onClick={() => {
+                              setOcrMode(false)
+                              setShowOCROptions(true)
+                            }}
+                            type="button"
+                          >
+                            {t.passport.chooseFile}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      // Normal Empty State
+                      <>
+                        <svg
+                          className="upload-icon"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        </svg>
+                        <p className="empty-state-text">
+                          {t.passport.uploadText}
+                        </p>
+                        <div className="upload-buttons-group">
+                          <button
+                            className="upload-button"
+                            onClick={() => {
+                              setOcrMode(false)
+                              fileInputRef.current?.click()
+                              setSubmitMessage(t.passport.ocrPasteHint)
+                              setSubmitError(false)
+                              setTimeout(() => {
+                                setSubmitMessage(null)
+                              }, 3000)
+                            }}
+                            type="button"
+                          >
+                            {t.passport.chooseFile}
+                          </button>
+                          <div className="upload-hint">
+                            {language === 'de'
+                              ? 'Oder drücken Sie Strg+V, um das Dokument ohne OCR einzufügen.'
+                              : 'Or press Ctrl+V to paste the document (no OCR).'}
+                          </div>
+                          <button
+                            className="upload-button ocr-button"
+                            onClick={() => setShowOCROptions(true)}
+                            type="button"
+                            title="Upload passport image for OCR extraction"
+                          >
+                            {t.passport.extractOCR}
+                          </button>
+                          {passportPreviewUrl && submitError && ocrRetryCount < maxRetries - 1 && (
+                            <button
+                              className="upload-button retry-button"
+                              onClick={handleOCRRetry}
+                              type="button"
+                              disabled={isExtractingOCR}
+                            >
+                              {t.passport.retry || 'Retry'} ({maxRetries - ocrRetryCount - 1} {t.passport.left || 'left'})
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Hidden file input for Choose File */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+              />
+
+              {/* Hidden file input for OCR - independent */}
+              <input
+                ref={ocrFileInputRef}
+                type="file"
+                onChange={handleOCRFileUpload}
+                accept="image/*,.pdf"
+                style={{ display: 'none' }}
+              />
+
+              {/* OCR Options Modal - Small popup for choosing upload method */}
+              {showOCROptions && (
+                <div
+                  className="ocr-options-modal-overlay"
+                  onClick={(e) => {
+                    // Close modal when clicking outside
+                    if (e.target === e.currentTarget) {
+                      setShowOCROptions(false)
+                    }
                   }}
                 >
-                  <img
-                    ref={imageRef}
-                    src={passportPreviewUrl}
-                    alt="Passport preview"
-                    className="passport-preview-image"
-                    draggable={false}
-                    onLoad={handleImageLoad}
-                    style={{
-                      width: imageDisplaySize.width > 0 ? `${imageDisplaySize.width * imageZoom}px` : 'auto',
-                      height: imageDisplaySize.height > 0 ? `${imageDisplaySize.height * imageZoom}px` : 'auto',
-                      maxWidth: 'none',
-                      maxHeight: 'none'
-                    }}
-                  />
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            // Empty State - before upload
-            <div className={`passport-preview-empty ${ocrMode && !passportPreviewUrl ? 'paste-waiting-mode' : ''}`}>
-              <div className="empty-state-content">
-                {ocrMode && !passportPreviewUrl ? (
-                  // Paste Waiting State - when OCR mode is enabled and waiting for paste
-                  <>
-                    <svg
-                      className="paste-icon"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
-                      />
-                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-                    </svg>
-                    <h3 className="paste-waiting-title">{t.passport.pasteWaitingTitle}</h3>
-                    <p className="empty-state-text paste-waiting-text">
-                      {t.passport.pasteWaitingText}
-                    </p>
-                    <p className="paste-waiting-subtext">
-                      {t.passport.pasteWaitingSubtext}
-                    </p>
-                    <div className="upload-buttons-group">
+                  <div className="ocr-options-modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="ocr-options-header">
+                      <h3>{t.passport.ocrOptionsTitle}</h3>
                       <button
-                        className="upload-button"
+                        className="ocr-options-close"
+                        onClick={() => setShowOCROptions(false)}
+                        type="button"
+                        aria-label="Close"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="ocr-options-buttons">
+                      <button
+                        className="ocr-option-button"
                         onClick={() => {
-                          setOcrMode(false)
-                          setShowOCROptions(true)
+                          setShowOCROptions(false)
+                          ocrFileInputRef.current?.click()
                         }}
                         type="button"
                       >
-                        {t.passport.chooseFile}
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>{t.passport.ocrManualUpload}</span>
                       </button>
-                    </div>
-                  </>
-                ) : (
-                  // Normal Empty State
-                  <>
-                    <svg
-                      className="upload-icon"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                      />
-                    </svg>
-                    <p className="empty-state-text">
-                      {t.passport.uploadText}
-                    </p>
-                    <div className="upload-buttons-group">
                       <button
-                        className="upload-button"
+                        className="ocr-option-button"
                         onClick={() => {
-                          setOcrMode(false)
-                          fileInputRef.current?.click()
+                          setShowOCROptions(false)
+                          setOcrMode(true)
+                          // Show hint message
                           setSubmitMessage(t.passport.ocrPasteHint)
                           setSubmitError(false)
                           setTimeout(() => {
@@ -2068,644 +2173,539 @@ Return format:
                         }}
                         type="button"
                       >
-                        {t.passport.chooseFile}
-                      </button>
-                      <div className="upload-hint">
-                        {language === 'de'
-                          ? 'Oder drücken Sie Strg+V, um das Dokument ohne OCR einzufügen.'
-                          : 'Or press Ctrl+V to paste the document (no OCR).'}
-                      </div>
-                      <button
-                        className="upload-button ocr-button"
-                        onClick={() => setShowOCROptions(true)}
-                        type="button"
-                        title="Upload passport image for OCR extraction"
-                      >
-                        {t.passport.extractOCR}
-                      </button>
-                      {passportPreviewUrl && submitError && ocrRetryCount < maxRetries - 1 && (
-                        <button
-                          className="upload-button retry-button"
-                          onClick={handleOCRRetry}
-                          type="button"
-                          disabled={isExtractingOCR}
-                        >
-                          {t.passport.retry || 'Retry'} ({maxRetries - ocrRetryCount - 1} {t.passport.left || 'left'})
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Hidden file input for Choose File */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            onChange={handleFileUpload}
-            style={{ display: 'none' }}
-          />
-
-          {/* Hidden file input for OCR - independent */}
-          <input
-            ref={ocrFileInputRef}
-            type="file"
-            onChange={handleOCRFileUpload}
-            accept="image/*,.pdf"
-            style={{ display: 'none' }}
-          />
-
-          {/* OCR Options Modal - Small popup for choosing upload method */}
-          {showOCROptions && (
-            <div 
-              className="ocr-options-modal-overlay"
-              onClick={(e) => {
-                // Close modal when clicking outside
-                if (e.target === e.currentTarget) {
-                  setShowOCROptions(false)
-                }
-              }}
-            >
-              <div className="ocr-options-modal" onClick={(e) => e.stopPropagation()}>
-                <div className="ocr-options-header">
-                  <h3>{t.passport.ocrOptionsTitle}</h3>
-                  <button
-                    className="ocr-options-close"
-                    onClick={() => setShowOCROptions(false)}
-                    type="button"
-                    aria-label="Close"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="18" y1="6" x2="6" y2="18"/>
-                      <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                  </button>
-                </div>
-                <div className="ocr-options-buttons">
-                  <button
-                    className="ocr-option-button"
-                    onClick={() => {
-                      setShowOCROptions(false)
-                      ocrFileInputRef.current?.click()
-                    }}
-                    type="button"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="17 8 12 3 7 8"/>
-                      <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    <span>{t.passport.ocrManualUpload}</span>
-                  </button>
-                  <button
-                    className="ocr-option-button"
-                    onClick={() => {
-                      setShowOCROptions(false)
-                      setOcrMode(true)
-                      // Show hint message
-                      setSubmitMessage(t.passport.ocrPasteHint)
-                      setSubmitError(false)
-                      setTimeout(() => {
-                        setSubmitMessage(null)
-                      }, 3000)
-                    }}
-                    type="button"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-                    </svg>
-                    <span>{t.passport.ocrPaste}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Extract button - Floating overlay in lower left corner (when OCR file is loaded) */}
-          {ocrFile && passportPreviewUrl && (
-            <button
-              className="extract-button-overlay"
-              onClick={() => {
-                setOcrRetryCount(0)
-                handleExtractOCR(false)
-              }}
-              disabled={isExtractingOCR}
-              type="button"
-              title="Extract passport data using OCR"
-            >
-              {isExtractingOCR ? t.passport.extracting : 'Extract'}
-            </button>
-          )}
-
-          {/* Retry button - Next to Extract button (when error occurs) */}
-          {ocrFile && passportPreviewUrl && submitError && ocrRetryCount < maxRetries - 1 && (
-            <button
-              className="retry-button-overlay"
-              onClick={handleOCRRetry}
-              disabled={isExtractingOCR}
-              type="button"
-              title="Retry extraction"
-            >
-              Retry ({maxRetries - ocrRetryCount - 1})
-            </button>
-          )}
-
-          {/* Remove button - Floating overlay (when file is uploaded) */}
-          {/* File name is intentionally NOT displayed - focus is on document only */}
-          {(passportFile || ocrFile) && (
-            <button
-              className="remove-file-button-overlay"
-              onClick={() => {
-                if (passportPreviewUrl && passportPreviewUrl.startsWith('blob:')) {
-                  URL.revokeObjectURL(passportPreviewUrl)
-                }
-                setPassportPreviewUrl(null)
-                setPassportFile(null)
-                setOcrFile(null)
-                setImageZoom(1)
-                setImageRotation(0)
-                
-                // Clear form data when file is removed to avoid confusion with different documents
-                setFormData({
-                  lastName: '',
-                  firstName: '',
-                  middleName: '',
-                  dateOfBirth: '',
-                  gender: '',
-                  nationality: '',
-                  passportNumber: '',
-                  travelDate: '',
-                  returnDate: '',
-                  departureAirport: '',
-                  destinationAirport: '',
-                  bookingRef: '',
-                  requestTypes: {
-                    flight: false,
-                    visa: false,
-                    package: false,
-                    other: false
-                  }
-                })
-                
-                if (fileInputRef.current) {
-                  fileInputRef.current.value = ''
-                }
-                if (ocrFileInputRef.current) {
-                  ocrFileInputRef.current.value = ''
-                }
-              }}
-              type="button"
-              title={t.passport.remove}
-              aria-label={t.passport.remove}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          )}
-        </div>
-      </section>
-
-      {/* BOTTOM SECTION: Form (scrollable, compact and dense) */}
-      <section className="form-section">
-        <div className="form-card">
-          {/* Mode Selection Modal - Show when requestMode is null */}
-          {requestMode === null && (
-            <div className="mode-selection-modal-overlay">
-              <div className="mode-selection-modal">
-                <h2>{language === 'de' ? 'Anfragetyp auswählen' : 'Select Request Type'}</h2>
-                <p style={{ marginBottom: '2rem', color: 'var(--text-secondary)' }}>
-                  {language === 'de' 
-                    ? 'Wählen Sie aus, ob Sie eine einzelne Person oder eine Familie hinzufügen möchten'
-                    : 'Choose whether you want to add a single person or a family'}
-                </p>
-                <div className="mode-selection-buttons">
-                  <button
-                    type="button"
-                    className="mode-button mode-single"
-                    onClick={() => setRequestMode('single')}
-                  >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    <span>{language === 'de' ? 'Einzelperson' : 'Single Person'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="mode-button mode-family"
-                    onClick={() => setRequestMode('family')}
-                  >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                      <circle cx="9" cy="7" r="4"/>
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                    <span>{language === 'de' ? 'Familie' : 'Family'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="mode-button mode-cancel"
-                    onClick={() => navigate('/requests')}
-                    style={{ justifyContent: 'center' }}
-                  >
-                    {language === 'de' ? 'Zurück zur Tabelle' : 'Back to Requests'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Top-level header removed - section headers provide sufficient hierarchy */}
-          {/* Only show form when mode is selected */}
-          {requestMode !== null && (
-          <form className="request-form" onSubmit={(e) => e.preventDefault()}>
-            {/* Passenger Information */}
-            <div className="form-section-group">
-              <h3 className="form-section-title">{t.sections.passengerInformation}</h3>
-              <div className="form-grid">
-                <div className="form-field">
-                  <label htmlFor="lastName">
-                    {t.fields.lastName} <span className="required">*</span>
-                  </label>
-                  <input
-                    id="lastName"
-                    type="text"
-                    placeholder={t.placeholders.lastName}
-                    value={formData.lastName}
-                    onChange={(e) => handleInputChange('lastName', e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="firstName">
-                    {t.fields.firstName} <span className="required">*</span>
-                  </label>
-                  <input
-                    id="firstName"
-                    type="text"
-                    placeholder={t.placeholders.firstName}
-                    value={formData.firstName}
-                    onChange={(e) => handleInputChange('firstName', e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="middleName">{t.fields.middleName}</label>
-                  <input
-                    id="middleName"
-                    type="text"
-                    placeholder={t.placeholders.middleName}
-                    value={formData.middleName}
-                    onChange={(e) => handleInputChange('middleName', e.target.value)}
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="dateOfBirth">{t.fields.dateOfBirth}</label>
-                  <input
-                    id="dateOfBirth"
-                    type="text"
-                    placeholder="DD.MM.YYYY"
-                    value={formData.dateOfBirth}
-                    onChange={(e) => handleDateInputChange('dateOfBirth', e.target.value)}
-                    pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
-                    title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="gender">{t.fields.gender}</label>
-                  <select
-                    id="gender"
-                    value={formData.gender}
-                    onChange={(e) => handleInputChange('gender', e.target.value)}
-                  >
-                    <option value="">{t.gender.select}</option>
-                    <option value="M">{t.gender.male}</option>
-                    <option value="F">{t.gender.female}</option>
-                    <option value="Other">{t.gender.other}</option>
-                  </select>
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="passportNumber">{t.fields.passportNumber}</label>
-                  <input
-                    id="passportNumber"
-                    type="text"
-                    placeholder={t.placeholders.passportNumber}
-                    value={formData.passportNumber}
-                    onChange={(e) => handleInputChange('passportNumber', e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Document Information */}
-            <div className="form-section-group">
-              <div className="form-grid">
-                <div className="form-field">
-                  <label htmlFor="nationality">{t.fields.nationality}</label>
-                  <CountryAutocomplete
-                    id="nationality"
-                    value={formData.nationality}
-                    placeholder={t.placeholders.nationality}
-                    onChange={(val) => handleInputChange('nationality', val)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Travel Information */}
-            <div className="form-section-group">
-              <h3 className="form-section-title">{t.sections.travelInformation}</h3>
-              
-              {/* Show read-only shared travel info for family members after first person */}
-              {requestMode === 'family' && currentFamilyIndex > 0 && sharedTravelInfo && (
-                <div style={{
-                  marginBottom: '1rem',
-                  padding: '0.75rem',
-                  backgroundColor: 'var(--bg-subtle)',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  fontSize: '0.875rem'
-                }}>
-                  <div style={{ marginBottom: '0.5rem', fontWeight: '600' }}>
-                    {language === 'de' ? 'Gemeinsame Reiseinformationen:' : 'Shared Travel Information:'}
-                  </div>
-                  <div style={{ color: 'var(--text-secondary)' }}>
-                    <div>{sharedTravelInfo.departureAirport} → {sharedTravelInfo.destinationAirport}</div>
-                    {sharedTravelInfo.travelDate && <div>{language === 'de' ? 'Abflug:' : 'Departure:'} {sharedTravelInfo.travelDate}</div>}
-                    {sharedTravelInfo.returnDate && <div>{language === 'de' ? 'Rückflug:' : 'Return:'} {sharedTravelInfo.returnDate}</div>}
-                  </div>
-                </div>
-              )}
-
-              <div className="form-grid">
-                <div className="form-field">
-                  <label htmlFor="travelDate">{t.fields.travelDate}</label>
-                  <input
-                    id="travelDate"
-                    type="text"
-                    placeholder="DD.MM.YYYY"
-                    value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.travelDate || '') : formData.travelDate}
-                    onChange={(e) => handleDateInputChange('travelDate', e.target.value)}
-                    disabled={requestMode === 'family' && currentFamilyIndex > 0}
-                    pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
-                    title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
-                    style={requestMode === 'family' && currentFamilyIndex > 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="returnDate">{t.fields.returnDate}</label>
-                  <input
-                    id="returnDate"
-                    type="text"
-                    placeholder="DD.MM.YYYY"
-                    value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.returnDate || '') : formData.returnDate}
-                    onChange={(e) => handleDateInputChange('returnDate', e.target.value)}
-                    disabled={requestMode === 'family' && currentFamilyIndex > 0}
-                    pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
-                    title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
-                    style={requestMode === 'family' && currentFamilyIndex > 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
-                  />
-                </div>
-
-              </div>
-
-              {/* Airport fields in one row with arrow */}
-              <div className="form-grid" style={{ gridTemplateColumns: '1fr auto 1fr', alignItems: 'end' }}>
-                <div className="form-field">
-                  <label htmlFor="departureAirport">{t.fields.departureAirport}</label>
-                  <AirportAutocomplete
-                    id="departureAirport"
-                    name="departureAirport"
-                    value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.departureAirport || '') : formData.departureAirport}
-                    onChange={(value) => handleInputChange('departureAirport', value)}
-                    placeholder={t.placeholders.departureAirport}
-                    disabled={requestMode === 'family' && currentFamilyIndex > 0}
-                  />
-                </div>
-
-                <div className="airport-arrow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem' }}>
-                  <svg width="28" height="68" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: 'var(--text-primary)' }}>
-                    {/* Top-left arrow (L-shaped hook pointing left) */}
-                    <path d="M16 4L10 4L10 10L5 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                    <path d="M5 10L8.5 6.5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                    {/* Bottom-right arrow (L-shaped hook pointing right) */}
-                    <path d="M8 20L14 20L14 14L19 14" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                    <path d="M19 14L15.5 17.5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                  </svg>
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="destinationAirport">{t.fields.destinationAirport}</label>
-                  <AirportAutocomplete
-                    id="destinationAirport"
-                    name="destinationAirport"
-                    value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.destinationAirport || '') : formData.destinationAirport}
-                    onChange={(value) => handleInputChange('destinationAirport', value)}
-                    placeholder={t.placeholders.destinationAirport}
-                    disabled={requestMode === 'family' && currentFamilyIndex > 0}
-                  />
-                </div>
-              </div>
-
-            </div>
-
-            {/* Request Type */}
-            <div className="form-section-group">
-              <h3 className="form-section-title">
-                {t.sections.requestType}
-              </h3>
-              <div className="checkbox-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.requestTypes.flight}
-                    onChange={(e) => handleCheckboxChange('flight', e.target.checked)}
-                  />
-                  <span>{t.fields.requestTypes.flight}</span>
-                </label>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.requestTypes.visa}
-                    onChange={(e) => handleCheckboxChange('visa', e.target.checked)}
-                  />
-                  <span>{t.fields.requestTypes.visa}</span>
-                </label>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.requestTypes.package}
-                    onChange={(e) => handleCheckboxChange('package', e.target.checked)}
-                  />
-                  <span>{t.fields.requestTypes.package}</span>
-                </label>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.requestTypes.other}
-                    onChange={(e) => handleCheckboxChange('other', e.target.checked)}
-                  />
-                  <span>{t.fields.requestTypes.other}</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Family Members List Display - moved near action buttons for less scrolling */}
-            {requestMode === 'family' && familyMembers.length > 0 && (
-              <div className="family-members-display" style={{
-                marginBottom: '1.5rem',
-                padding: '1rem',
-                backgroundColor: 'var(--bg-subtle)',
-                borderRadius: '8px',
-                border: '1px solid var(--border-color)'
-              }}>
-                <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', fontWeight: '600' }}>
-                  {language === 'de' 
-                    ? `${familyMembers.length} Familienmitglied(er) hinzugefügt`
-                    : `${familyMembers.length} Family Member(s) Added`}
-                </h4>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                  {familyMembers.map((member, index) => (
-                    <div key={index} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.5rem 0.75rem',
-                      backgroundColor: 'var(--bg-surface)',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)'
-                    }}>
-                      <span style={{ fontSize: '0.875rem' }}>
-                        {member.firstName} {member.lastName}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFamilyMember(index)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-error)',
-                          cursor: 'pointer',
-                          padding: '0.25rem',
-                          display: 'flex',
-                          alignItems: 'center'
-                        }}
-                        title={language === 'de' ? 'Entfernen' : 'Remove'}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <line x1="18" y1="6" x2="6" y2="18"/>
-                          <line x1="6" y1="6" x2="18" y2="18"/>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                          <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
                         </svg>
+                        <span>{t.passport.ocrPaste}</span>
                       </button>
-                    </div>
-                  ))}
-                </div>
-                {sharedTravelInfo && (
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                    <strong>{language === 'de' ? 'Gemeinsame Reiseinformationen:' : 'Shared Travel Information:'}</strong>
-                    <div style={{ marginTop: '0.25rem' }}>
-                      {sharedTravelInfo.departureAirport} → {sharedTravelInfo.destinationAirport}
-                      {sharedTravelInfo.travelDate && ` | ${sharedTravelInfo.travelDate}`}
-                      {sharedTravelInfo.returnDate && ` | ${sharedTravelInfo.returnDate}`}
                     </div>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Submit Message (Success or Error) */}
-            {submitMessage && (
-              <div className={`submit-message ${submitError ? 'submit-error' : 'submit-success'}`}>
-                {submitMessage}
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="form-actions">
-              <button
-                type="button"
-                className="button button-cancel"
-                onClick={handleCancel}
-                disabled={isSubmitting}
-              >
-                {t.buttons.cancel}
-              </button>
-              
-              {/* Family Mode Buttons */}
-              {requestMode === 'family' && (
-                <>
-                  {currentFamilyIndex === 0 ? (
-                    // First person - show both buttons
-                    <>
-                      <button
-                        type="button"
-                        className="button button-primary"
-                        onClick={handleSaveFamilyMember}
-                        disabled={!formData.firstName || !formData.lastName || isSubmitting}
-                      >
-                        {language === 'de' ? 'Speichern & Weitere Person hinzufügen' : 'Save & Add Another Person'}
-                      </button>
-                      <button
-                        type="button"
-                        className="button button-secondary"
-                        onClick={handleCreateRequest}
-                        disabled={((!formData.firstName || !formData.lastName) && familyMembers.length === 0) || isSubmitting}
-                      >
-                        {isSubmitting ? (language === 'de' ? 'Erstelle...' : 'Creating...') : t.buttons.createRequest}
-                      </button>
-                    </>
-                  ) : (
-                    // Subsequent persons - show both buttons
-                    <>
-                      <button
-                        type="button"
-                        className="button button-secondary"
-                        onClick={handleSaveFamilyMember}
-                        disabled={!formData.firstName || !formData.lastName || isSubmitting}
-                      >
-                        {language === 'de' ? 'Speichern & Weitere Person hinzufügen' : 'Save & Add Another Person'}
-                      </button>
-                      <button
-                        type="button"
-                        className="button button-primary"
-                        onClick={handleCreateRequest}
-                        disabled={familyMembers.length === 0 || isSubmitting}
-                      >
-                        {isSubmitting ? (language === 'de' ? 'Erstelle...' : 'Creating...') : t.buttons.createRequest}
-                      </button>
-                    </>
-                  )}
-                </>
+                </div>
               )}
-              
-              {/* Single Mode Button */}
-              {requestMode === 'single' && (
+
+              {/* Extract button - Floating overlay in lower left corner (when OCR file is loaded) */}
+              {ocrFile && passportPreviewUrl && (
                 <button
+                  className="extract-button-overlay"
+                  onClick={() => {
+                    setOcrRetryCount(0)
+                    handleExtractOCR(false)
+                  }}
+                  disabled={isExtractingOCR}
                   type="button"
-                  className="button button-primary"
-                  onClick={handleCreateRequest}
-                  disabled={!formData.firstName || !formData.lastName || isSubmitting}
+                  title="Extract passport data using OCR"
                 >
-                  {isSubmitting ? (language === 'de' ? 'Erstelle...' : 'Creating...') : t.buttons.createRequest}
+                  {isExtractingOCR ? t.passport.extracting : 'Extract'}
+                </button>
+              )}
+
+              {/* Retry button - Next to Extract button (when error occurs) */}
+              {ocrFile && passportPreviewUrl && submitError && ocrRetryCount < maxRetries - 1 && (
+                <button
+                  className="retry-button-overlay"
+                  onClick={handleOCRRetry}
+                  disabled={isExtractingOCR}
+                  type="button"
+                  title="Retry extraction"
+                >
+                  Retry ({maxRetries - ocrRetryCount - 1})
+                </button>
+              )}
+
+              {/* Remove button - Floating overlay (when file is uploaded) */}
+              {/* File name is intentionally NOT displayed - focus is on document only */}
+              {(passportFile || ocrFile) && (
+                <button
+                  className="remove-file-button-overlay"
+                  onClick={() => {
+                    if (passportPreviewUrl && passportPreviewUrl.startsWith('blob:')) {
+                      URL.revokeObjectURL(passportPreviewUrl)
+                    }
+                    setPassportPreviewUrl(null)
+                    setPassportFile(null)
+                    setOcrFile(null)
+                    setImageZoom(1)
+                    setImageRotation(0)
+
+                    // Clear form data when file is removed to avoid confusion with different documents
+                    setFormData({
+                      lastName: '',
+                      firstName: '',
+                      middleName: '',
+                      dateOfBirth: '',
+                      gender: '',
+                      nationality: '',
+                      passportNumber: '',
+                      travelDate: '',
+                      returnDate: '',
+                      departureAirport: '',
+                      destinationAirport: '',
+                      bookingRef: '',
+                      requestTypes: {
+                        flight: false,
+                        visa: false,
+                        package: false,
+                        other: false
+                      }
+                    })
+
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = ''
+                    }
+                    if (ocrFileInputRef.current) {
+                      ocrFileInputRef.current.value = ''
+                    }
+                  }}
+                  type="button"
+                  title={t.passport.remove}
+                  aria-label={t.passport.remove}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
                 </button>
               )}
             </div>
-          </form>
-          )}
-        </div>
-      </section>
+          </section>
+
+          {/* BOTTOM SECTION: Form (scrollable, compact and dense) */}
+          <section className="form-section">
+            <div className="form-card">
+              {/* Mode Selection Modal - Show when requestMode is null */}
+              {requestMode === null && (
+                <div className="mode-selection-modal-overlay">
+                  <div className="mode-selection-modal">
+                    <h2>{language === 'de' ? 'Anfragetyp auswählen' : 'Select Request Type'}</h2>
+                    <p style={{ marginBottom: '2rem', color: 'var(--text-secondary)' }}>
+                      {language === 'de'
+                        ? 'Wählen Sie aus, ob Sie eine einzelne Person oder eine Familie hinzufügen möchten'
+                        : 'Choose whether you want to add a single person or a family'}
+                    </p>
+                    <div className="mode-selection-buttons">
+                      <button
+                        type="button"
+                        className="mode-button mode-single"
+                        onClick={() => setRequestMode('single')}
+                      >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        <span>{language === 'de' ? 'Einzelperson' : 'Single Person'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="mode-button mode-family"
+                        onClick={() => setRequestMode('family')}
+                      >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        <span>{language === 'de' ? 'Familie' : 'Family'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="mode-button mode-cancel"
+                        onClick={() => navigate('/requests')}
+                        style={{ justifyContent: 'center' }}
+                      >
+                        {language === 'de' ? 'Zurück zur Tabelle' : 'Back to Requests'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Top-level header removed - section headers provide sufficient hierarchy */}
+              {/* Only show form when mode is selected */}
+              {requestMode !== null && (
+                <form className="request-form" onSubmit={(e) => e.preventDefault()}>
+                  {/* Passenger Information */}
+                  <div className="form-section-group">
+                    <h3 className="form-section-title">{t.sections.passengerInformation}</h3>
+                    <div className="form-grid">
+                      <div className="form-field">
+                        <label htmlFor="lastName">
+                          {t.fields.lastName} <span className="required">*</span>
+                        </label>
+                        <input
+                          id="lastName"
+                          type="text"
+                          placeholder={t.placeholders.lastName}
+                          value={formData.lastName}
+                          onChange={(e) => handleInputChange('lastName', e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="firstName">
+                          {t.fields.firstName} <span className="required">*</span>
+                        </label>
+                        <input
+                          id="firstName"
+                          type="text"
+                          placeholder={t.placeholders.firstName}
+                          value={formData.firstName}
+                          onChange={(e) => handleInputChange('firstName', e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="middleName">{t.fields.middleName}</label>
+                        <input
+                          id="middleName"
+                          type="text"
+                          placeholder={t.placeholders.middleName}
+                          value={formData.middleName}
+                          onChange={(e) => handleInputChange('middleName', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="dateOfBirth">{t.fields.dateOfBirth}</label>
+                        <input
+                          id="dateOfBirth"
+                          type="text"
+                          placeholder="DD.MM.YYYY"
+                          value={formData.dateOfBirth}
+                          onChange={(e) => handleDateInputChange('dateOfBirth', e.target.value)}
+                          pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
+                          title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="gender">{t.fields.gender}</label>
+                        <select
+                          id="gender"
+                          value={formData.gender}
+                          onChange={(e) => handleInputChange('gender', e.target.value)}
+                        >
+                          <option value="">{t.gender.select}</option>
+                          <option value="M">{t.gender.male}</option>
+                          <option value="F">{t.gender.female}</option>
+                          <option value="Other">{t.gender.other}</option>
+                        </select>
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="passportNumber">{t.fields.passportNumber}</label>
+                        <input
+                          id="passportNumber"
+                          type="text"
+                          placeholder={t.placeholders.passportNumber}
+                          value={formData.passportNumber}
+                          onChange={(e) => handleInputChange('passportNumber', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Document Information */}
+                  <div className="form-section-group">
+                    <div className="form-grid">
+                      <div className="form-field">
+                        <label htmlFor="nationality">{t.fields.nationality}</label>
+                        <CountryAutocomplete
+                          id="nationality"
+                          value={formData.nationality}
+                          placeholder={t.placeholders.nationality}
+                          onChange={(val) => handleInputChange('nationality', val)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Travel Information */}
+                  <div className="form-section-group">
+                    <h3 className="form-section-title">{t.sections.travelInformation}</h3>
+
+                    {/* Show read-only shared travel info for family members after first person */}
+                    {requestMode === 'family' && currentFamilyIndex > 0 && sharedTravelInfo && (
+                      <div style={{
+                        marginBottom: '1rem',
+                        padding: '0.75rem',
+                        backgroundColor: 'var(--bg-subtle)',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        fontSize: '0.875rem'
+                      }}>
+                        <div style={{ marginBottom: '0.5rem', fontWeight: '600' }}>
+                          {language === 'de' ? 'Gemeinsame Reiseinformationen:' : 'Shared Travel Information:'}
+                        </div>
+                        <div style={{ color: 'var(--text-secondary)' }}>
+                          <div>{sharedTravelInfo.departureAirport} → {sharedTravelInfo.destinationAirport}</div>
+                          {sharedTravelInfo.travelDate && <div>{language === 'de' ? 'Abflug:' : 'Departure:'} {sharedTravelInfo.travelDate}</div>}
+                          {sharedTravelInfo.returnDate && <div>{language === 'de' ? 'Rückflug:' : 'Return:'} {sharedTravelInfo.returnDate}</div>}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="form-grid">
+                      <div className="form-field">
+                        <label htmlFor="travelDate">{t.fields.travelDate}</label>
+                        <input
+                          id="travelDate"
+                          type="text"
+                          placeholder="DD.MM.YYYY"
+                          value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.travelDate || '') : formData.travelDate}
+                          onChange={(e) => handleDateInputChange('travelDate', e.target.value)}
+                          disabled={requestMode === 'family' && currentFamilyIndex > 0}
+                          pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
+                          title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
+                          style={requestMode === 'family' && currentFamilyIndex > 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="returnDate">{t.fields.returnDate}</label>
+                        <input
+                          id="returnDate"
+                          type="text"
+                          placeholder="DD.MM.YYYY"
+                          value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.returnDate || '') : formData.returnDate}
+                          onChange={(e) => handleDateInputChange('returnDate', e.target.value)}
+                          disabled={requestMode === 'family' && currentFamilyIndex > 0}
+                          pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
+                          title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
+                          style={requestMode === 'family' && currentFamilyIndex > 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+                        />
+                      </div>
+
+                    </div>
+
+                    {/* Airport fields in one row with arrow */}
+                    <div className="form-grid" style={{ gridTemplateColumns: '1fr auto 1fr', alignItems: 'end' }}>
+                      <div className="form-field">
+                        <label htmlFor="departureAirport">{t.fields.departureAirport}</label>
+                        <AirportSelect
+                          id="departureAirport"
+                          name="departureAirport"
+                          value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.departureAirport || '') : formData.departureAirport}
+                          onChange={(value) => handleInputChange('departureAirport', value)}
+                          placeholder={t.placeholders.departureAirport}
+                          disabled={requestMode === 'family' && currentFamilyIndex > 0}
+                        />
+                      </div>
+
+                      <div className="airport-arrow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem' }}>
+                        <svg width="28" height="68" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: 'var(--text-primary)' }}>
+                          {/* Top-left arrow (L-shaped hook pointing left) */}
+                          <path d="M16 4L10 4L10 10L5 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                          <path d="M5 10L8.5 6.5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                          {/* Bottom-right arrow (L-shaped hook pointing right) */}
+                          <path d="M8 20L14 20L14 14L19 14" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                          <path d="M19 14L15.5 17.5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                        </svg>
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="destinationAirport">{t.fields.destinationAirport}</label>
+                        <AirportSelect
+                          id="destinationAirport"
+                          name="destinationAirport"
+                          value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.destinationAirport || '') : formData.destinationAirport}
+                          onChange={(value) => handleInputChange('destinationAirport', value)}
+                          placeholder={t.placeholders.destinationAirport}
+                          disabled={requestMode === 'family' && currentFamilyIndex > 0}
+                        />
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Request Type */}
+                  <div className="form-section-group">
+                    <h3 className="form-section-title">
+                      {t.sections.requestType}
+                    </h3>
+                    <div className="checkbox-group">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={formData.requestTypes.flight}
+                          onChange={(e) => handleCheckboxChange('flight', e.target.checked)}
+                        />
+                        <span>{t.fields.requestTypes.flight}</span>
+                      </label>
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={formData.requestTypes.visa}
+                          onChange={(e) => handleCheckboxChange('visa', e.target.checked)}
+                        />
+                        <span>{t.fields.requestTypes.visa}</span>
+                      </label>
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={formData.requestTypes.package}
+                          onChange={(e) => handleCheckboxChange('package', e.target.checked)}
+                        />
+                        <span>{t.fields.requestTypes.package}</span>
+                      </label>
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={formData.requestTypes.other}
+                          onChange={(e) => handleCheckboxChange('other', e.target.checked)}
+                        />
+                        <span>{t.fields.requestTypes.other}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Family Members List Display - moved near action buttons for less scrolling */}
+                  {requestMode === 'family' && familyMembers.length > 0 && (
+                    <div className="family-members-display" style={{
+                      marginBottom: '1.5rem',
+                      padding: '1rem',
+                      backgroundColor: 'var(--bg-subtle)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', fontWeight: '600' }}>
+                        {language === 'de'
+                          ? `${familyMembers.length} Familienmitglied(er) hinzugefügt`
+                          : `${familyMembers.length} Family Member(s) Added`}
+                      </h4>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                        {familyMembers.map((member, index) => (
+                          <div key={index} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.5rem 0.75rem',
+                            backgroundColor: 'var(--bg-surface)',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)'
+                          }}>
+                            <span style={{ fontSize: '0.875rem' }}>
+                              {member.firstName} {member.lastName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFamilyMember(index)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-error)',
+                                cursor: 'pointer',
+                                padding: '0.25rem',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                              title={language === 'de' ? 'Entfernen' : 'Remove'}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {sharedTravelInfo && (
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                          <strong>{language === 'de' ? 'Gemeinsame Reiseinformationen:' : 'Shared Travel Information:'}</strong>
+                          <div style={{ marginTop: '0.25rem' }}>
+                            {sharedTravelInfo.departureAirport} → {sharedTravelInfo.destinationAirport}
+                            {sharedTravelInfo.travelDate && ` | ${sharedTravelInfo.travelDate}`}
+                            {sharedTravelInfo.returnDate && ` | ${sharedTravelInfo.returnDate}`}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Submit Message (Success or Error) */}
+                  {submitMessage && (
+                    <div className={`submit-message ${submitError ? 'submit-error' : 'submit-success'}`}>
+                      {submitMessage}
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="form-actions">
+                    <button
+                      type="button"
+                      className="button button-cancel"
+                      onClick={handleCancel}
+                      disabled={isSubmitting}
+                    >
+                      {t.buttons.cancel}
+                    </button>
+
+                    {/* Family Mode Buttons */}
+                    {requestMode === 'family' && (
+                      <>
+                        {currentFamilyIndex === 0 ? (
+                          // First person - show both buttons
+                          <>
+                            <button
+                              type="button"
+                              className="button button-primary"
+                              onClick={handleSaveFamilyMember}
+                              disabled={!formData.firstName || !formData.lastName || isSubmitting}
+                            >
+                              {language === 'de' ? 'Speichern & Weitere Person hinzufügen' : 'Save & Add Another Person'}
+                            </button>
+                            <button
+                              type="button"
+                              className="button button-secondary"
+                              onClick={handleCreateRequest}
+                              disabled={((!formData.firstName || !formData.lastName) && familyMembers.length === 0) || isSubmitting}
+                            >
+                              {isSubmitting ? (language === 'de' ? 'Erstelle...' : 'Creating...') : t.buttons.createRequest}
+                            </button>
+                          </>
+                        ) : (
+                          // Subsequent persons - show both buttons
+                          <>
+                            <button
+                              type="button"
+                              className="button button-secondary"
+                              onClick={handleSaveFamilyMember}
+                              disabled={!formData.firstName || !formData.lastName || isSubmitting}
+                            >
+                              {language === 'de' ? 'Speichern & Weitere Person hinzufügen' : 'Save & Add Another Person'}
+                            </button>
+                            <button
+                              type="button"
+                              className="button button-primary"
+                              onClick={handleCreateRequest}
+                              disabled={familyMembers.length === 0 || isSubmitting}
+                            >
+                              {isSubmitting ? (language === 'de' ? 'Erstelle...' : 'Creating...') : t.buttons.createRequest}
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+
+                    {/* Single Mode Button */}
+                    {requestMode === 'single' && (
+                      <button
+                        type="button"
+                        className="button button-primary"
+                        onClick={handleCreateRequest}
+                        disabled={!formData.firstName || !formData.lastName || isSubmitting}
+                      >
+                        {isSubmitting ? (language === 'de' ? 'Erstelle...' : 'Creating...') : t.buttons.createRequest}
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
+            </div>
+          </section>
         </div>
       </main>
     </div>

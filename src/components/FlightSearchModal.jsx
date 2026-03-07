@@ -1,6 +1,10 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { X, Clock3, ArrowRight, AlertCircle, Briefcase, RefreshCcw, Info, ChevronDown, Check, Backpack, Luggage, ShieldCheck, Ticket } from 'lucide-react'
 import { getAirlineName, getAirlineLogo, getBaggageAllowance, getFareRules } from '../lib/airlines'
+import { useFlightProviderAvailable } from '../hooks/useFlightProviderAvailable'
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const formatDuration = (iso) => {
   if (!iso || typeof iso !== 'string') return ''
@@ -54,7 +58,7 @@ const durationToMinutes = (iso) => {
 
 // --- SUB-COMPONENTS ---
 
-const FlightDetailsExpanded = ({ flight, onSelect }) => {
+const FlightDetailsExpanded = ({ flight, onSelect, selecting, flightProviderAvailable = true }) => {
   const offer = flight.offer || flight
   const itineraries = offer.itineraries || []
   const rules = flight.rules
@@ -228,8 +232,8 @@ const FlightDetailsExpanded = ({ flight, onSelect }) => {
           <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a1a' }}>€{totalPrice}</div>
           <div style={{ fontSize: '0.8rem', color: '#595959' }}>Total per person</div>
         </div>
-        <button onClick={onSelect} style={{ background: '#006ce4', color: 'white', border: 'none', padding: '12px 32px', borderRadius: 4, fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>
-          Book Flight
+        <button onClick={onSelect} disabled={selecting || !flightProviderAvailable} style={{ background: (selecting || !flightProviderAvailable) ? '#94a3b8' : '#006ce4', color: 'white', border: 'none', padding: '12px 32px', borderRadius: 4, fontWeight: 600, fontSize: '1rem', cursor: (selecting || !flightProviderAvailable) ? 'not-allowed' : 'pointer' }}>
+          {!flightProviderAvailable ? 'Flight provider temporarily unavailable' : selecting ? 'Creating booking…' : 'Book Flight'}
         </button>
       </div>
 
@@ -237,7 +241,7 @@ const FlightDetailsExpanded = ({ flight, onSelect }) => {
   )
 }
 
-const FlightCard = ({ flight, isSelected, onSelect, onToggle, isExpanded }) => {
+const FlightCard = ({ flight, isSelected, onSelect, onToggle, isExpanded, selecting, flightProviderAvailable = true }) => {
   const offer = flight.offer || flight
   const itineraries = offer.itineraries || []
   const price = Number(flight.price).toFixed(2)
@@ -352,7 +356,7 @@ const FlightCard = ({ flight, isSelected, onSelect, onToggle, isExpanded }) => {
         </div>
       </div>
 
-      {isExpanded && <FlightDetailsExpanded flight={flight} onSelect={onSelect} />}
+      {isExpanded && <FlightDetailsExpanded flight={flight} onSelect={onSelect} selecting={selecting} flightProviderAvailable={flightProviderAvailable} />}
     </div>
   )
 }
@@ -364,13 +368,16 @@ export default function FlightSearchModal({
   loading,
   error,
   onSelectFlight,
-  onHold, // Now accepting onHold
+  requestId,
   searchFrom,
   searchTo,
   searchDate,
   searchReturnDate
 }) {
+  const navigate = useNavigate()
+  const { flightProviderAvailable } = useFlightProviderAvailable()
   const [expandedId, setExpandedId] = useState(null)
+  const [selecting, setSelecting] = useState(false)
 
   // -- Sorting/Filtering State --
   const [sortKey, setSortKey] = useState('best')
@@ -473,13 +480,27 @@ export default function FlightSearchModal({
     })
   }
 
-  // Choose handler: If onHold is provided, use it. Otherwise fallback to select.
-  // This allows "Book Flight" to trigger the real Amadeus booking flow in parent.
-  const handlePrimaryAction = (flight) => {
-    if (onHold) {
-      onHold(flight)
-    } else if (onSelectFlight) {
-      onSelectFlight(flight)
+  // "Book Flight" → create DRAFT booking via /api/search/select → navigate to booking detail
+  // HOLD is ONLY available from BookingDetail via ActionBar.
+  const handlePrimaryAction = async (flight) => {
+    if (!flightProviderAvailable) return
+    const rawOffer = flight.offer || flight
+    setSelecting(true)
+    try {
+      const res = await fetch(`${API}/api/search/select`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offer: rawOffer, request_id: requestId || null })
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to create booking')
+      }
+      navigate(json.redirect || `/bookings/${json.bookingId}`)
+    } catch (err) {
+      alert(`Booking failed: ${err.message}`)
+    } finally {
+      setSelecting(false)
     }
   }
 
@@ -513,6 +534,12 @@ export default function FlightSearchModal({
             <X size={24} />
           </button>
         </div>
+
+        {!flightProviderAvailable && (
+          <div style={{ padding: '12px 24px', background: '#fef3c7', color: '#92400e', fontSize: '0.95rem' }}>
+            Flight provider temporarily unavailable
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'flex-start' }}>
 
@@ -616,6 +643,8 @@ export default function FlightSearchModal({
                 isExpanded={expandedId === (flight.id || flight.offer?.id)}
                 onToggle={(id) => setExpandedId(prev => prev === id ? null : id)}
                 onSelect={() => handlePrimaryAction(flight)}
+                selecting={selecting}
+                flightProviderAvailable={flightProviderAvailable}
               />
             ))}
 
