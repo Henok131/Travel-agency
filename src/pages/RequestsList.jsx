@@ -499,6 +499,21 @@ function RequestsList() {
         // Continue without logo - will use invoice_settings logo_url if available
       }
       
+      // Merge with app_settings as fallback (for backward compatibility)
+      try {
+        const { getAppSetting } = await import('@/lib/appSettings')
+        const appSettingsData = await getAppSetting('invoice_settings', null)
+        if (appSettingsData) {
+          // Merge app_settings data, but prioritize invoice_settings values
+          settingsData = {
+            ...appSettingsData,
+            ...(settingsData || {})  // invoice_settings takes precedence
+          }
+        }
+      } catch (err) {
+        console.warn('App settings fetch failed:', err.message)
+      }
+
       // Ensure QR is disabled when setting is absent or not configured
       // Include logo_url from organizations table
       const settings = {
@@ -532,12 +547,30 @@ function RequestsList() {
         created_at: request.created_at || new Date().toISOString()
       }
       
+      // Fetch default invoice template
+      let templateData = null
+      try {
+        const { data: template, error: templateError } = await supabase
+          .from('invoice_templates')
+          .select('*')
+          .eq('user_id', APP_ID)
+          .eq('is_default', true)
+          .maybeSingle()
+        
+        if (!templateError && template) {
+          templateData = template
+        }
+      } catch (err) {
+        console.warn('Invoice template fetch failed:', err.message)
+      }
+
       // Omit the confirmation paragraph when printing invoices
       const includeParagraph = false
       // Generate invoice PDF
       await generateBankTransferInvoicePdf({
         booking: bookingData,
         settings: settings,
+        template: templateData,
         mode: mode,
         language,
         includeParagraph

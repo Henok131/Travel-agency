@@ -217,7 +217,14 @@ export const DEFAULT_INVOICE_TEMPLATE = {
   `,
 
   // Word-like editor layout
-  custom_elements: []
+  custom_elements: [],
+
+  // Text content fields (editable static text)
+  invoice_title: 'BANKÜBERWEISUNG',
+  ticket_platform_text: 'Ticketbuchungsplattformen:- IATA',
+  confirmation_paragraph: 'Ich/Wir bestätigen, dass die Angaben auf meiner/unserer Buchung korrekt sind, einschließlich Namen, Datum und weiterer Details. Zudem wurde ich/wurden wir über die Visumspflichten, Stornierungs- und Umbuchungsgebühren und alle Flugreisedetails umfassend aufgeklärt. Ich/Wir habe(n) die Bedingungen für die Buchung zur Kenntnis genommen und vollumfänglich verstanden und buche(n) verbindlich.',
+  tax_paragraph: 'Steuerfreie Vermittlungsleistung gemäß § 3a Abs.2 UStG',
+  signature_label: 'Unterschrift:'
 }
 
 // Function to create default template for new user

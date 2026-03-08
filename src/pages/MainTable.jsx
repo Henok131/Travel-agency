@@ -804,6 +804,21 @@ function RequestsList() {
         console.warn('Invoice settings fetch failed:', err.message)
       }
 
+      // Merge with app_settings as fallback (for backward compatibility)
+      try {
+        const { getAppSetting } = await import('@/lib/appSettings')
+        const appSettingsData = await getAppSetting('invoice_settings', null)
+        if (appSettingsData) {
+          // Merge app_settings data, but prioritize invoice_settings values
+          settingsData = {
+            ...appSettingsData,
+            ...settingsData  // invoice_settings takes precedence
+          }
+        }
+      } catch (err) {
+        console.warn('App settings fetch failed:', err.message)
+      }
+
       // Prioritize logo_url from invoice_settings, fallback to storage lookup
       let logoUrl = settingsData?.logo_url || null
 
@@ -835,16 +850,35 @@ function RequestsList() {
         logo_url: settingsData?.logo_url || logoUrl || ''  // Prioritize invoice_settings.logo_url
       }
 
+      // Fetch default invoice template
+      let templateData = null
+      try {
+        const { data: template, error: templateError } = await supabase
+          .from('invoice_templates')
+          .select('*')
+          .eq('user_id', APP_ID)
+          .eq('is_default', true)
+          .maybeSingle()
+        
+        if (!templateError && template) {
+          templateData = template
+        }
+      } catch (err) {
+        console.warn('Invoice template fetch failed:', err.message)
+      }
+
       console.log('Invoice settings passed to PDF generator:', {
         hasSettingsData: !!settingsData,
         logoUrlFromSettings: settingsData?.logo_url,
         logoUrlFromStorage: logoUrl,
-        finalLogoUrl: settings.logo_url
+        finalLogoUrl: settings.logo_url,
+        hasTemplate: !!templateData
       })
 
       await generateBankTransferInvoicePdf({
         booking: request,
         settings,
+        template: templateData,
         mode,
         language,
         includeParagraph: true
@@ -930,6 +964,23 @@ function RequestsList() {
         logo_url: settingsData?.logo_url || logoUrl || ''  // Prioritize invoice_settings.logo_url
       }
 
+      // Fetch default invoice template
+      let templateData = null
+      try {
+        const { data: template, error: templateError } = await supabase
+          .from('invoice_templates')
+          .select('*')
+          .eq('user_id', APP_ID)
+          .eq('is_default', true)
+          .maybeSingle()
+        
+        if (!templateError && template) {
+          templateData = template
+        }
+      } catch (err) {
+        console.warn('Invoice template fetch failed:', err.message)
+      }
+
       console.log('Group invoice settings passed to PDF generator:', {
         hasSettingsData: !!settingsData,
         logoUrlFromSettings: settingsData?.logo_url,
@@ -937,7 +988,7 @@ function RequestsList() {
         finalLogoUrl: settings.logo_url
       })
 
-      await generateGroupInvoicePdf(selectedBookings, settings, mode, language, true)
+      await generateGroupInvoicePdf(selectedBookings, settings, templateData, mode, language, true)
       setSelectedIds([])
     } catch (err) {
       console.error('Error generating group invoice:', err)

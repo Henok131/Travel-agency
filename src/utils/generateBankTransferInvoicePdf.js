@@ -235,13 +235,20 @@ async function generateQRCodeWithLogo(qrData, logoUrl) {
   }
 }
 
-async function generateBankTransferInvoicePdf({ booking, settings, mode = 'download', language = 'de', includeParagraph = true }) {
+async function generateBankTransferInvoicePdf({ booking, settings, template = null, mode = 'download', language = 'de', includeParagraph = true }) {
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'generateBankTransferInvoicePdf.js:entry', message: 'Invoice generator called', data: { bookingId: booking.id, inputLogoUrl: settings?.logo_url, hasSettings: !!settings }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H5' }) }).catch(() => { });
   // #endregion
 
   const safeSettings = normalizeSettings(settings)
   const includeQr = safeSettings.include_qr !== false
+  
+  // Get text content from template first, fallback to settings
+  const ticketPlatformText = template?.ticket_platform_text || safeSettings.ticket_platform_text
+  const confirmationParagraph = template?.confirmation_paragraph || safeSettings.confirmation_paragraph
+  const taxParagraph = template?.tax_paragraph || safeSettings.tax_paragraph
+  const signatureLabel = template?.signature_label || safeSettings.signature_label
+  const invoiceTitle = template?.invoice_title || safeSettings.invoice_title || null
 
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/ffa39e8e-4005-410b-ab09-927e51611360', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'generateBankTransferInvoicePdf.js:after_normalize', message: 'After normalizeSettings', data: { inputLogoUrl: settings?.logo_url, outputLogoUrl: safeSettings.logo_url, hasLogo: !!safeSettings.logo_url, defaultLogoUrl: DEFAULT_SETTINGS.logo_url }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H5' }) }).catch(() => { });
@@ -379,7 +386,7 @@ async function generateBankTransferInvoicePdf({ booking, settings, mode = 'downl
 
       <div style="margin-top: 8mm;">
         <div style="display: flex; justify-content: space-between; align-items: baseline;">
-          <div style="font-size: 24px; font-weight: bold;">${t('heading', language)}</div>
+          <div style="font-size: 24px; font-weight: bold;">${invoiceTitle || t('heading', language)}</div>
           <div style="text-align: right; font-size: 14px;">
             <div>${t('date', language)} ${dateString}</div>
           </div>
@@ -428,12 +435,12 @@ async function generateBankTransferInvoicePdf({ booking, settings, mode = 'downl
       ${noticeSectionHTML}
       
       <div style="margin-top: ${afterTableMarginTop}; font-size: 14px; line-height: 1.6;">
-        <div style="margin-bottom: 6mm;"><strong>${t('platform', language)}</strong> ${t('platformValue', language)}</div>
+        <div style="margin-bottom: 6mm;"><strong>${ticketPlatformText || t('platform', language)}</strong> ${ticketPlatformText ? '' : t('platformValue', language)}</div>
         <div style="margin-bottom: 6mm; text-align: justify;">
-          <div>${t('confirm', language)}</div>
+          <div>${confirmationParagraph || t('confirm', language)}</div>
         </div>
         <div style="margin-top: ${afterTableMarginTop};">
-          <div style="font-weight: bold;">${t('taxNote', language)}</div>
+          <div style="font-weight: bold;">${taxParagraph || t('taxNote', language)}</div>
         </div>
       </div>
       </div>
@@ -441,7 +448,7 @@ async function generateBankTransferInvoicePdf({ booking, settings, mode = 'downl
       <div style="margin-top: auto; padding-top: 10mm;">
         <div style="text-align: right; font-size: 14px; margin-bottom: 8mm;">
           <div style="font-weight: bold;">
-            ${t('signature', language)}<span style="border-bottom: 1px solid #000; display: inline-block; width: 70mm; margin-left: 4px; vertical-align: middle; height: 1em;"></span>
+            ${signatureLabel || t('signature', language)}<span style="border-bottom: 1px solid #000; display: inline-block; width: 70mm; margin-left: 4px; vertical-align: middle; height: 1em;"></span>
           </div>
         </div>
 
