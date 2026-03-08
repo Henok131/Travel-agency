@@ -1292,6 +1292,14 @@ function Dashboard() {
             </svg>
             <span>{t.sidebar.bank}</span>
           </Link>
+          <Link to="/tax" className="nav-item">
+            <img src={taxLogo} alt="TAX" width="20" height="20" />
+            <span>{t.sidebar.tax}</span>
+          </Link>
+          <Link to="/settings" className="nav-item">
+            <img src={settingLogo} alt="Settings" width="20" height="20" />
+            <span>{t.sidebar.settings}</span>
+          </Link>
         </nav>
         <div className="sidebar-footer">
           <div className="sidebar-footer-text">{t.sidebar.footer}</div>

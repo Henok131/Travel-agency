@@ -8,6 +8,7 @@ import { amadeusHold } from '@/lib/amadeusProxy'
 import * as pdfjsLib from 'pdfjs-dist'
 import logo from '../assets/logo.png'
 import taxLogo from '../assets/tax-logo.png'
+import settingLogo from '../assets/setting-logo.png'
 import './CreateRequest.css'
 
 
@@ -28,6 +29,7 @@ const translations = {
       customers: 'Customers',
       bank: 'Bank',
       tax: 'TAX',
+      settings: 'Settings',
       footer: '© 2026 LST Travel Agency'
     },
     // Theme
@@ -131,6 +133,7 @@ const translations = {
       customers: 'Kunden',
       bank: 'Bank',
       tax: 'Steuern',
+      settings: 'Einstellungen',
       footer: '© 2026 LST Reisebüro'
     },
     // Theme
@@ -1824,6 +1827,10 @@ Return format:
           <Link to="/tax" className="nav-item">
             <img src={taxLogo} alt="TAX" width="24" height="24" />
             <span>{t.sidebar.tax}</span>
+          </Link>
+          <Link to="/settings" className="nav-item">
+            <img src={settingLogo} alt="Settings" width="24" height="24" />
+            <span>{t.sidebar.settings || 'Settings'}</span>
           </Link>
         </nav>
 

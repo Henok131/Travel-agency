@@ -222,9 +222,13 @@ html[data-theme="dark"] .page-layout {
   padding: 0.5rem 0;
   overflow-y: auto; /* Allow scrolling if nav items overflow */
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* Fixed gap - spacing controlled by nav-item padding only */
 }
 
-.nav-item {
+/* Ensure consistent spacing across all pages */
+.sidebar-nav .nav-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -236,6 +240,9 @@ html[data-theme="dark"] .page-layout {
   transition: all 0.2s;
   border-left: 3px solid transparent;
   min-height: 38px;
+  margin: 0; /* Ensure no margin - spacing comes from padding only */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .nav-item:hover {
