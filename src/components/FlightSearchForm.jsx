@@ -358,6 +358,7 @@ export default function FlightSearchForm({ onSearch, disabled = false }) {
             <CalendarRange size={16} style={{ position: 'absolute', top: 10, left: 10, color: '#e5e7eb' }} />
             <input
               type="date"
+              placeholder="DD.MM.YYYY"
               min={todayIso()}
               value={route.departureDate}
               onChange={(e) => setRoute((prev) => ({ ...prev, departureDate: e.target.value }))}
@@ -368,6 +369,7 @@ export default function FlightSearchForm({ onSearch, disabled = false }) {
             <div style={{ marginTop: 6 }}>
               <input
                 type="date"
+                placeholder="DD.MM.YYYY"
                 min={route.departureDate || todayIso()}
                 value={route.returnDate}
                 onChange={(e) => setRoute((prev) => ({ ...prev, returnDate: e.target.value }))}
@@ -519,6 +521,7 @@ export default function FlightSearchForm({ onSearch, disabled = false }) {
                 <label style={labelStyle}>Date</label>
                 <input
                   type="date"
+                  placeholder="DD.MM.YYYY"
                   min={todayIso()}
                   value={leg.date}
                   onChange={(e) => updateLegField(idx, 'date', e.target.value)}

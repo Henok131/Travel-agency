@@ -2091,14 +2091,14 @@ function TaxPage() {
         return (
           <input
             ref={editInputRef}
-            type="text"
+            type="date"
+            placeholder="DD.MM.YYYY"
             className="excel-cell-input"
             value={editValue}
             onChange={handleInputChange}
             onBlur={() => handleInputBlur(item.id, field, type)}
             onKeyDown={(e) => handleInputKeyDown(e, item.id, field, type)}
             onClick={(e) => e.stopPropagation()}
-            placeholder="DD.MM.YYYY"
           />
         )
       } else if (inputType === 'number') {

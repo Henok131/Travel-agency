@@ -113,11 +113,11 @@ function ViewBookings() {
         <div className="bookings-date-input">
           <label>Date</label>
           <input
-            type="text"
+            type="date"
+            placeholder="DD.MM.YYYY"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             className="bookings-date-picker"
-            placeholder="DD.MM.YYYY"
           />
         </div>
         <button className="bookings-refresh-btn" onClick={handleRefresh}>

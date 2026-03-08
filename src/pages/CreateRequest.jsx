@@ -1087,37 +1087,11 @@ Return format:
     }))
   }
 
-  // Handle date input with auto-formatting (DD.MM.YYYY)
+  // Handle date input (YYYY-MM-DD format from native date picker)
   const handleDateInputChange = (field, value) => {
-    // If value is from HTML5 date input (YYYY-MM-DD), convert to DD.MM.YYYY
-    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      const [year, month, day] = value.split('-')
-      value = `${day}.${month}.${year}`
-    }
-
-    // Remove all non-numeric characters
-    const digits = value.replace(/\D/g, '')
-
-    // Limit to 8 digits (DDMMYYYY)
-    const limitedDigits = digits.slice(0, 8)
-
-    // Build formatted string with auto-inserted dots
-    let formatted = ''
-    for (let i = 0; i < limitedDigits.length; i++) {
-      formatted += limitedDigits[i]
-      // Add dot after 2nd digit (DD.)
-      if (i === 1 && limitedDigits.length >= 2) {
-        formatted += '.'
-      }
-      // Add dot after 4th digit (DD.MM.)
-      if (i === 3 && limitedDigits.length >= 4) {
-        formatted += '.'
-      }
-    }
-
     setFormData(prev => ({
       ...prev,
-      [field]: formatted
+      [field]: value || ''
     }))
   }
 
@@ -2372,12 +2346,10 @@ Return format:
                         <label htmlFor="dateOfBirth">{t.fields.dateOfBirth}</label>
                         <input
                           id="dateOfBirth"
-                          type="text"
+                          type="date"
                           placeholder="DD.MM.YYYY"
                           value={formData.dateOfBirth}
                           onChange={(e) => handleDateInputChange('dateOfBirth', e.target.value)}
-                          pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
-                          title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
                         />
                       </div>
 
@@ -2453,13 +2425,11 @@ Return format:
                         <label htmlFor="travelDate">{t.fields.travelDate}</label>
                         <input
                           id="travelDate"
-                          type="text"
+                          type="date"
                           placeholder="DD.MM.YYYY"
                           value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.travelDate || '') : formData.travelDate}
                           onChange={(e) => handleDateInputChange('travelDate', e.target.value)}
                           disabled={requestMode === 'family' && currentFamilyIndex > 0}
-                          pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
-                          title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
                           style={requestMode === 'family' && currentFamilyIndex > 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
                         />
                       </div>
@@ -2468,13 +2438,11 @@ Return format:
                         <label htmlFor="returnDate">{t.fields.returnDate}</label>
                         <input
                           id="returnDate"
-                          type="text"
+                          type="date"
                           placeholder="DD.MM.YYYY"
                           value={requestMode === 'family' && currentFamilyIndex > 0 ? (sharedTravelInfo?.returnDate || '') : formData.returnDate}
                           onChange={(e) => handleDateInputChange('returnDate', e.target.value)}
                           disabled={requestMode === 'family' && currentFamilyIndex > 0}
-                          pattern="^\\d{2}\\.\\d{2}\\.\\d{4}$"
-                          title="Please enter a date in DD.MM.YYYY format (e.g., 01.02.2026)"
                           style={requestMode === 'family' && currentFamilyIndex > 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
                         />
                       </div>

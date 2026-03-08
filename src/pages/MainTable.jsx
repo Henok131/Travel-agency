@@ -291,7 +291,7 @@ function RequestsList() {
   const [columnWidths, setColumnWidths] = useState({
     select: 48,
     row_number: 60,
-    booking_ref: 130,
+    pnr_rfn: 130,
     booking_status: 130,
     invoice_action: 100,
     first_name: 120,
@@ -1541,6 +1541,10 @@ function RequestsList() {
       return rowIndex !== null ? String(rowIndex + 1) : ''
     }
 
+    if (field === 'pnr_rfn') {
+      return request.booking_ref || request.amadeus_ticket_number || ''
+    }
+
     // Handle computed/calculated fields
     if (field === 'travel_date' || field === 'return_date') {
       if (!request[field]) return ''
@@ -1687,6 +1691,8 @@ function RequestsList() {
   // Get raw cell value for editing
   const getRawCellValue = (request, field) => {
     switch (field) {
+      case 'pnr_rfn':
+        return request.booking_ref || request.amadeus_ticket_number || ''
       case 'date_of_birth':
       case 'travel_date':
       case 'return_date':
@@ -1817,7 +1823,10 @@ function RequestsList() {
     const updatedRequests = requests.map(r => {
       if (r.id === rowId) {
         const updated = { ...r }
-        if (field === 'date_of_birth' || field === 'travel_date' || field === 'return_date') {
+        if (field === 'pnr_rfn') {
+          // Update booking_ref when pnr_rfn is edited
+          updated.booking_ref = dbValue === '' ? null : dbValue
+        } else if (field === 'date_of_birth' || field === 'travel_date' || field === 'return_date') {
           updated[field] = dbValue
         } else if (field === 'request_types') {
           updated[field] = dbValue
@@ -1886,7 +1895,12 @@ function RequestsList() {
       }
 
       const updateData = {}
-      updateData[field] = dbValue
+      // Handle pnr_rfn field - update booking_ref when editing
+      if (field === 'pnr_rfn') {
+        updateData.booking_ref = dbValue
+      } else {
+        updateData[field] = dbValue
+      }
 
       // Get the updated request to calculate financial fields
       const updatedRequest = updatedRequests.find(r => r.id === rowId)
@@ -2051,11 +2065,11 @@ function RequestsList() {
 
   // Render cell content
   const renderCell = (request, field, rowIndex = null) => {
-    if (field === 'booking_ref') {
-      const ref = request.booking_ref || ''
+    if (field === 'pnr_rfn') {
+      const value = request.booking_ref || request.amadeus_ticket_number || ''
       return (
-        <div className="excel-cell">
-          <span>{ref}</span>
+        <div className="excel-cell excel-cell-editable" data-row-id={request.id} data-field={field} onClick={(e) => startEditing(request.id, field, e)}>
+          <span>{value}</span>
         </div>
       )
     }
@@ -2326,15 +2340,6 @@ function RequestsList() {
         )
       }
 
-      if (field === 'amadeus_ticket_number') {
-        const statusLower = (request.booking_status || '').toLowerCase()
-        const value = statusLower === 'confirmed' ? request.amadeus_ticket_number || '' : ''
-        return (
-          <div className="excel-cell">
-            <span>{value}</span>
-          </div>
-        )
-      }
 
       // Special handling for print_invoice checkbox display
       if (field === 'print_invoice') {
@@ -2437,9 +2442,8 @@ function RequestsList() {
   const columnOrder = [
     'select',
     'row_number',
-    'booking_ref',
+    'pnr_rfn',
     'booking_status',
-    'amadeus_ticket_number',
     'invoice_action',
     'first_name',
     'middle_name',
@@ -2477,9 +2481,8 @@ function RequestsList() {
     const labelMap = {
       select: '',
       row_number: '#',
-      booking_ref: t.table.columns.bookingRef,
+      pnr_rfn: 'PNR / RFN',
       booking_status: t.table.columns.bookingStatus,
-      amadeus_ticket_number: 'Ticket #',
       invoice_action: t.table.columns.invoiceAction,
       print_invoice: t.table.columns.printInvoice,
       first_name: t.table.columns.firstName,

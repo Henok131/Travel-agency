@@ -980,9 +980,9 @@ html[data-theme="dark"] .main-content {
 /* Form Sections - Ultra-compact spacing */
 /* Maximum density for CRM/airline back-office data entry */
 .form-section-group {
-  margin-bottom: 0.125rem; /* Minimal (2px) - maximum density */
+  margin-bottom: 0; /* No margin below sections */
   margin-top: 0; /* No extra space above sections */
-  padding-bottom: 0.125rem; /* Minimal (2px) - ultra-compact spacing */
+  padding-bottom: 0; /* No padding below sections */
   border-bottom: 1px solid var(--border-color); /* Thin divider */
 }
 
@@ -1003,7 +1003,7 @@ html[data-theme="dark"] .main-content {
   font-size: 0.875rem; /* Small section headers */
   font-weight: 600;
   color: var(--text-primary); /* Primary text color for headers */
-  margin-bottom: 0.125rem; /* Minimal (2px) - headers sit immediately above fields */
+  margin-bottom: 0; /* No margin - headers sit immediately above fields */
   margin-top: 0; /* No extra space above headers */
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1011,7 +1011,7 @@ html[data-theme="dark"] .main-content {
 
 /* Add spacing between section title and first field row */
 .form-section-title + .form-grid {
-  margin-top: 0.5rem; /* Comfortable gap between title and fields */
+  margin-top: 0; /* No gap - title directly above fields */
 }
 
 /* Form Grid - Responsive: 3 columns desktop, 2 tablet, 1 mobile */
@@ -1019,8 +1019,11 @@ html[data-theme="dark"] .main-content {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  row-gap: 0.125rem; /* Reduced (2px) - tighter vertical spacing for maximum density */
+  row-gap: 0; /* No gap - maximum vertical density */
   column-gap: 1.5rem; /* Horizontal gap (24px) between fields in the same row - unchanged */
+  align-items: start; /* Align items to start to prevent any extra spacing */
+  margin-bottom: 0; /* No margin below grid */
+  padding-bottom: 0; /* No padding below grid */
 }
 
 @media (max-width: 1024px) {
@@ -1065,14 +1068,21 @@ html[data-theme="dark"] .main-content {
   display: flex;
   flex-direction: column;
   margin-bottom: 0; /* No margin between fields - row-gap handles spacing */
+  margin-top: 0; /* No margin above fields */
+  padding-bottom: 0; /* No padding below fields */
+  padding-top: 0; /* No padding above fields */
+  gap: 0; /* No gap between label and input */
 }
 
 .form-field label {
   font-size: 0.75rem; /* Small labels */
   font-weight: 500;
   color: var(--text-primary); /* Primary text color for labels */
-  margin-bottom: 0.0625rem; /* Reduced (1px) - labels tightly attached to inputs */
-  line-height: 1.2;
+  margin-bottom: 0; /* No margin - labels directly attached to inputs */
+  margin-top: 0; /* No margin above labels */
+  line-height: 1; /* Tighter line height to reduce spacing */
+  padding-bottom: 0; /* No padding below labels */
+  padding-top: 0; /* No padding above labels */
 }
 
 .required {
@@ -1091,6 +1101,10 @@ html[data-theme="dark"] .main-content {
   height: 36px; /* Compact height 36-40px range */
   box-sizing: border-box;
   width: 100%;
+  margin-top: 0; /* No margin above inputs */
+  margin-bottom: 0; /* No margin below inputs */
+  vertical-align: top; /* Align to top to prevent extra spacing */
+  display: block; /* Block display to prevent inline spacing */
 }
 
 .form-field input:focus,

@@ -43,20 +43,37 @@ html {
   display: block;
 }
 
-/* Style calendar icon in date inputs to be white (visible) */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1);
+/* make date text format clearer */
+input[type="date"]{
+  position: relative;
+  padding-right: 32px;
+}
+
+/* calendar icon positioning */
+input[type="date"]::-webkit-calendar-picker-indicator{
+  position: absolute;
+  right: 8px;
   cursor: pointer;
-  opacity: 1;
+  opacity: 0.9;
 }
 
-/* For Firefox and other browsers */
-input[type="date"] {
-  color-scheme: dark;
+/* dark mode icon */
+.dark input[type="date"]::-webkit-calendar-picker-indicator{
+  filter: invert(1);
 }
 
-/* Ensure calendar icon is visible in light mode too */
-html:not(.dark):not([data-theme="dark"]) input[type="date"]::-webkit-calendar-picker-indicator {
+/* light mode icon */
+.light input[type="date"]::-webkit-calendar-picker-indicator{
   filter: invert(0);
-  opacity: 0.7;
+}
+
+/* optional placeholder style */
+input[type="date"]::before{
+  content: attr(placeholder);
+  color: #9ca3af;
+}
+
+input[type="date"]:focus::before,
+input[type="date"]:valid::before{
+  display:none;
 }

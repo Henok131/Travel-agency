@@ -121,12 +121,12 @@ function PublicBookingView() {
         <div className="public-booking-date-input">
           <label>Select Date</label>
           <input
-            type="text"
+            type="date"
+            placeholder="DD.MM.YYYY"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             min={new Date().toISOString().split('T')[0]}
             className="public-booking-date-picker"
-            placeholder="DD.MM.YYYY"
           />
         </div>
       </div>

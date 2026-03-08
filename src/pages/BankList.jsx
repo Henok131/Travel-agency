@@ -824,6 +824,7 @@ function BankList() {
                   Date
                   <input
                     type="date"
+                    placeholder="DD.MM.YYYY"
                     value={editingTx.date}
                     onChange={(e) => setEditingTx({ ...editingTx, date: e.target.value })}
                     style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem', borderRadius: '0.375rem', border: '1px solid #334155', background: '#0f172a', color: '#fff' }}

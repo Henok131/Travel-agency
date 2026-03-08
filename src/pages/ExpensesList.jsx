@@ -1617,31 +1617,17 @@ function ExpensesList() {
       
       // Check if date is required and provided
       if (!dateValue) {
-        setSubmitMessage('Expense date is required. Please enter a date in DD.MM.YYYY format.')
+        setSubmitMessage('Expense date is required.')
         setSubmitError(true)
         setIsSubmitting(false)
         return
       }
       
-      // Check if date is complete (exactly 10 characters: DD.MM.YYYY)
-      if (dateValue.length !== 10) {
-        setSubmitMessage('Please enter a complete date in DD.MM.YYYY format (e.g., 13.01.2026).')
-        setSubmitError(true)
-        setIsSubmitting(false)
-        return
-      }
-      
-      // Convert date from DD.MM.YYYY to YYYY-MM-DD for database
+      // Convert date from YYYY-MM-DD (native date input) to YYYY-MM-DD for database
       const expenseDateISO = convertDateToISO(dateValue)
       
       if (!expenseDateISO) {
-        // Check if it's a format issue or invalid date
-        const ddmmyyyyPattern = /^(\d{2})[.-](\d{2})[.-](\d{4})$/
-        if (!dateValue.match(ddmmyyyyPattern)) {
-          setSubmitMessage('Invalid date format. Please use DD.MM.YYYY format (e.g., 13.01.2026).')
-        } else {
-          setSubmitMessage('Invalid date. Please enter a valid calendar date in DD.MM.YYYY format (e.g., 13.01.2026).')
-        }
+        setSubmitMessage('Invalid date. Please enter a valid calendar date.')
         setSubmitError(true)
         setIsSubmitting(false)
         return
@@ -2085,20 +2071,15 @@ function ExpensesList() {
                 </label>
                 <input
                   id="expense_date"
-                  type="text"
+                  type="date"
                   placeholder="DD.MM.YYYY"
                   value={formData.expense_date}
-                  onChange={handleDateInputChange}
-                  onBlur={(e) => {
-                    const dateValue = e.target.value.trim()
-                    if (dateValue && dateValue.length !== 10) {
-                      e.target.setCustomValidity('Please enter a complete date in DD.MM.YYYY format (e.g., 13.01.2026)')
-                    } else {
-                      e.target.setCustomValidity('')
-                    }
+                  onChange={(e) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      expense_date: e.target.value
+                    }))
                   }}
-                  pattern="^\d{2}\.\d{2}\.\d{4}$"
-                  title="Please enter a date in DD.MM.YYYY format (e.g., 13.01.2026)"
                   required
                 />
               </div>

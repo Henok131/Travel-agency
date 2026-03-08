@@ -394,6 +394,7 @@ export default function BookingDetail() {
                                         <td>
                                             <input
                                                 type="date"
+                                                placeholder="DD.MM.YYYY"
                                                 value={p.dob || ''}
                                                 disabled={!isEditable}
                                                 onChange={(e) => handlePassengerChange(idx, 'dob', e.target.value)}
