@@ -344,6 +344,10 @@ function RequestsList() {
   const tableRef = useRef(null)
   const [airlineDisplayMap, setAirlineDisplayMap] = useState({})
 
+  // Column configuration state
+  const [columnConfig, setColumnConfig] = useState([])
+  const [columnConfigLoaded, setColumnConfigLoaded] = useState(false)
+
   // Column resizing state
   const [columnWidths, setColumnWidths] = useState({
     select: 48,
@@ -480,6 +484,39 @@ function RequestsList() {
       .catch(() => {
         // ignore; fallback will show raw value
       })
+  }, [])
+
+  // Load column configuration
+  const loadColumnConfig = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('table_columns_config')
+        .select('*')
+        .order('order_index', { ascending: true })
+
+      if (error) throw error
+
+      setColumnConfig(data || [])
+      setColumnConfigLoaded(true)
+    } catch (error) {
+      console.error('Error loading column configuration:', error)
+      // Fallback to default configuration
+      setColumnConfigLoaded(true)
+    }
+  }
+
+  useEffect(() => {
+    loadColumnConfig()
+
+    // Listen for column configuration updates
+    const handleColumnsUpdate = () => {
+      loadColumnConfig()
+    }
+
+    window.addEventListener('tableColumnsUpdated', handleColumnsUpdate)
+    return () => {
+      window.removeEventListener('tableColumnsUpdated', handleColumnsUpdate)
+    }
   }, [])
 
   const formatAirportDisplay = (raw) => {
@@ -2741,41 +2778,62 @@ function RequestsList() {
     }
   }
 
-  // Get column order (matching table structure)
-  const columnOrder = [
-    'select',
-    'row_number',
-    'pnr_rfn',
-    'booking_status',
-    'invoice_action',
-    'first_name',
-    'middle_name',
-    'last_name',
-    'date_of_birth',
-    'gender',
-    'passport_number',
-    'flight_details',
-    'request_types',
-    'airlines_price',
-    'service_fee',
-    'total_ticket_price',
-    'visa_price',
-    'service_visa',
-    'tot_visa_fees',
-    'total_amount_due',
-    'cash_paid',
-    'bank_transfer',
-    'total_customer_payment',
-    'payment_balance',
-    'commission_from_airlines',
-    'lst_loan_fee',
-    'lst_profit',
-    'created_at',
-    'delete'
-  ]
+  // Get column order from configuration or fallback to default
+  const getColumnOrder = () => {
+    if (!columnConfigLoaded || columnConfig.length === 0) {
+      // Fallback to default order
+      return [
+        'select',
+        'row_number',
+        'pnr_rfn',
+        'booking_status',
+        'invoice_action',
+        'first_name',
+        'middle_name',
+        'last_name',
+        'date_of_birth',
+        'gender',
+        'passport_number',
+        'flight_details',
+        'request_types',
+        'airlines_price',
+        'service_fee',
+        'total_ticket_price',
+        'visa_price',
+        'service_visa',
+        'tot_visa_fees',
+        'total_amount_due',
+        'cash_paid',
+        'bank_transfer',
+        'total_customer_payment',
+        'payment_balance',
+        'commission_from_airlines',
+        'lst_loan_fee',
+        'lst_profit',
+        'created_at',
+        'delete'
+      ]
+    }
 
-  // Get column label
+    // Filter visible columns and sort by order_index
+    return columnConfig
+      .filter(col => col.visible)
+      .sort((a, b) => a.order_index - b.order_index)
+      .map(col => col.column_key)
+  }
+
+  const columnOrder = getColumnOrder()
+
+  // Get column label from configuration or fallback to translation
   const getColumnLabel = (field) => {
+    if (columnConfigLoaded && columnConfig.length > 0) {
+      const config = columnConfig.find(col => col.column_key === field)
+      if (config) {
+        return config.label
+      }
+    }
+
+    // Fallback to translation
     const labelMap = {
       select: '',
       row_number: '#',

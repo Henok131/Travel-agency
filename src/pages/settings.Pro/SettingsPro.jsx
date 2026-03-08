@@ -31,6 +31,7 @@ import VATCalculator from '../../components/Documentation/VATCalculator'
 import TemplatesList from '../../components/Settings/InvoiceTemplates/TemplatesList'
 import InvoiceSettingsForm from '../../components/Settings/InvoiceTemplates/InvoiceSettingsForm'
 import TemplateEditor from '../../components/Settings/InvoiceTemplates/TemplateEditor'
+import TableColumnsConfig from '../../components/Settings/TableColumnsConfig/TableColumnsConfig'
 import logo from '../../assets/logo.png'
 import './SettingsPro.css'
 
@@ -62,6 +63,7 @@ const translations = {
         documentation: 'Docs',
         calculators: 'Calculators',
         invoiceTemplates: 'Invoice Templates',
+        tableColumns: 'Main Table Columns',
         preferences: 'Preferences',
         systemInfo: 'System',
         backup: 'Export',
@@ -255,6 +257,7 @@ A: Click "Extract with OCR", then either upload a file or paste an image (Ctrl+V
         documentation: 'Dokumentation',
         calculators: 'Rechner',
         invoiceTemplates: 'Rechnungsvorlagen',
+        tableColumns: 'Haupttabelle Spalten',
         preferences: 'Einstellungen',
         systemInfo: 'System',
         backup: 'Export',
@@ -946,6 +949,7 @@ function SettingsPro() {
     { id: 'documentation', label: t.settings.tabs.documentation },
     { id: 'calculators', label: t.settings.tabs.calculators },
     { id: 'invoiceTemplates', label: t.settings.tabs.invoiceTemplates },
+    { id: 'tableColumns', label: t.settings.tabs.tableColumns },
     { id: 'preferences', label: t.settings.tabs.preferences },
     { id: 'systemInfo', label: t.settings.tabs.systemInfo },
     { id: 'backup', label: t.settings.tabs.backup },
@@ -1204,6 +1208,13 @@ function SettingsPro() {
                 </div>
               )
             })()}
+
+            {/* Main Table Columns */}
+            {activeTab === 'tableColumns' && (
+              <div className="settings-pro-section">
+                <TableColumnsConfig />
+              </div>
+            )}
 
             {/* Preferences */}
             {activeTab === 'preferences' && (
