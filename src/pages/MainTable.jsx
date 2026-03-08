@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, NavLink } from 'react-router-dom'
 import { useStore } from '../contexts/StoreContext'
 import { supabase } from '@/lib/supabaseClient'
@@ -269,6 +270,62 @@ function RequestsList() {
   // Search state
   const [searchTerm, setSearchTerm] = useState('')
 
+  // Flight details expansion state
+  const [expandedRowId, setExpandedRowId] = useState(null)
+  const [flightDetailsPosition, setFlightDetailsPosition] = useState(null)
+  const flightDetailsCellRef = useRef(null)
+
+  // Close flight details panel when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (expandedRowId) {
+        // Check if click is on the "Flight Details" label or inside the panel
+        const isFlightDetailsLabel = event.target.closest('[data-flight-details-label]')
+        const isInsidePanel = event.target.closest('[data-flight-details-panel]')
+        
+        if (!isFlightDetailsLabel && !isInsidePanel) {
+          setExpandedRowId(null)
+          setFlightDetailsPosition(null)
+        }
+      }
+    }
+
+    if (expandedRowId) {
+      // Use setTimeout to avoid immediate closure when clicking the label
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside)
+      }, 0)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [expandedRowId])
+
+  // Update panel position on scroll/resize
+  useEffect(() => {
+    if (expandedRowId && flightDetailsPosition) {
+      const updatePosition = () => {
+        const cellElement = document.querySelector(`td[data-row-id="${expandedRowId}"][data-field="flight_details"]`)
+        if (cellElement) {
+          const rect = cellElement.getBoundingClientRect()
+          setFlightDetailsPosition({
+            top: rect.bottom + 2,
+            left: rect.left,
+            width: 450
+          })
+        }
+      }
+
+      window.addEventListener('scroll', updatePosition, true)
+      window.addEventListener('resize', updatePosition)
+      
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true)
+        window.removeEventListener('resize', updatePosition)
+      }
+    }
+  }, [expandedRowId, flightDetailsPosition])
+
   // Date filter state (default to 'thisMonth')
   const [dateFilter, setDateFilter] = useState('thisMonth') // 'today' | 'thisWeek' | 'thisMonth' | 'thisYear' | 'year_YYYY' | null
 
@@ -300,11 +357,7 @@ function RequestsList() {
     date_of_birth: 110,
     gender: 80,
     passport_number: 130,
-    departure_airport: 180,
-    destination_airport: 180,
-    travel_date: 150,
-    return_date: 150,
-    airlines: 160,
+    flight_details: 280,
     request_types: 150,
     airlines_price: 120,
     service_fee: 120,
@@ -320,7 +373,6 @@ function RequestsList() {
     commission_from_airlines: 170,
     lst_loan_fee: 120,
     lst_profit: 120,
-    notice: 220,
     created_at: 150,
     delete: 80
   })
@@ -1277,6 +1329,155 @@ function RequestsList() {
     return `${day}.${month}.${year}`
   }
 
+  // Format flight details for expanded display with editable fields
+  const renderFlightDetailsExpanded = (request) => {
+    // Helper to save field changes
+    const handleFieldChange = async (field, value) => {
+      await saveCell(request.id, field, value, false)
+    }
+
+    // Get date value for date input (needs YYYY-MM-DD format)
+    const getDateValue = (dateStr) => {
+      if (!dateStr) return ''
+      // If already in YYYY-MM-DD format, return as-is
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
+      // Otherwise convert from DD.MM.YYYY or other formats to YYYY-MM-DD
+      const isoDate = convertDateToISO(dateStr)
+      return isoDate || ''
+    }
+
+    return (
+      <div style={{ 
+        padding: '0.5rem 1rem', 
+        backgroundColor: 'var(--bg-subtle, rgba(0, 0, 0, 0.95))',
+        border: '1px solid var(--border-color, rgba(255, 255, 255, 0.2))',
+        borderRadius: '0.375rem',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+        fontSize: '0.875rem',
+        lineHeight: '1.4'
+      }}>
+        <div style={{ marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.875rem' }}>Flight Details</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1rem' }}>
+          {/* Departure */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Departure</label>
+            <AirportSelect
+              value={request.departure_airport || ''}
+              onChange={(value) => {
+                handleFieldChange('departure_airport', value)
+              }}
+              onSelect={(formattedValue) => {
+                const safe = formattedValue || normalizeAirportValue(request.departure_airport || '')
+                handleFieldChange('departure_airport', safe)
+              }}
+              placeholder="Select departure airport"
+            />
+          </div>
+
+          {/* Destination */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Destination</label>
+            <AirportSelect
+              value={request.destination_airport || ''}
+              onChange={(value) => {
+                handleFieldChange('destination_airport', value)
+              }}
+              onSelect={(formattedValue) => {
+                const safe = formattedValue || normalizeAirportValue(request.destination_airport || '')
+                handleFieldChange('destination_airport', safe)
+              }}
+              placeholder="Select destination airport"
+            />
+          </div>
+
+          {/* Travel Date */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Travel Date</label>
+            <input
+              type="date"
+              placeholder="DD.MM.YYYY"
+              value={getDateValue(request.travel_date)}
+              onChange={(e) => handleFieldChange('travel_date', e.target.value)}
+              style={{
+                padding: '0.5rem',
+                borderRadius: '0.375rem',
+                border: '1px solid var(--border-color, rgba(255, 255, 255, 0.2))',
+                backgroundColor: 'var(--bg-input, rgba(255, 255, 255, 0.05))',
+                color: 'var(--text-primary)',
+                fontSize: '0.875rem'
+              }}
+            />
+          </div>
+
+          {/* Return Date */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Return Date</label>
+            <input
+              type="date"
+              placeholder="DD.MM.YYYY"
+              value={getDateValue(request.return_date)}
+              onChange={(e) => handleFieldChange('return_date', e.target.value)}
+              style={{
+                padding: '0.5rem',
+                borderRadius: '0.375rem',
+                border: '1px solid var(--border-color, rgba(255, 255, 255, 0.2))',
+                backgroundColor: 'var(--bg-input, rgba(255, 255, 255, 0.05))',
+                color: 'var(--text-primary)',
+                fontSize: '0.875rem'
+              }}
+            />
+          </div>
+
+          {/* Airlines */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Airlines</label>
+            <AirlineSelect
+              value={request.airlines || ''}
+              onChange={(value) => {
+                // Update local state immediately for responsiveness
+                const updatedRequests = requests.map(r => 
+                  r.id === request.id ? { ...r, airlines: value } : r
+                )
+                setRequests(updatedRequests)
+              }}
+              onSelect={(formattedValue) => {
+                const safe = formattedValue || normalizeAirlineValue(request.airlines || '')
+                handleFieldChange('airlines', safe)
+              }}
+              placeholder="Search airline..."
+            />
+          </div>
+
+          {/* Notice */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Notice</label>
+            <input
+              type="text"
+              value={request.notice || ''}
+              onChange={(e) => {
+                // Update local state immediately for responsiveness
+                const updatedRequests = requests.map(r => 
+                  r.id === request.id ? { ...r, notice: e.target.value } : r
+                )
+                setRequests(updatedRequests)
+              }}
+              onBlur={(e) => handleFieldChange('notice', e.target.value)}
+              placeholder="Enter notice..."
+              style={{
+                padding: '0.5rem',
+                borderRadius: '0.375rem',
+                border: '1px solid var(--border-color, rgba(255, 255, 255, 0.2))',
+                backgroundColor: 'var(--bg-input, rgba(255, 255, 255, 0.05))',
+                color: 'var(--text-primary)',
+                fontSize: '0.875rem'
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Convert date from DD.MM.YYYY or DD-MM-YYYY to YYYY-MM-DD for database
   const convertDateToISO = (dateStr) => {
     if (!dateStr || dateStr.trim() === '') return null
@@ -1545,44 +1746,8 @@ function RequestsList() {
       return request.booking_ref || request.amadeus_ticket_number || ''
     }
 
-    // Handle computed/calculated fields
-    if (field === 'travel_date' || field === 'return_date') {
-      if (!request[field]) return ''
-      return formatDateForDisplay(request[field])
-    }
-
-    if (field === 'airlines') {
-      const raw = (request.airlines || request.airline_name || '').trim()
-      // Use centralized normalizer to get canonical format: "Airline Name (IATA)"
-      let display = normalizeAirlineValue(raw)
-
-      // Try to append baggage info and rules if available in pricing_json
-      try {
-        if (request.pricing_json) {
-          const offer = typeof request.pricing_json === 'string'
-            ? JSON.parse(request.pricing_json)
-            : request.pricing_json
-
-          const bag = getBaggageAllowance(offer)
-          if (bag) {
-            display += ` • ${bag}`
-          }
-
-          const rules = getFareRules(offer)
-          if (rules && rules.summary) {
-            display += ` • ${rules.summary}`
-          }
-        }
-      } catch (e) {
-        // ignore parsing errors
-      }
-
-      return display
-    }
-
-    if (field === 'departure_airport' || field === 'destination_airport') {
-      const raw = request[field]
-      return normalizeAirportValue(raw) || '-'
+    if (field === 'flight_details') {
+      return 'Flight Details'
     }
 
     // Financial calculations
@@ -1819,8 +1984,23 @@ function RequestsList() {
     // Store original requests for rollback
     const originalRequests = [...requests]
 
+    // Define flight detail fields that should be synchronized by PNR/RFN
+    const flightDetailFields = [
+      'departure_airport',
+      'destination_airport',
+      'travel_date',
+      'return_date',
+      'airlines',
+      'notice'
+    ]
+
+    // Check if this is a flight detail field that needs synchronization
+    const isFlightDetailField = flightDetailFields.includes(field)
+    const bookingRef = request.booking_ref
+
     // Update local state optimistically
     const updatedRequests = requests.map(r => {
+      // Original logic for the edited row
       if (r.id === rowId) {
         const updated = { ...r }
         if (field === 'pnr_rfn') {
@@ -1883,6 +2063,20 @@ function RequestsList() {
 
         return updated
       }
+      
+      // If this is a flight detail field and the row has the same booking_ref (but not the edited row), update it
+      if (isFlightDetailField && bookingRef && r.booking_ref === bookingRef && r.id !== rowId) {
+        const updated = { ...r }
+        if (field === 'date_of_birth' || field === 'travel_date' || field === 'return_date') {
+          updated[field] = dbValue
+        } else if (field === 'request_types') {
+          updated[field] = dbValue
+        } else {
+          updated[field] = dbValue === '' ? null : dbValue
+        }
+        return updated
+      }
+      
       return r
     })
     setRequests(updatedRequests)
@@ -1913,14 +2107,66 @@ function RequestsList() {
         updateData.lst_profit = updatedRequest.lst_profit ?? null
       }
 
-      // Update using Supabase with UUID id (never use index, booking_ref, or undefined IDs)
-      const { error } = await supabase
-        .from('main_table')
-        .update(updateData)
-        .eq('id', rowId)
+      // If this is a flight detail field and booking_ref exists, update all rows with the same booking_ref
+      if (isFlightDetailField && bookingRef) {
+        // Find all row IDs with the same booking_ref
+        const matchingRowIds = requests
+          .filter(r => r.booking_ref === bookingRef)
+          .map(r => r.id)
 
-      if (error) {
-        throw error
+        if (matchingRowIds.length > 0) {
+          // Create update data for synchronized rows (only the flight detail field, no financial fields)
+          const syncUpdateData = { [field]: dbValue }
+          
+          // Update all matching rows in the database (including the edited row)
+          const { error: syncError } = await supabase
+            .from('main_table')
+            .update(syncUpdateData)
+            .in('id', matchingRowIds)
+
+          if (syncError) {
+            throw syncError
+          }
+
+          // Update the edited row separately with financial fields if needed
+          if (matchingRowIds.includes(rowId)) {
+            // Check if we need to update financial fields for the edited row
+            const hasFinancialFields = updateData.total_ticket_price !== undefined ||
+              updateData.tot_visa_fees !== undefined ||
+              updateData.total_customer_payment !== undefined ||
+              updateData.total_amount_due !== undefined ||
+              updateData.lst_profit !== undefined
+
+            if (hasFinancialFields) {
+              const { error: financialError } = await supabase
+                .from('main_table')
+                .update({
+                  total_ticket_price: updateData.total_ticket_price,
+                  tot_visa_fees: updateData.tot_visa_fees,
+                  total_customer_payment: updateData.total_customer_payment,
+                  total_amount_due: updateData.total_amount_due,
+                  lst_profit: updateData.lst_profit
+                })
+                .eq('id', rowId)
+
+              if (financialError) {
+                throw financialError
+              }
+            }
+          }
+
+          console.log(`✅ Synchronized ${field} for ${matchingRowIds.length} passenger(s) with PNR/RFN: ${bookingRef}`)
+        }
+      } else {
+        // Update only the current row using Supabase with UUID id (never use index, booking_ref, or undefined IDs)
+        const { error } = await supabase
+          .from('main_table')
+          .update(updateData)
+          .eq('id', rowId)
+
+        if (error) {
+          throw error
+        }
       }
 
       // Auto-ticket when payment captured to keep dashboard in sync (no UI change)
@@ -1993,10 +2239,6 @@ function RequestsList() {
       const formatted = normalizeAirlineValue(editValue)
       setEditValue(formatted)
       saveCell(rowId, field, formatted)
-    } else if (field === 'departure_airport' || field === 'destination_airport') {
-      const formatted = normalizeAirportValue(editValue)
-      setEditValue(formatted)
-      saveCell(rowId, field, formatted)
     } else {
       saveCell(rowId, field, editValue)
     }
@@ -2058,7 +2300,7 @@ function RequestsList() {
     const readonlyFields = [
       'id', 'created_at', 'updated_at', 'row_number', 'delete',
       'total_customer_payment', 'payment_balance', 'lst_profit',
-      'invoice_action'
+      'invoice_action', 'flight_details'
     ]
     return !readonlyFields.includes(field)
   }
@@ -2070,6 +2312,49 @@ function RequestsList() {
       return (
         <div className="excel-cell excel-cell-editable" data-row-id={request.id} data-field={field} onClick={(e) => startEditing(request.id, field, e)}>
           <span>{value}</span>
+        </div>
+      )
+    }
+
+    if (field === 'flight_details') {
+      const isExpanded = expandedRowId === request.id
+      return (
+        <div 
+          ref={(el) => {
+            if (isExpanded) {
+              flightDetailsCellRef.current = el
+            }
+          }}
+          style={{ position: 'relative', width: '100%', height: '100%' }}
+        >
+          <div 
+            className="excel-cell excel-cell-readonly" 
+            style={{ cursor: 'pointer', userSelect: 'none' }}
+            data-flight-details-label
+            onClick={(e) => {
+              e.stopPropagation()
+              if (isExpanded) {
+                setExpandedRowId(null)
+                setFlightDetailsPosition(null)
+              } else {
+                const cellElement = e.currentTarget.closest('td')
+                if (cellElement) {
+                  const rect = cellElement.getBoundingClientRect()
+                  // Calculate position immediately for fixed positioning
+                  setFlightDetailsPosition({
+                    top: rect.bottom + 2,
+                    left: rect.left,
+                    width: 450
+                  })
+                  setExpandedRowId(request.id)
+                }
+              }
+            }}
+          >
+            <span style={{ textDecoration: 'underline', color: 'var(--text-link, #3b82f6)' }}>
+              Flight Details {isExpanded ? '▼' : '▶'}
+            </span>
+          </div>
         </div>
       )
     }
@@ -2271,25 +2556,6 @@ function RequestsList() {
             disabled={false}
           />
         )
-      } else if (field === 'notice') {
-        return (
-          <textarea
-            ref={editInputRef}
-            className="excel-cell-textarea"
-            value={editValue}
-            onChange={handleInputChange}
-            onBlur={() => handleInputBlur(request.id, field)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.preventDefault()
-                cancelEditing()
-              }
-              // Allow Enter for newlines in textarea
-            }}
-            onClick={(e) => e.stopPropagation()}
-            rows={3}
-          />
-        )
       } else if (['airlines_price', 'service_fee', 'visa_price', 'service_visa', 'cash_paid', 'bank_transfer', 'commission_from_airlines', 'lst_loan_fee', 'total_ticket_price', 'tot_visa_fees', 'total_amount_due'].includes(field)) {
         return (
           <input
@@ -2410,20 +2676,6 @@ function RequestsList() {
         )
       }
 
-      // Special handling for notice field (multiline)
-      if (field === 'notice') {
-        return (
-          <div
-            className="excel-cell excel-cell-editable excel-cell-multiline"
-            data-row-id={request.id}
-            data-field={field}
-            onClick={(e) => startEditing(request.id, field, e)}
-          >
-            {value || '-'}
-          </div>
-        )
-      }
-
       // Default rendering
       return (
         <div
@@ -2451,11 +2703,7 @@ function RequestsList() {
     'date_of_birth',
     'gender',
     'passport_number',
-    'departure_airport',
-    'destination_airport',
-    'travel_date',
-    'return_date',
-    'airlines',
+    'flight_details',
     'request_types',
     'airlines_price',
     'service_fee',
@@ -2471,7 +2719,6 @@ function RequestsList() {
     'commission_from_airlines',
     'lst_loan_fee',
     'lst_profit',
-    'notice',
     'created_at',
     'delete'
   ]
@@ -2491,11 +2738,7 @@ function RequestsList() {
       date_of_birth: t.table.columns.dateOfBirth,
       gender: t.table.columns.gender,
       passport_number: t.table.columns.passportNumber,
-      departure_airport: t.table.columns.departure,
-      destination_airport: t.table.columns.destination,
-      travel_date: t.table.columns.travelDate,
-      return_date: t.table.columns.returnDate,
-      airlines: t.table.columns.airlines,
+      flight_details: 'Flight Details',
       request_types: t.table.columns.requestTypes,
       airlines_price: t.table.columns.airlinesPrice,
       service_fee: t.table.columns.serviceFee,
@@ -2511,7 +2754,6 @@ function RequestsList() {
       commission_from_airlines: t.table.columns.commissionFromAirlines,
       lst_loan_fee: t.table.columns.lstLoanFee,
       lst_profit: t.table.columns.lstProfit,
-      notice: t.table.columns.notice,
       created_at: t.table.columns.createdAt,
       delete: t.table.delete
     }
@@ -2897,7 +3139,8 @@ function RequestsList() {
                                     key={field}
                                     style={{
                                       width: `${width}px`,
-                                      minWidth: `${width}px`
+                                      minWidth: `${width}px`,
+                                      position: field === 'flight_details' ? 'relative' : 'static'
                                     }}
                                   >
                                     {renderCell(request, field, index)}
@@ -2912,6 +3155,29 @@ function RequestsList() {
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {/* Flight Details Panel Portal - Rendered outside table to avoid overflow issues */}
+            {expandedRowId && flightDetailsPosition && (
+              createPortal(
+                <div 
+                  data-flight-details-panel
+                  style={{
+                    position: 'fixed',
+                    top: `${flightDetailsPosition.top}px`,
+                    left: `${flightDetailsPosition.left}px`,
+                    width: `${flightDetailsPosition.width}px`,
+                    zIndex: 10000,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {(() => {
+                    const request = requests.find(r => r.id === expandedRowId)
+                    return request ? renderFlightDetailsExpanded(request) : null
+                  })()}
+                </div>,
+                document.body
+              )
             )}
 
             {/* Pagination Controls */}
